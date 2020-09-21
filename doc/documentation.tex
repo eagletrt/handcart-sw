@@ -1,0 +1,39 @@
+\documentclass[a4paper]{report}
+
+\usepackage[top=25mm,bottom=25mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{amssymb}
+\usepackage{graphicx}
+
+\title{Handcart for Fenice}
+\author{Matteo Bitussi \\ E-Agle TRT}
+\date{2020-2021}
+
+\begin{document}
+  \maketitle
+
+  \tableofcontents
+
+  \section*{Introduction}
+  Cose
+
+  \chapter{General view}
+
+  \chapter{Back-end}
+  \section{Genereal description}
+  The back-end is thought to act as the controller to start and stop the charge, to handle the fans, and to get and send all the CAN messages
+
+  \section{The state machine}
+  The main.py is based on a state machine, which states are
+
+  \chapter{Front-end}
+  \section{General description}
+  The front-end GUI is based on Qt, written in python. It has the purpose to act as a interface for the user to manage the charge process
+
+  \chapter{Deamon gRPC server}
+  \section{General description}
+  The server is needed from the back-end and the front-end to communicate. It is based on gRPC and protocol Buffers
+
+\end{document}
