@@ -1,0 +1,50 @@
+syntax = "proto2";
+
+package communication;
+
+//Frontend-to-Backend-----------------------------------------------------------
+
+message RequestVoltage {
+    //Void
+}
+
+message RequestCurrent {
+    //Void
+}
+
+message RequestTemperature {
+    //Void
+}
+
+message Action {
+    enum ActionType {
+        TURN_OFF = 1;
+        TURN_ON = 2;
+        /* ... */
+    }
+    optional ActionType action = 1 [default = TURN_OFF];
+}
+
+//Backend-to-Frontend-----------------------------------------------------------
+
+message ResponseVoltage {
+    repeated int32 data = 1; //double
+}
+
+message ResponseCurrent {
+    optional int32 data = 1; //double
+}
+
+message ResponseTemperature {
+    optional int32 data = 1; //double
+}
+
+message Warning {
+    required string message = 1;
+    //optional int code = 2;
+}
+
+message Error {
+    required string message = 1;
+    //optional int code = 2;
+}
