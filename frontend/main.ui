@@ -118,7 +118,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="button_charge">
+   <widget class="QPushButton" name="b_charge">
     <property name="geometry">
      <rect>
       <x>300</x>
@@ -209,14 +209,14 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_3">
+      <widget class="QPushButton" name="b_fanctl">
        <property name="text">
         <string>FAN control</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_4">
+      <widget class="QPushButton" name="b_targetV">
        <property name="text">
         <string>Taget Volt</string>
        </property>
@@ -227,9 +227,9 @@
    <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
-      <x>340</x>
+      <x>320</x>
       <y>20</y>
-      <width>124</width>
+      <width>191</width>
       <height>34</height>
      </rect>
     </property>
@@ -285,7 +285,7 @@
      <string>next</string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -377,7 +377,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -403,7 +403,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>660</x>
@@ -432,7 +432,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>340</x>
@@ -480,7 +480,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>300</x>
