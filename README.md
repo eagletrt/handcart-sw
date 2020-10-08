@@ -71,7 +71,7 @@ then run the following commands:
 >
 >     ./configure --prefix=/usr
 
-###### More details about the whole installation in the `./src/README.md` file.
+**More details about the whole installation in the `./src/README.md` file.**
 
 ### pip3 protoc
 Check it is already installed. If not, just run this:
@@ -100,7 +100,7 @@ To compile the `.proto` and get the `.py` file that describes the `.proto` run
 If you need to create a service you need to use another command to compile the proto,
 so you'll get both the `[FILE_NAME]_pb2.py` and the `[FILE_NAME]_pb2_grpc.py`:
 
-    python3 -m grpc_tools.protoc -I[WHERE_THE_FILE_IS] --python_out=[WHERE_YOU_WANT_TO_HAVE_THE_PY_OUTPUT] --grpc_python_out=[WHERE_YOU_WANT_TO_HAVE_THE_GRPC_PY_OUTPUT] [THE_FILE]
+    python3 -m grpc_tools.protoc -I[WHERE_THE_FILE_IS] --python_out=[WHERE_YOU_WANT_TO_HAVE_THE_PY_OUTPUT] --grpc_python_out=[WHERE_YOU_WANT_TO_HAVE_THE_GRPC_PY_OUTPUT] [FILE_NAME.proto]
     
 > **Example:**
 >
@@ -115,3 +115,9 @@ so you'll get both the `[FILE_NAME]_pb2.py` and the `[FILE_NAME]_pb2_grpc.py`:
 > You can find these files in the `./communication` folder.
 
 ## Usage
+
+
+
+## Sources
+- [ProtocolBuffer](https://developers.google.com/protocol-buffers)
+- [gRPC](https://grpc.io/)
