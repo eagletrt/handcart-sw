@@ -6,6 +6,7 @@ This is the repo for Fenice's handcart.
 - [Setup](#setup)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Compiling](#compiling)
 
 ## Structure
 ![General diagram](https://app.lucidchart.com/publicSegments/view/5d5eb5a3-77bc-44d1-b641-f867606ba91e/image.jpeg)
@@ -66,7 +67,9 @@ then run the following commands:
 > By default, the package will be installed to `/usr/local`.  However,
 > on many platforms, `/usr/local/lib` is not part of `LD_LIBRARY_PATH`.
 > You can add it, but it may be easier to just install to `/usr` instead.
-> To do this, invoke configure as follows: `./configure --prefix=/usr`
+> To do this, invoke `./configure` as follows:
+>
+>     ./configure --prefix=/usr
 
 ###### More details about the whole installation in the `./src/README.md` file.
 
@@ -88,5 +91,27 @@ If you need them, there are some examples in the
 [owner repository](https://github.com/grpc/grpc) that you can clone using
     
     git clone -b v1.32.0 https://github.com/grpc/grpc
+
+## Compiling
+To compile the `.proto` and get the `.py` file that describes the `.proto` run
+
+    protoc [FILE_NAME.proto] --python-out=[OUTPUT_FOLDER]
+
+If you need to create a service you need to use another command to compile the proto,
+so you'll get both the `[FILE_NAME]_pb2.py` and the `[FILE_NAME]_pb2_grpc.py`:
+
+    python3 -m grpc_tools.protoc -I[WHERE_THE_FILE_IS] --python_out=[WHERE_YOU_WANT_TO_HAVE_THE_PY_OUTPUT] --grpc_python_out=[WHERE_YOU_WANT_TO_HAVE_THE_GRPC_PY_OUTPUT] [THE_FILE]
+    
+> **Example:**
+>
+>     python3 -m grpc_tools.protoc -I./ --python_out=./ --grpc_python_out=./ ./messages.proto
+>
+> Where `./` is the current folder and `message.proto` the file that I would
+> convert to `.py`.
+> 2 files will be created: `messages_pb2.py` and `message_pb2_grpc.py`.<br>
+> The compiler should show a `warning`, but the `_grpc_.py` file should have been
+> created as you need it.
+>
+> You can find these files in the `./communication` folder.
 
 ## Usage
