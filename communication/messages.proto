@@ -1,10 +1,37 @@
 syntax = "proto2";
 
+import "google/protobuf/empty.proto";
+
 package communication;
+
+//Server------------------------------------------------------------------------
+
+service Broadcast {
+    /*rpc SendRequest(Request) returns (google.protobuf.Empty);
+    rpc SubRequest(google.protobuf.Empty) returns (Request);*/
+
+    rpc SendResponse(Response) returns (google.protobuf.Empty);
+    rpc SubResponse(google.protobuf.Empty) returns (stream Response);
+
+    rpc SendAction(Action) returns (google.protobuf.Empty);
+    rpc SubAction(google.protobuf.Empty) returns (stream Action);
+
+    rpc SendWarning(Warning) returns (google.protobuf.Empty);
+    rpc SubWarning(google.protobuf.Empty) returns (stream Warning);
+
+    rpc SendError(Error) returns (google.protobuf.Empty);
+    rpc SubError(google.protobuf.Empty) returns (stream Error);
+}/outdated
 
 //Frontend-to-Backend-----------------------------------------------------------
 
-message RequestVoltage {
+enum ReqResType {
+    VOLTAGE = 1;
+    CURRENT = 2;
+    TEMPERATURE = 3;
+}
+
+/*message RequestVoltage {
     //Void
 }
 
@@ -14,29 +41,40 @@ message RequestCurrent {
 
 message RequestTemperature {
     //Void
-}
+}*/
+
+/*message Request {
+    required ReqResType type = 1;
+}*/
 
 message Action {
     enum ActionType {
-        TURN_OFF = 1;
-        TURN_ON = 2;
-        /* ... */
+        PRECHARGE = 1;
+        TARGET_VOLT = 2;
+        FAN_CONTROL = 3;
     }
-    optional ActionType action = 1 [default = TURN_OFF];
+
+    optional ActionType action = 1 [default = PRECHARGE];
+    optional int32 value = 2;
 }
 
 //Backend-to-Frontend-----------------------------------------------------------
 
-message ResponseVoltage {
-    repeated int32 data = 1; //double
+/*message ResponseVoltage {
+    repeated double data = 1;
 }
 
 message ResponseCurrent {
-    optional int32 data = 1; //double
+    optional double data = 1;
 }
 
 message ResponseTemperature {
-    optional int32 data = 1; //double
+    optional double data = 1;
+}*/
+
+message Response {
+    required ReqResType type = 1;
+    repeated double data = 2;
 }
 
 message Warning {
