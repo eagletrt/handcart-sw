@@ -1,6 +1,13 @@
 from enum import Enum
-import can
+import msgDef
 
+
+class BRUSA_CAN_MSG_ID(Enum):
+    NLG5_ERR = 0x614
+    NLG5_TEMP = 0x613
+    NLG5_ACT_I = 0x611
+    NLG5_ACT_II = 0x612
+    NLG5_ST = 0x610
 
 class STATE(Enum):
     CHECK = 0
@@ -13,23 +20,23 @@ class STATE(Enum):
     UNSAFE = -2
     EXIT = -3
 
-
 class E_CODE(Enum):
     BATTERY_TEMP = 0
     OVERCHARGE = 0
     CURRENT_DRAWN = 0
 
-
 PORK_CONNECTED = False
+BRUSA_CONNECTED = False
 act_stat = STATE.CHECK
 last_err = 0
 
 
 def doCheck():
     # Checks pork attached
-    PORK_CONNECTED = True
+    PORK_CONNECTED = True #Come so quando il porco è connesso?
+    BRUSA_CONNECTED = True
 
-    if PORK_CONNECTED:
+    if PORK_CONNECTED and BRUSA_CONNECTED:
         return STATE.IDLE
     else:
         return STATE.CHECK
@@ -45,6 +52,8 @@ def doIdle():
 
 def doPreCharge():
     # ask pork to do precharge
+    # Send req to bms "TS_ON"
+    # If response of HV_STATUS = TS_ON ok
     PRECHARGE_DONE = True
 
     if PRECHARGE_DONE:
@@ -61,6 +70,9 @@ def doReady():
 
 
 def doCharge():
+    #Get volt and A from pork
+    # Forward V and A to BRUSA
+
     CHARGE_COMPLETE = True
     if CHARGE_COMPLETE:
         return STATE.C_DONE
@@ -70,6 +82,7 @@ def doCharge():
 
 def doC_done():
     # User decide wether charge again, going idle, or charge again
+    # Req "CHG_OFF" to bms
     pass
 
 

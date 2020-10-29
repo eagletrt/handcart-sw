@@ -121,3 +121,7 @@ so you'll get both the `[FILE_NAME]_pb2.py` and the `[FILE_NAME]_pb2_grpc.py`:
 ## Sources
 - [ProtocolBuffer](https://developers.google.com/protocol-buffers)
 - [gRPC](https://grpc.io/)
+
+#backend
+- [here](https://www.brusa.biz/_files/drive/02_Energy/Chargers/NLG5/NLG5_BRUSA.html) you can find BRUSA's CAN messages
+- For pork's can messages search on other E-Agle repo
