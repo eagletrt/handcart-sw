@@ -72,6 +72,7 @@ message ResponseTemperature {
     optional double data = 1;
 }*/
 
+// if the data field is null then it's a request from frontend to backend, else it's a response from backend to frontend
 message Response {
     required ReqResType type = 1;
     repeated double data = 2;
