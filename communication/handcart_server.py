@@ -4,6 +4,7 @@ import grpc
 import messages_pb2
 import messages_pb2_grpc
 
+
 class HandcartServer(messages_pb2_grpc.BroadcastServicer):
 
     def __init__(self):
@@ -47,12 +48,14 @@ class HandcartServer(messages_pb2_grpc.BroadcastServicer):
         self.actions.append(pair)
         return self.messages.Empty()
 
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     messages_pb2_grpc.add_BroadcastServicer_to_server(HandcartServer(), server)
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()
+
 
 if __name__ == '__main__':
     serve()

@@ -1,5 +1,7 @@
 import can
 from enum import Enum
+import threading
+from can.listener import Listener
 
 class CAN_MESSAGES_ID(Enum):
     CAN_OUT_CURRENT = 0x05
@@ -10,12 +12,23 @@ class CAN_MESSAGES_ID(Enum):
     CAN_OUT_TS_ON = 0x03
     CAN_OUT_TS_OFF = 0x04
 
+class CanReader(Listener):
+    test = False
+    def __init__(self):
+        pass
+
+    def on_message_received(self, msg):
+        self.test = True
+
+
 bus = can.interface.Bus(interface='socketcan',
               channel='can0',
               receive_own_messages=True)
 
+listener = CanReader()
+
+n = can.Notifier(bus, [listener])
+
 while(1):
-    msg = bus.recv()
-    if msg.arbitration_id == 0xAA:
-        if msg.data[0] == 10:
-            print(msg)
+    print(listener.test)
+    pass

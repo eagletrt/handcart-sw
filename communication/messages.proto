@@ -21,7 +21,7 @@ service Broadcast {
 
     rpc SendError(Error) returns (google.protobuf.Empty);
     rpc SubError(google.protobuf.Empty) returns (stream Error);
-}/outdated
+}//outdated
 
 //Frontend-to-Backend-----------------------------------------------------------
 

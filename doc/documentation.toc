@@ -1,0 +1,8 @@
+\contentsline {chapter}{\numberline {1}General view}{2}%
+\contentsline {chapter}{\numberline {2}Back-end}{3}%
+\contentsline {section}{\numberline {2.1}Genereal description}{3}%
+\contentsline {section}{\numberline {2.2}The state machine}{3}%
+\contentsline {chapter}{\numberline {3}Front-end}{4}%
+\contentsline {section}{\numberline {3.1}General description}{4}%
+\contentsline {chapter}{\numberline {4}Deamon gRPC server}{5}%
+\contentsline {section}{\numberline {4.1}General description}{5}%
