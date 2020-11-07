@@ -109,18 +109,20 @@ def isPorkConnected():
     else:
         return False
 
+def isBrusaConnected():
+    if canRead.brusa_connected:
+        return True
+    else:
+        return False
 
 def doCheck():
-    # Checks pork attached
-
-    PORK_CONNECTED = True  # Come so quando il porco è connesso?
-    BRUSA_CONNECTED = True
+    PORK_CONNECTED = isPorkConnected()
+    BRUSA_CONNECTED = isBrusaConnected()
 
     if PORK_CONNECTED and BRUSA_CONNECTED:
         return STATE.IDLE
     else:
         return STATE.CHECK
-
 
 def doIdle():
     a = input("Type y to start precharge")
@@ -134,7 +136,12 @@ def doPreCharge():
     # ask pork to do precharge
     # Send req to bms "TS_ON"
     # If response of HV_STATUS = TS_ON ok
-    PRECHARGE_DONE = True
+
+    PRECHARGE_DONE = False
+
+    if(canRead.newMessage):
+        if(canRead.bms_stat == TS_ON):
+            PRECHARGE_DONE = True
 
     if PRECHARGE_DONE:
         return STATE.READY
@@ -147,7 +154,6 @@ def doReady():
         return STATE.CHARGE
     else:
         return STATE.READY
-
 
 def doCharge():
     # Get volt and A from pork

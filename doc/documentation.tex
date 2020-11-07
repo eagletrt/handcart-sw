@@ -5,7 +5,18 @@
 \usepackage[T1]{fontenc}
 
 \usepackage{amssymb}
-\usepackage{graphicx}
+%\usepackage{graphicx}
+
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows}
+
+\tikzset{
+  ->,  % makes the edges directed
+  %>=stealth’, % makes the arrow heads bold
+  node distance=3cm, % specifies the minimum distance between two nodes. Change if necessary.
+  every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
+  initial text=$ $, % sets the text that appears on the start arrow
+}
 
 \title{Handcart for Fenice}
 \author{Matteo Bitussi - Lorenzo Rossi\\ E-Agle TRT}
@@ -22,11 +33,58 @@
   \chapter{General view}
 
   \chapter{Back-end}
-  \section{Genereal description}
-  The back-end is thought to act as the controller to start and stop the charge, to handle the fans, and to get and send all the CAN messages
+  The back-end is thought to act as the controller to start and stop the charge, to handle the fans and to act as an intermedery between the BMS and the BRUSA.
+  \section{How it works}
+  \begin{itemize}
+    \item The back-end sends a can message to the BMS, with \textbf{Cut-off voltage}, \textbf{type of charge} (fast or normal)
+    \item The accumulator decides what charging curve to follow, he sends charging messages to the back-end that forward them to the BRUSA
+    \item The charge can be interupped by the back-end itself, or finished/interrupped by the BMS
+  \end{itemize}
+  Note that the accumulator has a parallel state-machine (apart the normal one) when is charging
+
+  \section{Settings}
+  There are various settings to be choosen in the back-end
+  \begin{itemize}
+    \item \textbf{Charging speed}: back-end can ask the BMS to use a particular charging curve (\textbf{fast} or \textbf{normal}) default is normal.
+    \item \textbf{Current drawn from the outlet}: back-end can ask BRUSA to set a maximum current to drawn from the outlet, useful when using standard home outlet
+    \item \textbf{Fan profile}: back-end can use a fixed profile for the fans (i.e 90), by default it uses a fan curve
+    \item \textbf{Choose Accumulator}: this setting is obligatory, the back-end has to know what car's accumulator is attached
+  \end{itemize}
 
   \section{The state machine}
-  The main.py is based on a state machine, which states are
+  The main.py is based on a state machine, which states are these
+
+    \begin{figure}[ht] % ’ht’ tells LaTeX to place the figure ’here’ or at the top of the page
+      \centering % centers the figure
+      \begin{tikzpicture}% tikz code goes here
+        \node[state, initial] (check) {$check$};
+        \node[state, right of=check] (idle) {$idle$};
+        \node[state, right of=idle] (precharge) {$precharge$};
+        \node[state, right of=precharge] (ready) {$ready$};
+        \node[state, right of=ready] (charge) {$charge$};
+        \node[state, below of=charge] (c_done) {$c\_done$};
+        \node[state, below of=check] (error) {$error$};
+        \node[state, below of=precharge] (end) {$end$};
+
+        \draw
+          (check) edge[loop above] (check)
+          (check) edge[above] (idle)
+          (idle) edge[loop above] (idle)
+          (idle) edge[above] (precharge)
+          (precharge) edge[above] (ready)
+          (ready) edge[above] (charge)
+          (ready) edge[loop above] (ready)
+          (charge) edge[bend left, below] (c_done)
+          (charge) edge[loop above] (charge)
+          (c_done) edge[loop right] (c_done)
+          (error) edge[below] (check)
+          (error) edge[below] (end)
+          (c_done) edge[left] (ready)
+          (c_done) edge[bend left, above] (charge)
+      \end{tikzpicture}
+      \caption{Back-end state machine}
+      \label{fig:my_label}
+    \end{figure}
 
   \chapter{Front-end}
   \section{General description}
