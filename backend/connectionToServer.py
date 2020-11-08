@@ -43,15 +43,15 @@ class Client:
         This method will be ran in a separate thread as the main/ui thread, because the for-in call is blocking
         when waiting for new messages
         """
-        for note in self.conn.SubResponse(messages_pb2.Empty()): # this line will wait for new messages from the server!
-            # Note is the array with last messages stored on the server
+        for note in self.conn.SubAction(messages_pb2.Empty()): # this line will wait for new messages from the server!
+            # Note is the array with last actions stored on the server
 
-            for msg in note:
-                # Request with content in form "[msg[0] = message].fields.NEEDED_FIELD" (i.e. "msg[0].fields.name")
-                message = msg[0]
+            for act in note:
+                # Request with content in form "[act[0] = action].fields.NEEDED_FIELD" (i.e. "act[0].fields.name")
+                action = act[0]
 
-                # Context with content in form "[msg[1] = context].context (not sure about what can be done with these data)
-                context = msg[1]
+                # Context with content in form "[act[1] = context].context (not sure about what can be done with these data)
+                context = act[1]
 
             # Do what you need to do with data
 
@@ -61,17 +61,18 @@ class Client:
             #self.chat_list.insert(END, "[{}] {}\n".format(note.name, note.message))  # add the message to the UI
             """
 
-    def sendRequest(self, event):
+    def sendResponse(self, event, data):
         """
         This method is called when user enters something into the textbox
         """
 
         ## WARNING: event è una variabile che già c'era e non ho idea del da dove arrivi
         # Managing how to send requests and actions
-        request = messages_pb2.Response()
-        ## ESEMPIO CON VOLTAGE, MA DIPENDE DAL BOTTONE CHE PREMI (forse event)
-        request.type = REQUESTS.get("VOLTAGE")
-        self.conn.SendResponse(request)
+        response = messages_pb2.Response()
+        ## ESEMPIO CON VOLTAGE, MA DIPENDE DALLA RICHIESTA RICEVUTA (forse event)
+        response.type = REQUESTS.get("VOLTAGE")
+        response.data = data
+        self.conn.SendResponse(response)
 
         """
         message = self.entry_message.get()  # retrieve message from the UI
