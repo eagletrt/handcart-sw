@@ -2,15 +2,12 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
-import messages_pb2 as messages__pb2
+import protos.messages_pb2 as messages__pb2
 
 
 class BroadcastStub(object):
     """Server------------------------------------------------------------------------
 
-    rpc SendRequest(Request) returns (google.protobuf.Empty);
-    rpc SubRequest(google.protobuf.Empty) returns (Request);
     """
 
     def __init__(self, channel):
@@ -19,44 +16,54 @@ class BroadcastStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.SendRequest = channel.unary_unary(
+                '/grpc.Broadcast/SendRequest',
+                request_serializer=messages__pb2.Request.SerializeToString,
+                response_deserializer=messages__pb2.Empty.FromString,
+                )
+        self.SubRequest = channel.unary_stream(
+                '/grpc.Broadcast/SubRequest',
+                request_serializer=messages__pb2.Empty.SerializeToString,
+                response_deserializer=messages__pb2.Request.FromString,
+                )
         self.SendResponse = channel.unary_unary(
-                '/communication.Broadcast/SendResponse',
+                '/grpc.Broadcast/SendResponse',
                 request_serializer=messages__pb2.Response.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                response_deserializer=messages__pb2.Empty.FromString,
                 )
         self.SubResponse = channel.unary_stream(
-                '/communication.Broadcast/SubResponse',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                '/grpc.Broadcast/SubResponse',
+                request_serializer=messages__pb2.Empty.SerializeToString,
                 response_deserializer=messages__pb2.Response.FromString,
                 )
         self.SendAction = channel.unary_unary(
-                '/communication.Broadcast/SendAction',
+                '/grpc.Broadcast/SendAction',
                 request_serializer=messages__pb2.Action.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                response_deserializer=messages__pb2.Empty.FromString,
                 )
         self.SubAction = channel.unary_stream(
-                '/communication.Broadcast/SubAction',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                '/grpc.Broadcast/SubAction',
+                request_serializer=messages__pb2.Empty.SerializeToString,
                 response_deserializer=messages__pb2.Action.FromString,
                 )
         self.SendWarning = channel.unary_unary(
-                '/communication.Broadcast/SendWarning',
+                '/grpc.Broadcast/SendWarning',
                 request_serializer=messages__pb2.Warning.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                response_deserializer=messages__pb2.Empty.FromString,
                 )
         self.SubWarning = channel.unary_stream(
-                '/communication.Broadcast/SubWarning',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                '/grpc.Broadcast/SubWarning',
+                request_serializer=messages__pb2.Empty.SerializeToString,
                 response_deserializer=messages__pb2.Warning.FromString,
                 )
         self.SendError = channel.unary_unary(
-                '/communication.Broadcast/SendError',
+                '/grpc.Broadcast/SendError',
                 request_serializer=messages__pb2.Error.SerializeToString,
-                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                response_deserializer=messages__pb2.Empty.FromString,
                 )
         self.SubError = channel.unary_stream(
-                '/communication.Broadcast/SubError',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                '/grpc.Broadcast/SubError',
+                request_serializer=messages__pb2.Empty.SerializeToString,
                 response_deserializer=messages__pb2.Error.FromString,
                 )
 
@@ -64,9 +71,19 @@ class BroadcastStub(object):
 class BroadcastServicer(object):
     """Server------------------------------------------------------------------------
 
-    rpc SendRequest(Request) returns (google.protobuf.Empty);
-    rpc SubRequest(google.protobuf.Empty) returns (Request);
     """
+
+    def SendRequest(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SubRequest(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def SendResponse(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -119,49 +136,59 @@ class BroadcastServicer(object):
 
 def add_BroadcastServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'SendRequest': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendRequest,
+                    request_deserializer=messages__pb2.Request.FromString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
+            ),
+            'SubRequest': grpc.unary_stream_rpc_method_handler(
+                    servicer.SubRequest,
+                    request_deserializer=messages__pb2.Empty.FromString,
+                    response_serializer=messages__pb2.Request.SerializeToString,
+            ),
             'SendResponse': grpc.unary_unary_rpc_method_handler(
                     servicer.SendResponse,
                     request_deserializer=messages__pb2.Response.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
             ),
             'SubResponse': grpc.unary_stream_rpc_method_handler(
                     servicer.SubResponse,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                    request_deserializer=messages__pb2.Empty.FromString,
                     response_serializer=messages__pb2.Response.SerializeToString,
             ),
             'SendAction': grpc.unary_unary_rpc_method_handler(
                     servicer.SendAction,
                     request_deserializer=messages__pb2.Action.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
             ),
             'SubAction': grpc.unary_stream_rpc_method_handler(
                     servicer.SubAction,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                    request_deserializer=messages__pb2.Empty.FromString,
                     response_serializer=messages__pb2.Action.SerializeToString,
             ),
             'SendWarning': grpc.unary_unary_rpc_method_handler(
                     servicer.SendWarning,
                     request_deserializer=messages__pb2.Warning.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
             ),
             'SubWarning': grpc.unary_stream_rpc_method_handler(
                     servicer.SubWarning,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                    request_deserializer=messages__pb2.Empty.FromString,
                     response_serializer=messages__pb2.Warning.SerializeToString,
             ),
             'SendError': grpc.unary_unary_rpc_method_handler(
                     servicer.SendError,
                     request_deserializer=messages__pb2.Error.FromString,
-                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
             ),
             'SubError': grpc.unary_stream_rpc_method_handler(
                     servicer.SubError,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+                    request_deserializer=messages__pb2.Empty.FromString,
                     response_serializer=messages__pb2.Error.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'communication.Broadcast', rpc_method_handlers)
+            'grpc.Broadcast', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -169,9 +196,41 @@ def add_BroadcastServicer_to_server(servicer, server):
 class Broadcast(object):
     """Server------------------------------------------------------------------------
 
-    rpc SendRequest(Request) returns (google.protobuf.Empty);
-    rpc SubRequest(google.protobuf.Empty) returns (Request);
     """
+
+    @staticmethod
+    def SendRequest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/grpc.Broadcast/SendRequest',
+            messages__pb2.Request.SerializeToString,
+            messages__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SubRequest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/grpc.Broadcast/SubRequest',
+            messages__pb2.Empty.SerializeToString,
+            messages__pb2.Request.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def SendResponse(request,
@@ -184,9 +243,9 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/communication.Broadcast/SendResponse',
+        return grpc.experimental.unary_unary(request, target, '/grpc.Broadcast/SendResponse',
             messages__pb2.Response.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            messages__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -201,8 +260,8 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/communication.Broadcast/SubResponse',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        return grpc.experimental.unary_stream(request, target, '/grpc.Broadcast/SubResponse',
+            messages__pb2.Empty.SerializeToString,
             messages__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -218,9 +277,9 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/communication.Broadcast/SendAction',
+        return grpc.experimental.unary_unary(request, target, '/grpc.Broadcast/SendAction',
             messages__pb2.Action.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            messages__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -235,8 +294,8 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/communication.Broadcast/SubAction',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        return grpc.experimental.unary_stream(request, target, '/grpc.Broadcast/SubAction',
+            messages__pb2.Empty.SerializeToString,
             messages__pb2.Action.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -252,9 +311,9 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/communication.Broadcast/SendWarning',
+        return grpc.experimental.unary_unary(request, target, '/grpc.Broadcast/SendWarning',
             messages__pb2.Warning.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            messages__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -269,8 +328,8 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/communication.Broadcast/SubWarning',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        return grpc.experimental.unary_stream(request, target, '/grpc.Broadcast/SubWarning',
+            messages__pb2.Empty.SerializeToString,
             messages__pb2.Warning.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -286,9 +345,9 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/communication.Broadcast/SendError',
+        return grpc.experimental.unary_unary(request, target, '/grpc.Broadcast/SendError',
             messages__pb2.Error.SerializeToString,
-            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            messages__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -303,8 +362,8 @@ class Broadcast(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/communication.Broadcast/SubError',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        return grpc.experimental.unary_stream(request, target, '/grpc.Broadcast/SubError',
+            messages__pb2.Empty.SerializeToString,
             messages__pb2.Error.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -95,7 +95,7 @@ If you need them, there are some examples in the
 ## Compiling
 To compile the `.proto` and get the `.py` file that describes the `.proto` run
 
-    protoc [FILE_NAME.proto] --python-out=[OUTPUT_FOLDER]
+    protoc -I=[WHERE_THE_FILE_IS] --python_out=[WHERE_YOU_WANT_TO_HAVE_THE_PY_OUTPUT] [FILE_NAME.proto]
 
 If you need to create a service you need to use another command to compile the proto,
 so you'll get both the `[FILE_NAME]_pb2.py` and the `[FILE_NAME]_pb2_grpc.py`:

@@ -12,103 +12,158 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='messages.proto',
-  package='communication',
-  syntax='proto2',
+  package='grpc',
+  syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0emessages.proto\x12\rcommunication\x1a\x1bgoogle/protobuf/empty.proto\"\x93\x01\n\x06\x41\x63tion\x12;\n\x06\x61\x63tion\x18\x01 \x01(\x0e\x32 .communication.Action.ActionType:\tPRECHARGE\x12\r\n\x05value\x18\x02 \x01(\x05\"=\n\nActionType\x12\r\n\tPRECHARGE\x10\x01\x12\x0f\n\x0bTARGET_VOLT\x10\x02\x12\x0f\n\x0b\x46\x41N_CONTROL\x10\x03\"A\n\x08Response\x12\'\n\x04type\x18\x01 \x02(\x0e\x32\x19.communication.ReqResType\x12\x0c\n\x04\x64\x61ta\x18\x02 \x03(\x01\"\x1a\n\x07Warning\x12\x0f\n\x07message\x18\x01 \x02(\t\"\x18\n\x05\x45rror\x12\x0f\n\x07message\x18\x01 \x02(\t*7\n\nReqResType\x12\x0b\n\x07VOLTAGE\x10\x01\x12\x0b\n\x07\x43URRENT\x10\x02\x12\x0f\n\x0bTEMPERATURE\x10\x03\x32\xff\x03\n\tBroadcast\x12?\n\x0cSendResponse\x12\x17.communication.Response\x1a\x16.google.protobuf.Empty\x12@\n\x0bSubResponse\x12\x16.google.protobuf.Empty\x1a\x17.communication.Response0\x01\x12;\n\nSendAction\x12\x15.communication.Action\x1a\x16.google.protobuf.Empty\x12<\n\tSubAction\x12\x16.google.protobuf.Empty\x1a\x15.communication.Action0\x01\x12=\n\x0bSendWarning\x12\x16.communication.Warning\x1a\x16.google.protobuf.Empty\x12>\n\nSubWarning\x12\x16.google.protobuf.Empty\x1a\x16.communication.Warning0\x01\x12\x39\n\tSendError\x12\x14.communication.Error\x1a\x16.google.protobuf.Empty\x12:\n\x08SubError\x12\x16.google.protobuf.Empty\x1a\x14.communication.Error0\x01'
-  ,
-  dependencies=[google_dot_protobuf_dot_empty__pb2.DESCRIPTOR,])
+  serialized_pb=b'\n\x0emessages.proto\x12\x04grpc\"\x07\n\x05\x45mpty\")\n\x07Request\x12\x1e\n\x04type\x18\x01 \x01(\x0e\x32\x10.grpc.ReqResType\"\x7f\n\x06\x41\x63tion\x12\'\n\x06\x61\x63tion\x18\x01 \x01(\x0e\x32\x17.grpc.Action.ActionType\x12\r\n\x05value\x18\x02 \x01(\x05\"=\n\nActionType\x12\r\n\tPRECHARGE\x10\x00\x12\x0f\n\x0bTARGET_VOLT\x10\x01\x12\x0f\n\x0b\x46\x41N_CONTROL\x10\x02\"8\n\x08Response\x12\x1e\n\x04type\x18\x01 \x01(\x0e\x32\x10.grpc.ReqResType\x12\x0c\n\x04\x64\x61ta\x18\x02 \x03(\x01\"\x1a\n\x07Warning\x12\x0f\n\x07message\x18\x01 \x01(\t\"\x18\n\x05\x45rror\x12\x0f\n\x07message\x18\x01 \x01(\t*7\n\nReqResType\x12\x0b\n\x07VOLTAGE\x10\x00\x12\x0b\n\x07\x43URRENT\x10\x01\x12\x0f\n\x0bTEMPERATURE\x10\x02\x32\xb6\x03\n\tBroadcast\x12)\n\x0bSendRequest\x12\r.grpc.Request\x1a\x0b.grpc.Empty\x12*\n\nSubRequest\x12\x0b.grpc.Empty\x1a\r.grpc.Request0\x01\x12+\n\x0cSendResponse\x12\x0e.grpc.Response\x1a\x0b.grpc.Empty\x12,\n\x0bSubResponse\x12\x0b.grpc.Empty\x1a\x0e.grpc.Response0\x01\x12\'\n\nSendAction\x12\x0c.grpc.Action\x1a\x0b.grpc.Empty\x12(\n\tSubAction\x12\x0b.grpc.Empty\x1a\x0c.grpc.Action0\x01\x12)\n\x0bSendWarning\x12\r.grpc.Warning\x1a\x0b.grpc.Empty\x12*\n\nSubWarning\x12\x0b.grpc.Empty\x1a\r.grpc.Warning0\x01\x12%\n\tSendError\x12\x0b.grpc.Error\x1a\x0b.grpc.Empty\x12&\n\x08SubError\x12\x0b.grpc.Empty\x1a\x0b.grpc.Error0\x01\x62\x06proto3'
+)
 
 _REQRESTYPE = _descriptor.EnumDescriptor(
   name='ReqResType',
-  full_name='communication.ReqResType',
+  full_name='grpc.ReqResType',
   filename=None,
   file=DESCRIPTOR,
   create_key=_descriptor._internal_create_key,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='VOLTAGE', index=0, number=1,
+      name='VOLTAGE', index=0, number=0,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
     _descriptor.EnumValueDescriptor(
-      name='CURRENT', index=1, number=2,
+      name='CURRENT', index=1, number=1,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
     _descriptor.EnumValueDescriptor(
-      name='TEMPERATURE', index=2, number=3,
+      name='TEMPERATURE', index=2, number=2,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=333,
-  serialized_end=388,
+  serialized_start=317,
+  serialized_end=372,
 )
 _sym_db.RegisterEnumDescriptor(_REQRESTYPE)
 
 ReqResType = enum_type_wrapper.EnumTypeWrapper(_REQRESTYPE)
-VOLTAGE = 1
-CURRENT = 2
-TEMPERATURE = 3
+VOLTAGE = 0
+CURRENT = 1
+TEMPERATURE = 2
 
 
 _ACTION_ACTIONTYPE = _descriptor.EnumDescriptor(
   name='ActionType',
-  full_name='communication.Action.ActionType',
+  full_name='grpc.Action.ActionType',
   filename=None,
   file=DESCRIPTOR,
   create_key=_descriptor._internal_create_key,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='PRECHARGE', index=0, number=1,
+      name='PRECHARGE', index=0, number=0,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
     _descriptor.EnumValueDescriptor(
-      name='TARGET_VOLT', index=1, number=2,
+      name='TARGET_VOLT', index=1, number=1,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
     _descriptor.EnumValueDescriptor(
-      name='FAN_CONTROL', index=2, number=3,
+      name='FAN_CONTROL', index=2, number=2,
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=149,
-  serialized_end=210,
+  serialized_start=142,
+  serialized_end=203,
 )
 _sym_db.RegisterEnumDescriptor(_ACTION_ACTIONTYPE)
 
 
-_ACTION = _descriptor.Descriptor(
-  name='Action',
-  full_name='communication.Action',
+_EMPTY = _descriptor.Descriptor(
+  name='Empty',
+  full_name='grpc.Empty',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=24,
+  serialized_end=31,
+)
+
+
+_REQUEST = _descriptor.Descriptor(
+  name='Request',
+  full_name='grpc.Request',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='action', full_name='communication.Action.action', index=0,
+      name='type', full_name='grpc.Request.type', index=0,
       number=1, type=14, cpp_type=8, label=1,
-      has_default_value=True, default_value=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=33,
+  serialized_end=74,
+)
+
+
+_ACTION = _descriptor.Descriptor(
+  name='Action',
+  full_name='grpc.Action',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='action', full_name='grpc.Action.action', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='value', full_name='communication.Action.value', index=1,
+      name='value', full_name='grpc.Action.value', index=1,
       number=2, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -123,32 +178,32 @@ _ACTION = _descriptor.Descriptor(
   ],
   serialized_options=None,
   is_extendable=False,
-  syntax='proto2',
+  syntax='proto3',
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=63,
-  serialized_end=210,
+  serialized_start=76,
+  serialized_end=203,
 )
 
 
 _RESPONSE = _descriptor.Descriptor(
   name='Response',
-  full_name='communication.Response',
+  full_name='grpc.Response',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='type', full_name='communication.Response.type', index=0,
-      number=1, type=14, cpp_type=8, label=2,
-      has_default_value=False, default_value=1,
+      name='type', full_name='grpc.Response.type', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='data', full_name='communication.Response.data', index=1,
+      name='data', full_name='grpc.Response.data', index=1,
       number=2, type=1, cpp_type=5, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -162,26 +217,26 @@ _RESPONSE = _descriptor.Descriptor(
   ],
   serialized_options=None,
   is_extendable=False,
-  syntax='proto2',
+  syntax='proto3',
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=212,
-  serialized_end=277,
+  serialized_start=205,
+  serialized_end=261,
 )
 
 
 _WARNING = _descriptor.Descriptor(
   name='Warning',
-  full_name='communication.Warning',
+  full_name='grpc.Warning',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='message', full_name='communication.Warning.message', index=0,
-      number=1, type=9, cpp_type=9, label=2,
+      name='message', full_name='grpc.Warning.message', index=0,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -194,26 +249,26 @@ _WARNING = _descriptor.Descriptor(
   ],
   serialized_options=None,
   is_extendable=False,
-  syntax='proto2',
+  syntax='proto3',
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=279,
-  serialized_end=305,
+  serialized_start=263,
+  serialized_end=289,
 )
 
 
 _ERROR = _descriptor.Descriptor(
   name='Error',
-  full_name='communication.Error',
+  full_name='grpc.Error',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='message', full_name='communication.Error.message', index=0,
-      number=1, type=9, cpp_type=9, label=2,
+      name='message', full_name='grpc.Error.message', index=0,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -226,17 +281,20 @@ _ERROR = _descriptor.Descriptor(
   ],
   serialized_options=None,
   is_extendable=False,
-  syntax='proto2',
+  syntax='proto3',
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=307,
-  serialized_end=331,
+  serialized_start=291,
+  serialized_end=315,
 )
 
+_REQUEST.fields_by_name['type'].enum_type = _REQRESTYPE
 _ACTION.fields_by_name['action'].enum_type = _ACTION_ACTIONTYPE
 _ACTION_ACTIONTYPE.containing_type = _ACTION
 _RESPONSE.fields_by_name['type'].enum_type = _REQRESTYPE
+DESCRIPTOR.message_types_by_name['Empty'] = _EMPTY
+DESCRIPTOR.message_types_by_name['Request'] = _REQUEST
 DESCRIPTOR.message_types_by_name['Action'] = _ACTION
 DESCRIPTOR.message_types_by_name['Response'] = _RESPONSE
 DESCRIPTOR.message_types_by_name['Warning'] = _WARNING
@@ -244,31 +302,45 @@ DESCRIPTOR.message_types_by_name['Error'] = _ERROR
 DESCRIPTOR.enum_types_by_name['ReqResType'] = _REQRESTYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
+Empty = _reflection.GeneratedProtocolMessageType('Empty', (_message.Message,), {
+  'DESCRIPTOR' : _EMPTY,
+  '__module__' : 'messages_pb2'
+  # @@protoc_insertion_point(class_scope:grpc.Empty)
+  })
+_sym_db.RegisterMessage(Empty)
+
+Request = _reflection.GeneratedProtocolMessageType('Request', (_message.Message,), {
+  'DESCRIPTOR' : _REQUEST,
+  '__module__' : 'messages_pb2'
+  # @@protoc_insertion_point(class_scope:grpc.Request)
+  })
+_sym_db.RegisterMessage(Request)
+
 Action = _reflection.GeneratedProtocolMessageType('Action', (_message.Message,), {
   'DESCRIPTOR' : _ACTION,
   '__module__' : 'messages_pb2'
-  # @@protoc_insertion_point(class_scope:communication.Action)
+  # @@protoc_insertion_point(class_scope:grpc.Action)
   })
 _sym_db.RegisterMessage(Action)
 
 Response = _reflection.GeneratedProtocolMessageType('Response', (_message.Message,), {
   'DESCRIPTOR' : _RESPONSE,
   '__module__' : 'messages_pb2'
-  # @@protoc_insertion_point(class_scope:communication.Response)
+  # @@protoc_insertion_point(class_scope:grpc.Response)
   })
 _sym_db.RegisterMessage(Response)
 
 Warning = _reflection.GeneratedProtocolMessageType('Warning', (_message.Message,), {
   'DESCRIPTOR' : _WARNING,
   '__module__' : 'messages_pb2'
-  # @@protoc_insertion_point(class_scope:communication.Warning)
+  # @@protoc_insertion_point(class_scope:grpc.Warning)
   })
 _sym_db.RegisterMessage(Warning)
 
 Error = _reflection.GeneratedProtocolMessageType('Error', (_message.Message,), {
   'DESCRIPTOR' : _ERROR,
   '__module__' : 'messages_pb2'
-  # @@protoc_insertion_point(class_scope:communication.Error)
+  # @@protoc_insertion_point(class_scope:grpc.Error)
   })
 _sym_db.RegisterMessage(Error)
 
@@ -276,90 +348,110 @@ _sym_db.RegisterMessage(Error)
 
 _BROADCAST = _descriptor.ServiceDescriptor(
   name='Broadcast',
-  full_name='communication.Broadcast',
+  full_name='grpc.Broadcast',
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=391,
-  serialized_end=902,
+  serialized_start=375,
+  serialized_end=813,
   methods=[
   _descriptor.MethodDescriptor(
-    name='SendResponse',
-    full_name='communication.Broadcast.SendResponse',
+    name='SendRequest',
+    full_name='grpc.Broadcast.SendRequest',
     index=0,
     containing_service=None,
+    input_type=_REQUEST,
+    output_type=_EMPTY,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='SubRequest',
+    full_name='grpc.Broadcast.SubRequest',
+    index=1,
+    containing_service=None,
+    input_type=_EMPTY,
+    output_type=_REQUEST,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='SendResponse',
+    full_name='grpc.Broadcast.SendResponse',
+    index=2,
+    containing_service=None,
     input_type=_RESPONSE,
-    output_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    output_type=_EMPTY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SubResponse',
-    full_name='communication.Broadcast.SubResponse',
-    index=1,
+    full_name='grpc.Broadcast.SubResponse',
+    index=3,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    input_type=_EMPTY,
     output_type=_RESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SendAction',
-    full_name='communication.Broadcast.SendAction',
-    index=2,
+    full_name='grpc.Broadcast.SendAction',
+    index=4,
     containing_service=None,
     input_type=_ACTION,
-    output_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    output_type=_EMPTY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SubAction',
-    full_name='communication.Broadcast.SubAction',
-    index=3,
+    full_name='grpc.Broadcast.SubAction',
+    index=5,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    input_type=_EMPTY,
     output_type=_ACTION,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SendWarning',
-    full_name='communication.Broadcast.SendWarning',
-    index=4,
+    full_name='grpc.Broadcast.SendWarning',
+    index=6,
     containing_service=None,
     input_type=_WARNING,
-    output_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    output_type=_EMPTY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SubWarning',
-    full_name='communication.Broadcast.SubWarning',
-    index=5,
+    full_name='grpc.Broadcast.SubWarning',
+    index=7,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    input_type=_EMPTY,
     output_type=_WARNING,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SendError',
-    full_name='communication.Broadcast.SendError',
-    index=6,
+    full_name='grpc.Broadcast.SendError',
+    index=8,
     containing_service=None,
     input_type=_ERROR,
-    output_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    output_type=_EMPTY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SubError',
-    full_name='communication.Broadcast.SubError',
-    index=7,
+    full_name='grpc.Broadcast.SubError',
+    index=9,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
+    input_type=_EMPTY,
     output_type=_ERROR,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,

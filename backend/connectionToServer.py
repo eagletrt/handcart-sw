@@ -1,116 +1,88 @@
 import threading
-from tkinter import *
-from tkinter import simpledialog
 
 import grpc
 
-import messages_pb2 ## as chat
-import messages_pb2_grpc ## as rpc
+import sys, os
 
-address = 'localhost'
-port = 50051
+dir = os.getcwd()
+curr_dir = "backend"
 
-## REQUESTS
-REQUESTS = {
-    "VOLTAGE": 1,
-    "CURRENT": 2,
-    "TEMPERATURE": 3
-}
+if curr_dir in dir:
+    sys.path.insert(1, "../")
+else:
+    sys.path.insert(1, "./")
 
-## ACTIONS
-ACTIONS = {
-    "PRECHARGE": 1,
-    "TARGET_VOLT": 2,
-    "FAN_CONTROL": 3
-}
+import protos.messages_pb2 as messages_pb2 ## as chat
+import protos.messages_pb2_grpc as messages_pb2_grpc ## as rpc
 
+from communication.connectionData import *
 
-class Client:
-    def __init__(self, u: str, window):
-        # the frame to put ui components on
-        #self.window = window
-        #self.username = u
-        # create a gRPC channel + stub
+class ClientBE:
+    def __init__(self):
+        """
+        The initialization will create a connection with the server, then starts the action and the request's listeners
+        """
+        # Create a gRPC channel + stub
         channel = grpc.insecure_channel(address + ':' + str(port))
         self.conn = messages_pb2_grpc.BroadcastStub(channel)
-        # create new listening thread for when new message streams come in
-        threading.Thread(target=self.subscription, daemon=True).start()
-        #self.__setup_ui()
-        #self.window.mainloop()
+        print("Backend connected at port {}".format(port))
+        # Create new listening thread for when new message streams come in
+        print("\nStarting action listener...")
+        threading.Thread(target=self.sub_action, daemon=False).start()
+        print("Started!")
+        print("\nStarting request listener...")
+        threading.Thread(target=self.sub_request, daemon=False).start()
+        print("Started!")
 
-    def subscription(self):
+    def sub_request(self):
         """
-        This method will be ran in a separate thread as the main/ui thread, because the for-in call is blocking
-        when waiting for new messages
+        This method will be ran in a separate thread, because the for-in call is blocking when waiting for new messages
+        """
+        for note in self.conn.SubRequest(messages_pb2.Empty()):  # This line will wait for new messages from the server!
+            # Note is the array with last actions stored on the server
+            # The for cycle will get the request name
+            for key, value in REQUESTS.items():
+                if value == note.type:
+                    print("Data received: REQUEST:{}".format(key))
+
+                    # Send the asked data
+                    ## EXAMPLE: response to request management
+                    datatype = key
+                    # Data received from the accumulator
+                    mydata = []
+                    for i in range(10):
+                        mydata.append(i)
+
+                    print("\nSending {} data: {}...".format(datatype, mydata))
+                    self.send_response(datatype, mydata)
+                    print("Data sent!")
+
+    def send_response(self, res_type, res_data):
+        """
+        This method is called when the frontend asks for some data and the accumulator has sent them to the backend (this)
+        """
+        # Managing how to send requests
+        response = messages_pb2.Response()
+        response.type = REQUESTS.get(res_type)
+        response.data.extend(res_data)
+        print("Sending a response...")
+        self.conn.SendResponse(response)
+        print("Response sent!")
+
+    def sub_action(self):
+        """
+        This method will be ran in a separate thread, because the for-in call is blocking when waiting for new messages
         """
         for note in self.conn.SubAction(messages_pb2.Empty()): # this line will wait for new messages from the server!
             # Note is the array with last actions stored on the server
-
-            for act in note:
-                # Request with content in form "[act[0] = action].fields.NEEDED_FIELD" (i.e. "act[0].fields.name")
-                action = act[0]
-
-                # Context with content in form "[act[1] = context].context (not sure about what can be done with these data)
-                context = act[1]
-
-            # Do what you need to do with data
-
-            """
-            # Graphic part
-            #print("R[{}] {}".format(note.name, note.message))  # debugging statement
-            #self.chat_list.insert(END, "[{}] {}\n".format(note.name, note.message))  # add the message to the UI
-            """
-
-    def sendResponse(self, event, data):
-        """
-        This method is called when user enters something into the textbox
-        """
-
-        ## WARNING: event è una variabile che già c'era e non ho idea del da dove arrivi
-        # Managing how to send requests and actions
-        response = messages_pb2.Response()
-        ## ESEMPIO CON VOLTAGE, MA DIPENDE DALLA RICHIESTA RICEVUTA (forse event)
-        response.type = REQUESTS.get("VOLTAGE")
-        response.data = data
-        self.conn.SendResponse(response)
-
-        """
-        message = self.entry_message.get()  # retrieve message from the UI
-        if message is not '':
-            n = chat.Note()  # create protobug message (called Note)
-            n.name = self.username  # set the username
-            n.message = message  # set the actual message of the note
-            print("S[{}] {}".format(n.name, n.message))  # debugging statement
-            self.conn.SendNote(n)  # send the Note to the server
-        """
-
-    def sendAction(self, event):
-        ## Come sendRequest
-        return 0
-
-    """
-    def __setup_ui(self):
-        self.chat_list = Text()
-        self.chat_list.pack(side=TOP)
-        self.lbl_username = Label(self.window, text=self.username)
-        self.lbl_username.pack(side=LEFT)
-        self.entry_message = Entry(self.window, bd=5)
-        self.entry_message.bind('<Return>', self.send_message)
-        self.entry_message.focus()
-        self.entry_message.pack(side=BOTTOM)
-    """
+            # The for cycle will get the request name
+            for key, value in ACTIONS.items():
+                if value == note.type:
+                    print("Data received: ACTION:{} - {}".format(key, note.value))
+            # Execute the requested action
 
 
 if __name__ == '__main__':
-    """
-    root = Tk()  # I just used a very simple Tk window for the chat UI, this can be replaced by anything
-    frame = Frame(root, width=300, height=300)
-    frame.pack()
-    root.withdraw()
-    username = None
-    while username is None:
-        # retrieve a username so we can distinguish all the different clients
-        username = simpledialog.askstring("Username", "What's your username?", parent=root)
-    root.deiconify()  # don't remember why this was needed anymore...
-    c = Client(username, frame)  # this starts a client and thus a thread which keeps connection to server open
-    """
+    print("Initializing BEClient...")
+    c = ClientBE()
+    print("\nBEClient initialized!")
