@@ -2,9 +2,9 @@ from enum import Enum
 import msgDef
 import can
 from can.listener import Listener
+import argparse
 
 CAN_BMS_ID = 0xAA
-
 
 class CAN_BRUSA_MSG_ID(Enum):
     NLG5_ERR = 0x614
@@ -356,3 +356,4 @@ def __main__():
         act_stat = next_stat
 
 # __main__()
+
