@@ -3,6 +3,7 @@ import msgDef
 import can
 from can.listener import Listener
 import argparse
+import time
 
 CAN_BMS_ID = 0xAA
 
@@ -26,14 +27,17 @@ class STATE(Enum):
 
 
 class BMS_MES_ID(Enum):
-    CAN_OUT_CURRENT = 0x05
-    CAN_OUT_PACK_VOLTS = 0x01
-    CAN_OUT_PACK_TEMPS = 0x10
-    CAN_OUT_WARNING = 0x09
-    CAN_OUT_ERRORS = 0x08
-    CAN_OUT_TS_ON = 0x03
-    CAN_OUT_TS_OFF = 0x04
+    CAN_OUT_CURRENT = 5
+    CAN_OUT_PACK_VOLTS = 1
+    CAN_OUT_PACK_TEMPS = 10
+    CAN_OUT_WARNING = 9
+    CAN_OUT_ERRORS = 8
+    CAN_OUT_TS_ON = 3
+    CAN_OUT_TS_OFF = 4
 
+class BMS_STATE(Enum):
+    TS_ON = 3
+    TS_OFF = 4
 
 class E_CODE(Enum):
     BATTERY_TEMP = 0
@@ -168,46 +172,51 @@ class CanListener(Listener):
     bms_err = False
     bms_stat = -1
     brusa_connected = False
+    bms_err_str = ""
 
     act_NLG5_ST = VAL_NLG5_ST()
     act_NLG5_ACT_I = VAL_NLG5_ACT_I()
     act_NLG5_ERR = VAL_NLG5_ERR()
 
-    msgTypeBMS = {
-        BMS_MES_ID.CAN_OUT_PACK_VOLTS: setVolts,
-        BMS_MES_ID.CAN_OUT_TS_ON: setTS,
-        BMS_MES_ID.CAN_OUT_TS_OFF: setTS,
-        BMS_MES_ID.CAN_OUT_CURRENT: setCurrent,
-        BMS_MES_ID.CAN_OUT_ERRORS: setError,
-        BMS_MES_ID.CAN_OUT_WARNING: setWarning,
-        BMS_MES_ID.CAN_OUT_PACK_TEMPS: setPackTemp
-    }
+    def setTSON(self, msg):
+        msg.data = []
+        self.bms_stat = BMS_STATE.TS_ON
 
-    doMsg = {
-        CAN_BMS_ID: self.serveBMSMessage,
-        CAN_BRUSA_MSG_ID.NLG5_ST: self.doNLG5_ST,
-        CAN_BRUSA_MSG_ID.NLG5_ACT_I: doNLG5_ACT_I,
-        CAN_BRUSA_MSG_ID.NLG5_ACT_II: doNLG5_ACT_II,
-        CAN_BRUSA_MSG_ID.NLG5_ERR: doNLG5_ERR,
-        CAN_BRUSA_MSG_ID.NLG5_TEMP: doNLG5_TEMP
-    }
+    def setTSOFF(self, msg):
+        self.bms_stat = BMS_STATE.TS_OFF
 
-    def __init__(self):
+    def setVolts(self, msg):
         pass
 
-    def on_message_received(self, msg):
-        doMsg.get(msg.arbitration_id)(msg)
+    def setCurrent(self, msg):
+        pass
+
+    def setError(self, msg):
+        pass
+
+    def setWarning(self, msg):
+        pass
+
+    def setPackTemp(self, msg):
+        pass
 
     def serveBMSMessage(self, msg):
         self.newBMSMessage = True
-        self.msgTypeBMS.get(msg.data[0])(msg)
+        self.msgTypeBMS.get(msg.data[0])(self, msg)
 
     def doNLG5_ST(self, msg):
-        act_NLG5_ST.values = msg.data
+        self.brusa_connected = True
+        self.act_NLG5_ST.values = msg.data
 
     def doNLG5_ACT_I(self, msg):
         # Manca da trasformare i valori in bit in valori decimali
         act_NLG5_ACT_I.NLG5_MC_ACT = data[NLG5_ACT_I_POS.NLG5_MC_ACT]
+
+    def doNLG5_ACT_II(self, msg):
+        pass
+
+    def doNLG5_TEMP(self, msg):
+        pass
 
     def doNLG5_ERR(self, msg):
         self.act_NLG5_ERR.values = msg.data
@@ -218,20 +227,56 @@ class CanListener(Listener):
                 self.brusa_err = 1
                 self.brusa_err_str_list.append(NLG5_ERR_DEF[c])
 
+    msgTypeBMS = {
+        BMS_MES_ID.CAN_OUT_PACK_VOLTS.value: setVolts,
+        BMS_MES_ID.CAN_OUT_TS_ON.value: setTSON,
+        BMS_MES_ID.CAN_OUT_TS_OFF.value: setTSOFF,
+        BMS_MES_ID.CAN_OUT_CURRENT.value: setCurrent,
+        BMS_MES_ID.CAN_OUT_ERRORS.value: setError,
+        BMS_MES_ID.CAN_OUT_WARNING.value: setWarning,
+        BMS_MES_ID.CAN_OUT_PACK_TEMPS.value: setPackTemp
+    }
+
+    doMsg = {
+        CAN_BMS_ID: serveBMSMessage,
+        CAN_BRUSA_MSG_ID.NLG5_ST.value: doNLG5_ST,
+        CAN_BRUSA_MSG_ID.NLG5_ACT_I.value: doNLG5_ACT_I,
+        CAN_BRUSA_MSG_ID.NLG5_ACT_II.value: doNLG5_ACT_II,
+        CAN_BRUSA_MSG_ID.NLG5_ERR.value: doNLG5_ERR,
+        CAN_BRUSA_MSG_ID.NLG5_TEMP.value: doNLG5_TEMP
+    }
+
+    def __init__(self):
+        pass
+
+    def on_message_received(self, msg):
+        print(msg)
+        self.doMsg.get(msg.arbitration_id)(self,msg)
 
 PORK_CONNECTED = False
 BRUSA_CONNECTED = False
 act_stat = STATE.CHECK
 last_err = 0
 
-canbus = can.interface.Bus()
+canbus = can.interface.Bus
 canRead = CanListener()
 
+def chkErr():
+    if canRead.brusa_err or canRead.bms_err:
+        return True
+    else:
+        return False
+
+def clrErr():
+    canRead.brusa_err = False
+    canRead.bms_err = False
+    canRead.bms_err_str = ""
+    canRead.brusa_err_str_list = []
 
 def canInit():
     try:
         canbus = can.interface.Bus(interface="socketcan", channel="can0")
-        notif = can.Notifier(bus, [canRead])  # links the bus with the listener
+        notif = can.Notifier(canbus, [canRead])  # links the bus with the listener
     except(ValueError):
         print("Can channel not recognized")
         return False
@@ -257,6 +302,7 @@ def canSend(msg_id, data):
 def isPorkConnected():
     # canSend(BMS_HV, TS_STATUS_REQ)
     if (canRead.bms_stat) != -1:
+        print("Accumulator connected")
         return True
     else:
         return False
@@ -264,6 +310,7 @@ def isPorkConnected():
 
 def isBrusaConnected():
     if canRead.brusa_connected:
+        print("Brusa connected")
         return True
     else:
         return False
@@ -295,7 +342,10 @@ def doPreCharge():
     PRECHARGE_DONE = False
 
     if (canRead.newMessage):
-        if (canRead.bms_stat == TS_ON):
+        if chkErr():
+            return STATE.ERROR
+        if (canRead.bms_stat == BMS_STATE.TS_ON):
+            print("Precharge done, TS is on")
             PRECHARGE_DONE = True
 
     if PRECHARGE_DONE:
@@ -329,7 +379,20 @@ def doC_done():
 
 
 def doError():
-    pass
+    if canRead.brusa_err:
+        print("BRUSA Error: ")
+        for i in canRead.brusa_err_str_list:
+            print(i)
+    if canRead.bms_err:
+        print("Accumulator Error: ")
+        print(canRead.bms_err_str)
+
+    command = input("Press c to continue and clear errors, otherwise program will quit")
+    if command == 'c':
+        clrErr()
+        return STATE.CHECK
+    else:
+        return STATE.EXIT
 
 
 def doExit():
@@ -337,23 +400,28 @@ def doExit():
 
 
 doState = {
-    STATE.CHECK: doCheck(),
-    STATE.IDLE: doIdle(),
-    STATE.PRECHARGE: doPreCharge(),
-    STATE.READY: doReady(),
-    STATE.CHARGE: doCharge(),
-    STATE.C_DONE: doC_done(),
-    STATE.ERROR: doError(),
-    STATE.EXIT: doExit()
+    STATE.CHECK: doCheck,
+    STATE.IDLE: doIdle,
+    STATE.PRECHARGE: doPreCharge,
+    STATE.READY: doReady,
+    STATE.CHARGE: doCharge,
+    STATE.C_DONE: doC_done,
+    STATE.ERROR: doError,
+    STATE.EXIT: doExit
 }
 
 
 def __main__():
+    act_stat = STATE.CHECK
     while (1):
-        next_stat = doState.get(STATE.CHECK)
+        print("STATE: " + str(act_stat))
+        next_stat = doState.get(act_stat)()
         if next_stat == STATE.EXIT:
             return
         act_stat = next_stat
+        time.sleep(3)
 
-# __main__()
+canInit()
+__main__()
+
 
