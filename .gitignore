@@ -4,3 +4,13 @@
 frontend/venv/
 
 venv/
+
+doc/documentation.aux
+
+doc/documentation.fdb_latexmk
+
+doc/documentation.log
+
+doc/documentation.synctex.gz
+
+doc/documentation.toc
