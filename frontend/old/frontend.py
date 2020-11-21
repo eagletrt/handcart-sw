@@ -4,6 +4,8 @@ import pyqtgraph as pg
 import sys  # We need sys so that we can pass argv to QApplication
 import os
 
+#tickle  qml da guardare per implementare gui
+
 DEFAULT_TARGET_VOLT = 330
 
 target_v = DEFAULT_TARGET_VOLT
