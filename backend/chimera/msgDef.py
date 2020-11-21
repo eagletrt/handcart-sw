@@ -1,3 +1,7 @@
+#
+#   This file contains string reference for can messages
+#
+
 NLG5_ERR_DEF = [
     "battery output overvoltage; error can only be cleared by cycling power ON-OFF-ON",
     "Mains overvoltage 2 detected",

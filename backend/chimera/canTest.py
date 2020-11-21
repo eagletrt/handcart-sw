@@ -1,3 +1,6 @@
+# Can read test
+# Before use, pls run the script "start-can.sh"
+
 import can
 from enum import Enum
 import threading

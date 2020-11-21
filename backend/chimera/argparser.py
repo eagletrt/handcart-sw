@@ -1,5 +1,8 @@
 import argparse
 
+# This parser takes arguments from the terminal, and set them in variables for the backend,
+# for now, this is only a standalone test
+
 parser = argparse.ArgumentParser(description='Software to control handcart')
 parser.add_argument('-a', action='store', required=True, choices=['chimera', 'fenice'], nargs=1, type=str, help="Choose the accumulator to charge")
 parser.add_argument('--fast', action='store_const', default=0, const=1, help="Use fast charge, default=no")

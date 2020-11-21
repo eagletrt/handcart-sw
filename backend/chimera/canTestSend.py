@@ -1,3 +1,6 @@
+# Can send test
+# Before use, pls run the script "start-can.sh"
+
 import can
 
 bus = can.interface.Bus(interface='socketcan',
