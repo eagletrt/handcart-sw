@@ -102,6 +102,9 @@
   \subsection{STATE: error}
   An error has ben detected, tell to user and restart program or exit
 
+  \section{The can listener}
+  The object istantiated by the class CanListener stores all the info received by can messages, its called every time a new message arrives, processes it and save the result in itself. This object (can\_read) is thought to be an interface to read all the useful info from the can, so dont get and process can messages outside this object (please).
+
   \chapter{Front-end}
   \section{General description}
   The front-end GUI is based on Qt, written in python. It has the purpose to act as a interface for the user to manage the charge process
