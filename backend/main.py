@@ -15,6 +15,7 @@ from can.listener import Listener
 import argparse
 import time
 import threading
+import queue
 
 CAN_BMS_ID = 0xAA
 
@@ -214,7 +215,7 @@ class VAL_NLG5_ERR():
 # based on the msg ID, processes it, and save on itself the msg info
 
 
-class CanListener(Listener):
+class CanListener():
     newBMSMessage = False
     newBRUSAMessage = False
 
@@ -222,8 +223,11 @@ class CanListener(Listener):
     brusa_err_str_list = []  # the list of errors in string format
     bms_err = False
     bms_stat = -1
+    pork_connected = False
     brusa_connected = False
     bms_err_str = ""
+    can_err = False
+    cutoff_V = 330
 
     act_NLG5_ST = VAL_NLG5_ST()  # Instantiate the value
     act_NLG5_ACT_I = VAL_NLG5_ACT_I()
@@ -312,6 +316,13 @@ class CanListener(Listener):
         self.doMsg.get(msg.arbitration_id)(self, msg)
 
 
+class Can_rx_listener(Listener):
+    def __init__(self):
+        pass
+
+    def on_message_received(self, msg):      
+        rx_can_queue.put(msg)
+
 class DataHolder():
     brusa_err = False
     brusa_err_str_list = []  # the list of errors in string format
@@ -319,36 +330,31 @@ class DataHolder():
     bms_stat = -1
     brusa_connected = False
     bms_err_str = ""
+    can_err = False
 
 
 PORK_CONNECTED = False
 BRUSA_CONNECTED = False
 act_stat = STATE.CHECK  # stores the status of the FSM
 last_err = 0  # stores the value of the last error (not sure if we'll use this)
+canread = CanListener() # Access it ONLY with the FSM
 
-instance_data = DataHolder()
-
-
-# Checks if an error is found
-def chkErr():
-    if instance_data.brusa_err or instance_data.bms_err:
-        return True
-    else:
-        return False
+# IPC
+shared_data = DataHolder()
+rx_can_queue = queue.Queue()
+tx_can_queue = queue.Queue()
+com_queue = queue.Queue()
 
 # function that clear all the errors stored
 # USE WITH CARE
-
-
 def clrErr():
-    instance_data.brusa_err = False
-    instance_data.bms_err = False
-    instance_data.bms_err_str = ""
-    instance_data.brusa_err_str_list = []
+    canread.brusa_err = False
+    canread.bms_err = False
+    canread.bms_err_str = ""
+    canread.brusa_err_str_list = []
+    canread.can_err = False
 
 # connects to canbus, and liks the listener
-
-
 def canInit(listener):
     try:
         canbus = can.interface.Bus(interface="socketcan", channel="can0")
@@ -367,8 +373,6 @@ def canInit(listener):
         return False
 
 # Send can message
-
-
 def canSend(bus, msg_id, data):
     # doesn't check the msg before sending it
     msg = can.Message(arbitration_id=msg_id, data=data)
@@ -378,24 +382,21 @@ def canSend(bus, msg_id, data):
         return True
     except can.CanError:
         print("Can Error: Message not sent")
+        canread.can_err = True
         raise can.CanError
 
 # Checks if can is connected
-
-
-def isPorkConnected(data):
+def isPorkConnected():
     # canSend(BMS_HV, TS_STATUS_REQ)
-    if (data.bms_stat) != -1:
+    if (canread.bms_stat) != -1:
         print("Accumulator connected")
         return True
     else:
         return False
 
 # Checks if brusa is connected
-
-
 def isBrusaConnected():
-    if instance_data.brusa_connected:
+    if canread.brusa_connected:
         print("Brusa connected")
         return True
     else:
@@ -403,22 +404,23 @@ def isBrusaConnected():
 
 # Do state CHECK
 def doCheck():
-    PORK_CONNECTED = isPorkConnected()
-    BRUSA_CONNECTED = isBrusaConnected()
+    canread.pork_connected = isPorkConnected()
+    canread.brusa_connected = isBrusaConnected()
 
-    if PORK_CONNECTED and BRUSA_CONNECTED:
+    if canread.pork_connected and canread.pork_connected:
         return STATE.IDLE
     else:
         return STATE.CHECK
 
 # Do state IDLE
 def doIdle():
-    a = input("Type y to start precharge")
-    if a == "y":
+    if not com_queue.empty():
+        act_com = com_queue.get()
+   
+    if act_com['com-type'] == "precharge" and act_com['value']==True:
         return STATE.PRECHARGE
     else:
         return STATE.IDLE
-
 
 def doPreCharge(data):
     # ask pork to do precharge
@@ -427,36 +429,34 @@ def doPreCharge(data):
 
     PRECHARGE_DONE = False
 
-    if (data.newMessage):
-        if chkErr():
-            return STATE.ERROR
-        if (data.bms_stat == BMS_STATE.TS_ON):
-            print("Precharge done, TS is on")
-            PRECHARGE_DONE = True
+    if data.bms_stat == BMS_STATE.TS_ON:
+        print("Precharge done, TS is on")
+        PRECHARGE_DONE = True
 
     if PRECHARGE_DONE:
         return STATE.READY
 
-
 def doReady():
-    a = input("type y to start charging")
+    if not com_queue.empty():
+        act_com = com_queue.get()
 
-    if a == "y":
-        return STATE.CHARGE
+        if act_com['com-type'] == "charge" and act_com['value'] == True:
+            return STATE.CHARGE
+
     else:
         return STATE.READY
 
-
 def doCharge():
-    # Get volt and A from pork
-    # Forward V and A to BRUSA
+    # canread has to forward charging msgs from bms to brusa
 
-    CHARGE_COMPLETE = True
+    CHARGE_COMPLETE = False
+
+    # Check if voltage is cutoff voltage
+
     if CHARGE_COMPLETE:
         return STATE.C_DONE
     else:
         return STATE.CHARGE
-
 
 def doC_done():
     # User decide wether charge again, going idle, or charge again
@@ -465,23 +465,29 @@ def doC_done():
 
 
 def doError():
-    if instance_data.brusa_err:
+    if canread.brusa_err:
         print("BRUSA Error: ")
-        for i in instance_data.brusa_err_str_list:
+        for i in canread.brusa_err_str_list:
             print(i)
-    if instance_data.bms_err:
+    if canread.bms_err:
         print("Accumulator Error: ")
-        print(instance_data.bms_err_str)
+        print(canread.bms_err_str)
+    if canread.can_err:
+        print("Can Error")
 
-    command = input(
-        "Press c to continue and clear errors, otherwise program will quit")
-    if command == 'c':
-        clrErr()
-        return STATE.CHECK
+    if not com_queue.empty:
+        act_com = com_queue.get()
+        # wait for user command to clear errors or exit
+        if act_com['com_type'] == 'error_clear' and act_com['value']==True:
+            clrErr()
+            return STATE.CHECK
+        else:
+            return STATE.EXIT
+
     else:
-        return STATE.EXIT
+        return STATE.ERROR
 
-
+    
 def doExit():
     exit(0)
 
@@ -502,23 +508,50 @@ lock = threading.Lock()
 
 def thread_1_FSM(data, lock):
     # Pls read the infos about the state machine
+    
+
     act_stat = STATE.CHECK
     while (1):
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
+        if not rx_can_queue.empty():
+            new_msg = rx_can_queue.get()
+            canread.on_message_received(new_msg)
+        
+        # Checks errors
+        if canread.brusa_err or canread.bms_err or canread.can_err:
+            next_stat = doState.get(STATE.ERROR)(data)
+        else:
+            next_stat = doState.get(act_stat)(data)
+
         print("STATE: " + str(act_stat))
-        next_stat = doState.get(act_stat)(data)
+        
         if next_stat == STATE.EXIT:
             return
         act_stat = next_stat
-        time.sleep(3)
+
+        with lock:
+            # Updates shared data with updated one
+            shared_data.bms_err = canread.bms_err
+            shared_data.bms_err_str = canread.bms_err_str
+            shared_data.bms_stat = canread.bms_stat
+            shared_data.brusa_connected = canread.brusa_connected
+            shared_data.brusa_err = canread.brusa_err
+            shared_data.brusa_err_str_list = canread.brusa_err_str_list
+            shared_data.can_err = canread.can_err
 
 
 def thread_2_CAN(data, lock):
-    canRead = CanListener()
-    canbus = canInit(canRead)
-
-# Usare le code tra FSM e CAN per invio e ricezione
-# Processare i messaggi nella FSM e inoltrarli gia a posto
+    can_r_w = Can_rx_listener()
+    canbus = canInit(can_r_w)
+    
+    # Sends all messages in tx queue
+    while not tx_can_queue.empty:
+        act = tx_can_queue.get()
+        canSend(canbus, act.id, act.data)
+    
 
 def thread_3_WEB(data, lock):
     pass
+
+# Usare le code tra FSM e CAN per invio e ricezione
+# Processare i messaggi nella FSM e inoltrarli gia a posto
