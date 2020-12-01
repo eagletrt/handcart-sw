@@ -14,10 +14,13 @@ import can
 from can.listener import Listener
 import argparse
 import time
+import threading
 
 CAN_BMS_ID = 0xAA
 
 # ID of BRUSA's can messages
+
+
 class CAN_BRUSA_MSG_ID(Enum):
     NLG5_ERR = 0x614
     NLG5_TEMP = 0x613
@@ -26,6 +29,8 @@ class CAN_BRUSA_MSG_ID(Enum):
     NLG5_ST = 0x610
 
 # States of the backend's state-machine
+
+
 class STATE(Enum):
     CHECK = 0
     IDLE = 1
@@ -48,12 +53,16 @@ class BMS_MES_ID(Enum):
     CAN_OUT_TS_OFF = 4
 
 # The possible states of BMS
+
+
 class BMS_STATE(Enum):
     TS_ON = 3
     TS_OFF = 4
     # Missing
 
 # Backend Error codes, maybe we'll not use them, we'll se
+
+
 class E_CODE(Enum):
     BATTERY_TEMP = 0
     OVERCHARGE = 0
@@ -91,6 +100,8 @@ class NLG5_ST_POS(Enum):
 
 # Gives the position of things in  can message's data segment
 # See BRUSA's can messages sheet for reference
+
+
 class NLG5_ACT_I_POS(Enum):
     NLG5_MC_ACT = 0
     NLG5_MV_ACT = 16
@@ -99,6 +110,8 @@ class NLG5_ACT_I_POS(Enum):
 
 # Gives the position of things in  can message's data segment
 # See BRUSA's can messages sheet for reference
+
+
 class NLG5_ACT_II_POS(Enum):
     NLG5_S_MC_M_CP = 0
     NLG5_S_MC_M_PI = 16
@@ -108,6 +121,8 @@ class NLG5_ACT_II_POS(Enum):
 
 # Gives the position of things in  can message's data segment
 # See BRUSA's can messages sheet for reference
+
+
 class NLG5_TEMP_POS(Enum):
     NLG5_P_TMP = 0
     NLG5_TMP_EXT1 = 16
@@ -116,6 +131,8 @@ class NLG5_TEMP_POS(Enum):
 
 # Gives the position of things in  can message's data segment
 # See BRUSA's can messages sheet for reference
+
+
 class NLG5_ERR_POS(Enum):
     NLG5_E_OOV = 0
     NLG5_E_MOV_II = 1
@@ -156,11 +173,15 @@ class NLG5_ERR_POS(Enum):
     NLG5_W_SC_M = 39
 
 # Class that stores the info about the last related can msg
+
+
 class VAL_NLG5_ST():
     lastUpdated = 0  # Last time it was updated in can timestamp
     values = []
 
 # Class that stores the info about the last related can msg
+
+
 class VAL_NLG5_ACT_I():
     lastUpdated = 0  # Last time it was updated in can timestamp
     NLG5_MC_ACT = 0
@@ -169,33 +190,42 @@ class VAL_NLG5_ACT_I():
     NLG5_OC_ACT = 0
 
 # Class that stores the info about the last related can msg
+
+
 class VAL_NLG5_ACT_II():
     lastUpdated = 0  # Last time it was updated in can timestamp
     values = []
 
 # Class that stores the info about the last related can msg
+
+
 class VAL_NLG5_TEMP():
     lastUpdated = 0  # Last time it was updated in can timestamp
     values = []
 
 # Class that stores the info about the last related can msg
+
+
 class VAL_NLG5_ERR():
     lastUpdated = 0  # Last time it was updated in can timestamp
     values = []
 
 # That listener is called wether a can message arrives, then
 # based on the msg ID, processes it, and save on itself the msg info
+
+
 class CanListener(Listener):
     newBMSMessage = False
     newBRUSAMessage = False
+
     brusa_err = False
-    brusa_err_str_list = [] # the list of errors in string format
+    brusa_err_str_list = []  # the list of errors in string format
     bms_err = False
     bms_stat = -1
     brusa_connected = False
     bms_err_str = ""
 
-    act_NLG5_ST = VAL_NLG5_ST() # Instantiate the value
+    act_NLG5_ST = VAL_NLG5_ST()  # Instantiate the value
     act_NLG5_ACT_I = VAL_NLG5_ACT_I()
     act_NLG5_ERR = VAL_NLG5_ERR()
 
@@ -279,37 +309,53 @@ class CanListener(Listener):
     # relative function based on ID
     def on_message_received(self, msg):
         print(msg)
-        self.doMsg.get(msg.arbitration_id)(self,msg)
+        self.doMsg.get(msg.arbitration_id)(self, msg)
+
+
+class DataHolder():
+    brusa_err = False
+    brusa_err_str_list = []  # the list of errors in string format
+    bms_err = False
+    bms_stat = -1
+    brusa_connected = False
+    bms_err_str = ""
 
 
 PORK_CONNECTED = False
 BRUSA_CONNECTED = False
-act_stat = STATE.CHECK # stores the status of the FSM
-last_err = 0 # stores the value of the last error (not sure if we'll use this)
+act_stat = STATE.CHECK  # stores the status of the FSM
+last_err = 0  # stores the value of the last error (not sure if we'll use this)
 
-canbus = can.interface.Bus # stores the canbus object
-canRead = CanListener() # initiate the listener
+instance_data = DataHolder()
+
 
 # Checks if an error is found
 def chkErr():
-    if canRead.brusa_err or canRead.bms_err:
+    if instance_data.brusa_err or instance_data.bms_err:
         return True
     else:
         return False
 
 # function that clear all the errors stored
 # USE WITH CARE
+
+
 def clrErr():
-    canRead.brusa_err = False
-    canRead.bms_err = False
-    canRead.bms_err_str = ""
-    canRead.brusa_err_str_list = []
+    instance_data.brusa_err = False
+    instance_data.bms_err = False
+    instance_data.bms_err_str = ""
+    instance_data.brusa_err_str_list = []
 
 # connects to canbus, and liks the listener
-def canInit():
+
+
+def canInit(listener):
     try:
         canbus = can.interface.Bus(interface="socketcan", channel="can0")
-        notif = can.Notifier(canbus, [canRead])  # links the bus with the listener
+        # links the bus with the listener
+        notif = can.Notifier(canbus, [listener])
+
+        return canbus
     except(ValueError):
         print("Can channel not recognized")
         return False
@@ -321,10 +367,13 @@ def canInit():
         return False
 
 # Send can message
-def canSend(msg_id, data):
-    msg = can.Message(arbitration_id=msg_id, data=data)  # doesn't check the msg before sending it
+
+
+def canSend(bus, msg_id, data):
+    # doesn't check the msg before sending it
+    msg = can.Message(arbitration_id=msg_id, data=data)
     try:
-        canbus.send(msg)
+        bus.send(msg)
         # print("Message sent on {}".format(canbus.channel_info))
         return True
     except can.CanError:
@@ -332,17 +381,21 @@ def canSend(msg_id, data):
         raise can.CanError
 
 # Checks if can is connected
-def isPorkConnected():
+
+
+def isPorkConnected(data):
     # canSend(BMS_HV, TS_STATUS_REQ)
-    if (canRead.bms_stat) != -1:
+    if (data.bms_stat) != -1:
         print("Accumulator connected")
         return True
     else:
         return False
 
 # Checks if brusa is connected
+
+
 def isBrusaConnected():
-    if canRead.brusa_connected:
+    if instance_data.brusa_connected:
         print("Brusa connected")
         return True
     else:
@@ -367,17 +420,17 @@ def doIdle():
         return STATE.IDLE
 
 
-def doPreCharge():
+def doPreCharge(data):
     # ask pork to do precharge
     # Send req to bms "TS_ON"
     # If response of HV_STATUS = TS_ON ok
 
     PRECHARGE_DONE = False
 
-    if (canRead.newMessage):
+    if (data.newMessage):
         if chkErr():
             return STATE.ERROR
-        if (canRead.bms_stat == BMS_STATE.TS_ON):
+        if (data.bms_stat == BMS_STATE.TS_ON):
             print("Precharge done, TS is on")
             PRECHARGE_DONE = True
 
@@ -412,15 +465,16 @@ def doC_done():
 
 
 def doError():
-    if canRead.brusa_err:
+    if instance_data.brusa_err:
         print("BRUSA Error: ")
-        for i in canRead.brusa_err_str_list:
+        for i in instance_data.brusa_err_str_list:
             print(i)
-    if canRead.bms_err:
+    if instance_data.bms_err:
         print("Accumulator Error: ")
-        print(canRead.bms_err_str)
+        print(instance_data.bms_err_str)
 
-    command = input("Press c to continue and clear errors, otherwise program will quit")
+    command = input(
+        "Press c to continue and clear errors, otherwise program will quit")
     if command == 'c':
         clrErr()
         return STATE.CHECK
@@ -430,6 +484,7 @@ def doError():
 
 def doExit():
     exit(0)
+
 
 # Maps state to it's function
 doState = {
@@ -443,19 +498,27 @@ doState = {
     STATE.EXIT: doExit
 }
 
+lock = threading.Lock()
 
-# Pls read the info about the state machine
-def __main__():
+def thread_1_FSM(data, lock):
+    # Pls read the infos about the state machine
     act_stat = STATE.CHECK
     while (1):
+        # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         print("STATE: " + str(act_stat))
-        next_stat = doState.get(act_stat)()
+        next_stat = doState.get(act_stat)(data)
         if next_stat == STATE.EXIT:
             return
         act_stat = next_stat
         time.sleep(3)
 
-canInit()
-__main__()
 
+def thread_2_CAN(data, lock):
+    canRead = CanListener()
+    canbus = canInit(canRead)
 
+# Usare le code tra FSM e CAN per invio e ricezione
+# Processare i messaggi nella FSM e inoltrarli gia a posto
+
+def thread_3_WEB(data, lock):
+    pass

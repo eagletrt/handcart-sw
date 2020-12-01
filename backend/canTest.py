@@ -6,6 +6,8 @@ from enum import Enum
 import threading
 from can.listener import Listener
 
+
+
 class CAN_MESSAGES_ID(Enum):
     CAN_OUT_CURRENT = 0x05
     CAN_OUT_PACK_VOLTS = 0x01
@@ -17,10 +19,16 @@ class CAN_MESSAGES_ID(Enum):
 
 class CanReader(Listener):
     test = False
+    f = open("log.txt", "w")
+    
     def __init__(self):
         pass
 
     def on_message_received(self, msg):
+        #f.write(msg)
+        
+        self.f.write(str(msg) + "\n")
+        
         self.test = True
 
 
@@ -34,4 +42,3 @@ n = can.Notifier(bus, [listener])
 
 while(1):
     print(listener.test)
-    pass
