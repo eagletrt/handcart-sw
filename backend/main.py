@@ -487,7 +487,6 @@ def doError():
     else:
         return STATE.ERROR
 
-    
 def doExit():
     exit(0)
 
@@ -509,7 +508,6 @@ lock = threading.Lock()
 def thread_1_FSM(data, lock):
     # Pls read the infos about the state machine
     
-
     act_stat = STATE.CHECK
     while (1):
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
