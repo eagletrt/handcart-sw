@@ -17,7 +17,7 @@ import time
 import threading
 import queue
 
-CAN_BMS_ID = 0xAA
+CAN_BMS_ID = 170 #0xAA
 
 # ID of BRUSA's can messages
 
@@ -223,7 +223,7 @@ class CanListener():
     brusa_err_str_list = []  # the list of errors in string format
     bms_err = False
     bms_stat = -1
-    pork_connected = False
+    bms_connected = False
     brusa_connected = False
     bms_err_str = ""
     can_err = False
@@ -259,6 +259,7 @@ class CanListener():
     # msg ID
     def serveBMSMessage(self, msg):
         self.newBMSMessage = True
+        self.bms_connected = True
         self.msgTypeBMS.get(msg.data[0])(self, msg)
 
     def doNLG5_ST(self, msg):
@@ -313,7 +314,8 @@ class CanListener():
     # relative function based on ID
     def on_message_received(self, msg):
         print(msg)
-        self.doMsg.get(msg.arbitration_id)(self, msg)
+        if self.doMsg.get(msg.arbitration_id) != None:
+            self.doMsg.get(msg.arbitration_id)(self, msg)
 
 
 class Can_rx_listener(Listener):
@@ -329,6 +331,7 @@ class DataHolder():
     bms_err = False
     bms_stat = -1
     brusa_connected = False
+    bms_connected = False
     bms_err_str = ""
     can_err = False
 
@@ -344,6 +347,7 @@ shared_data = DataHolder()
 rx_can_queue = queue.Queue()
 tx_can_queue = queue.Queue()
 com_queue = queue.Queue()
+lock = threading.Lock()
 
 # function that clear all the errors stored
 # USE WITH CARE
@@ -505,11 +509,12 @@ doState = {
 
 lock = threading.Lock()
 
-def thread_1_FSM(data, lock):
+def thread_1_FSM(lock):
     # Pls read the infos about the state machine
     
     act_stat = STATE.CHECK
     while (1):
+        time.sleep(1)
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
             new_msg = rx_can_queue.get()
@@ -517,9 +522,9 @@ def thread_1_FSM(data, lock):
         
         # Checks errors
         if canread.brusa_err or canread.bms_err or canread.can_err:
-            next_stat = doState.get(STATE.ERROR)(data)
+            next_stat = doState.get(STATE.ERROR)()
         else:
-            next_stat = doState.get(act_stat)(data)
+            next_stat = doState.get(act_stat)()
 
         print("STATE: " + str(act_stat))
         
@@ -532,24 +537,38 @@ def thread_1_FSM(data, lock):
             shared_data.bms_err = canread.bms_err
             shared_data.bms_err_str = canread.bms_err_str
             shared_data.bms_stat = canread.bms_stat
+            shared_data.bms_connected = canread.bms_connected
             shared_data.brusa_connected = canread.brusa_connected
             shared_data.brusa_err = canread.brusa_err
             shared_data.brusa_err_str_list = canread.brusa_err_str_list
             shared_data.can_err = canread.can_err
 
 
-def thread_2_CAN(data, lock):
+def thread_2_CAN(lock):
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
     
     # Sends all messages in tx queue
     while not tx_can_queue.empty:
+        time.sleep(1)
         act = tx_can_queue.get()
         canSend(canbus, act.id, act.data)
     
 
-def thread_3_WEB(data, lock):
-    pass
+def thread_3_WEB(lock):
+    while(1):
+        time.sleep(1)
+        with lock:
+            print(shared_data.bms_connected)
 
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
+
+t1 = threading.Thread(target=thread_1_FSM, args=(lock,))
+t2 = threading.Thread(target=thread_2_CAN, args=(lock,))
+t3 = threading.Thread(target=thread_3_WEB, args=(lock,))
+
+
+t1.start()
+t2.start()
+t3.start()
