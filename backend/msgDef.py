@@ -33,6 +33,8 @@ NLG5_ERR_DEF = [
     "Emergency Shutdown Threshold 'Battery Voltage' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
     "Emergency Shutdown Threshold 'Amp Hours' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
     "	Emergency Shutdown Threshold 'Charging Time' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
+    "",
+    "",
     "Output power limited by low mains voltage",
     "Output power limited by low battery voltage",
     "Output power limited by charger internal overtemperature",

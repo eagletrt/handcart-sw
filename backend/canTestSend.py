@@ -4,11 +4,13 @@
 import can
 
 bus = can.interface.Bus(interface='socketcan',
-              channel='can0',
-              receive_own_messages=True)
+                        channel='can0',
+                        receive_own_messages=True)
 
-msg = can.Message(arbitration_id=0xAA, data=[3, 0, 0, 0, 0, 0, 0, 0]) # BMS TS_ON
-msg2 = can.Message(arbitration_id=0x610, data=[0, 0, 0, 0, 0, 0, 0, 0]) # BRUSA STATUS
+msg = can.Message(arbitration_id=0xAA, data=[
+                  3, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
+msg2 = can.Message(arbitration_id=0x610, data=[
+                   0, 1, 0, 0, 0, 0, 0, 0])  # BRUSA STATUS
 
 try:
     bus.send(msg)

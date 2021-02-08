@@ -7,7 +7,6 @@ import threading
 from can.listener import Listener
 
 
-
 class CAN_MESSAGES_ID(Enum):
     CAN_OUT_CURRENT = 0x05
     CAN_OUT_PACK_VOLTS = 0x01
@@ -17,28 +16,35 @@ class CAN_MESSAGES_ID(Enum):
     CAN_OUT_TS_ON = 0x03
     CAN_OUT_TS_OFF = 0x04
 
+
 class CanReader(Listener):
     test = False
     f = open("log.txt", "w")
-    
+
     def __init__(self):
         pass
 
     def on_message_received(self, msg):
-        #f.write(msg)
-        
+        # f.write(msg)
+
         self.f.write(str(msg) + "\n")
-        
+
+        if(msg.arbitration_id == 0x610):
+            print(bin(msg.data[0]))
+            if (msg.data[0] & 0b00000010):
+                print(msg)
+
         self.test = True
 
 
 bus = can.interface.Bus(interface='socketcan',
-              channel='can0',
-              receive_own_messages=True)
+                        channel='can0',
+                        receive_own_messages=True)
 
 listener = CanReader()
 
 n = can.Notifier(bus, [listener])
 
 while(1):
-    print(listener.test)
+    pass
+    # print(listener.test)
