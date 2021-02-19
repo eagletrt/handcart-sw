@@ -19,3 +19,5 @@ This is the repo for Fenice's handcart.
 
 ### Diagram link
 https://lucid.app/lucidchart/invitations/accept/dbc53a3d-c901-4d6a-a692-972de6713d43
+
+https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md
