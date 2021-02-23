@@ -16,6 +16,8 @@ import argparse
 import time
 import threading
 import queue
+import flask
+from flask import request
 
 CAN_BMS_ID = 170  # 0xAA
 BYTE_MASK = [
@@ -177,11 +179,12 @@ class VAL_NLG5_ST():
     for i in range(32):
         values.append(False)
 
-    def onNewMessage(self, data):
+    def onNewMessage(self, msg):
+        self.lastUpdated = msg.timestamp
         pos = 0
         for i in range(4):
             for mask in BYTE_MASK:
-                res = data[i] & mask
+                res = msg.data[i] & mask
                 self.values[pos] = res
                 if res:
                     print(msgDef.NLG5_ST_DEF[pos])
@@ -196,17 +199,52 @@ class VAL_NLG5_ACT_I():
     NLG5_OV_ACT = 0
     NLG5_OC_ACT = 0
 
+    def onNewMessage(self, msg):
+        self.lastUpdated = msg.timestamp
+        self.NLG5_MC_ACT = int.from_bytes(
+            msg.data[:2], byteorder='big', signed=False) * 0.01
+        self.NLG5_MV_ACT = int.from_bytes(
+            msg.data[2:4], byteorder='big', signed=False) * 0.1
+        self.NLG5_OV_ACT = int.from_bytes(
+            msg.data[4:6], byteorder='big', signed=False) * 0.1
+        self.NLG5_OC_ACT = int.from_bytes(
+            msg.data[6:8], byteorder='big', signed=True) * 0.01
+
 
 # Class that stores the info about the last related can msg
 class VAL_NLG5_ACT_II():
     lastUpdated = 0  # Last time it was updated in can timestamp
-    values = []
+    NLG5_S_MC_M_CP = 0  # 16 bit
+    NLG5_S_MC_M_PI = 0  # 8 bit
+    NLG5_ABV = 0  # 8 bit
+    NLG5_AHC_EXT = 0  # 16 bit
+    NLG5_OC_BO = 0  # 16 bit
+
+    def onNewMessage(self, msg):
+        self.lastUpdated = msg.timestamp
+
+        self.NLG5_S_MC_M_CP = int.from_bytes(
+            msg.data[:2], byteorder='big', signed=False) * 0.1
+        self.NLG5_S_MC_M_PI = int.from_bytes(
+            msg.data[2:3], byteorder='big', signed=False) * 0.1
+        self.NLG5_ABV = int.from_bytes(
+            msg.data[3:4], byteorder='big', signed=False) * 0.1
+        self.NLG5_AHC_EXT = int.from_bytes(
+            msg.data[4:6], byteorder='big', signed=True) * 0.01
+        self.NLG5_OC_BO = int.from_bytes(
+            msg.data[6:8], byteorder='big', signed=False) * 0.01
 
 
 # Class that stores the info about the last related can msg
 class VAL_NLG5_TEMP():
     lastUpdated = 0  # Last time it was updated in can timestamp
-    values = []
+    NLG5_P_TEMP = 0
+
+    def onNewMessage(self, msg):
+        self.lastUpdated = msg.timestamp
+
+        self.NLG5_P_TEMP = int.from_bytes(
+            msg.data[:2], byteorder='big', signed=True) * 0.1
 
 
 # Class that stores the info about the last error can msg from brusa
@@ -217,12 +255,14 @@ class VAL_NLG5_ERR():
     for i in range(40):
         values.append(False)
 
-    def onNewMessage(self, data):
+    def onNewMessage(self, msg):
+        self.lastUpdated = msg.timestamp
+
         pos = 0
         for i in range(5):
             for mask in BYTE_MASK:
                 if pos != 30 and pos != 31:
-                    res = data[i] & mask
+                    res = msg.data[i] & mask
                     if res:
                         self.error_check = True
                     self.values[pos] = res
@@ -289,8 +329,7 @@ class CanListener():
 
     def doNLG5_ACT_I(self, msg):
         # Manca da trasformare i valori in bit in valori decimali
-        # act_NLG5_ACT_I.NLG5_MC_ACT = data[NLG5_ACT_I_POS.NLG5_MC_ACT]
-        pass
+        self.act_NLG5_ACT_I.onNewMessage(msg)
 
     def doNLG5_ACT_II(self, msg):
         pass
@@ -298,6 +337,7 @@ class CanListener():
     def doNLG5_TEMP(self, msg):
         pass
 
+    # Handles brusa CAN error's message
     def doNLG5_ERR(self, msg):
         self.act_NLG5_ERR.onNewMessage(msg.data)
         if self.act_NLG5_ERR.error_check:
@@ -349,6 +389,7 @@ class Can_rx_listener(Listener):
 
 
 class DataHolder():
+    FSM_state = -1
     brusa_err = False
     brusa_err_str_list = []  # the list of errors in string format
     bms_err = False
@@ -586,6 +627,7 @@ def thread_1_FSM(lock):
 
         with lock:
             # Updates shared data with updated one
+            shared_data.FSM_state = act_stat
             shared_data.bms_err = canread.bms_err
             shared_data.bms_err_str = canread.bms_err_str
             shared_data.bms_stat = canread.bms_stat
@@ -616,15 +658,35 @@ def thread_2_CAN(lock):
 
 # Webserver thread
 def thread_3_WEB(lock):
-    while(1):
-        time.sleep(1)
+    app = flask.Flask(__name__)
+
+    app.config["DEBUG"] = True
+
+    @app.route('/', methods=['GET'])
+    def home():
+        return "asd"  # flask.render_template("index.html")
+
+    @app.route('/command/', methods=['POST'])
+    def recv_command():
+        print(request.json())
+
+    @app.route('/handcart/status/', methods=['GET'])
+    def send_status():
         with lock:
-            # print(shared_data.bms_connected)
-            pass
+            return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(shared_data.FSM_state) + "\"}"
+
+    app.run(use_reloader=False)
+
+    # while(1):
+    #    time.sleep(1)
+    #    print("ghesboro")
+    #    with lock:
+    #        # print(shared_data.bms_connected)
+    #        pass
+
 
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
-
 
 t1 = threading.Thread(target=thread_1_FSM, args=(lock,))
 t2 = threading.Thread(target=thread_2_CAN, args=(lock,))

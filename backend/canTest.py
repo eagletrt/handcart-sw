@@ -26,13 +26,15 @@ class CanReader(Listener):
 
     def on_message_received(self, msg):
         # f.write(msg)
+        print(msg.data[:2])
+        a = msg.data[:2]
+        b = int.from_bytes(a, byteorder='big', signed=False)
+        print(b)
 
         self.f.write(str(msg) + "\n")
 
         if(msg.arbitration_id == 0x610):
             print(bin(msg.data[0]))
-            if (msg.data[0] & 0b00000010):
-                print(msg)
 
         self.test = True
 
