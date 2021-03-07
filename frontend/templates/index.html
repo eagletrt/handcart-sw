@@ -13,6 +13,7 @@
     <script src="https://cdn.amcharts.com/lib/4/core.js"></script>
     <script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
     <script src="https://cdn.amcharts.com/lib/4/themes/material.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
     <script src="https://cdn.amcharts.com/lib/4/lang/de_DE.js"></script>
     <script src="https://cdn.amcharts.com/lib/4/geodata/germanyLow.js"></script>
     <script src="https://cdn.amcharts.com/lib/4/fonts/notosans-sc.js"></script>
@@ -38,6 +39,10 @@
     <link href="../main.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="js/script.js"></script>
+
+    <!-- charts -->
+    <script src="charts/chargeChart.js"></script>
+    <script src="charts/cellChart.js"></script>
 </head>
 
 <body onload="elapsedTime()">
@@ -118,12 +123,26 @@
                             Low accumulator state: <b class="red">Not connected</b>
                         </div>
                     </div>
+                    <br>
                     <div class="row">
                         <div class="col-sm"><!-- empty column --></div>
                         <div class="col-sm">
                             Elapsed time: <b id="timeText">00:00</b>
                         </div>
                         <div class="col-sm"><!-- empty column --></div>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="col-sm"></div>
+                        <div class="col-sm">
+                            <div id="chargeChart"></div>
+                        </div>
+                        <div class="col-sm"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm">
+                            <div id="cellChart"></div>
+                        </div>
                     </div>
                 </div>
 

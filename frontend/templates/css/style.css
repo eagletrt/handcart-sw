@@ -21,3 +21,8 @@
 .col-sm {
     text-align: center;
 }
+
+[id$="Chart"] {
+    width: 100%;
+    height: 500px;
+}
