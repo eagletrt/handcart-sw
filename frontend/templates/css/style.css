@@ -1,0 +1,23 @@
+.sidebar {
+    position: fixed;
+}
+
+.green {
+    color: green;
+}
+
+.yellow {
+    color: yellow;
+}
+
+.orange {
+    color: orange;
+}
+
+.red {
+    color: red;
+}
+
+.col-sm {
+    text-align: center;
+}
