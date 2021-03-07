@@ -41,8 +41,11 @@
     <script src="js/script.js"></script>
 
     <!-- charts -->
+    <script src="charts/voltChart.js"></script>
     <script src="charts/chargeChart.js"></script>
+    <script src="charts/ampereChart.js"></script>
     <script src="charts/cellChart.js"></script>
+    <script src="charts/tempChart.js"></script>
 </head>
 
 <body onload="elapsedTime()">
@@ -60,17 +63,17 @@
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link active" href="index.html">
-                                <span data-feather="home"></span> Home <span class="sr-only">(current)</span>
+                                <span data-feather="home" class="ico"></span> Home <span class="sr-only">(current)</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="file-text"></span> CAN details
+                                <span data-feather="file-text" class="ico"></span> CAN details
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="settings"></span> Settings
+                                <span data-feather="settings" class="ico"></span> Settings
                             </a>
                         </li>
                     </ul>
@@ -84,22 +87,22 @@
                     <ul class="nav flex-column mb-2">
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="file-text"></span> Current month
+                                <span data-feather="file-text" class="ico"></span> Current month
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="file-text"></span> Last quarter
+                                <span data-feather="file-text" class="ico"></span> Last quarter
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="file-text"></span> Social engagement
+                                <span data-feather="file-text" class="ico"></span> Social engagement
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
-                                <span data-feather="file-text"></span> Year-end sale
+                                <span data-feather="file-text" class="ico"></span> Year-end sale
                             </a>
                         </li>
                     </ul>
@@ -133,15 +136,28 @@
                     </div>
                     <br>
                     <div class="row">
-                        <div class="col-sm"></div>
+                        <div class="col-sm">
+                            <div id="voltChart"></div>
+                        </div>
                         <div class="col-sm">
                             <div id="chargeChart"></div>
                         </div>
-                        <div class="col-sm"></div>
+                        <div class="col-sm">
+                            <div id="ampereChart"></div>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-sm">
                             <div id="cellChart"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm">
+                            <div id="tempChart"></div>
+                        </div>
+                        <div class="col-sm">
+                        </div>
+                        <div class="col-sm">
                         </div>
                     </div>
                 </div>

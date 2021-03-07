@@ -31,11 +31,11 @@ am4core.ready(function() {
     categoryAxis.renderer.labels.template.horizontalCenter = "right";
     categoryAxis.renderer.labels.template.verticalCenter = "middle";
     categoryAxis.renderer.labels.template.rotation = 270;
-    categoryAxis.tooltip.disabled = true;
     categoryAxis.renderer.minHeight = 110;
 
     var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
     valueAxis.renderer.minWidth = 50;
+    valueAxis.tooltip.disabled = true;
 
     // Create series
     var series = chart.series.push(new am4charts.ColumnSeries());
@@ -72,7 +72,6 @@ am4core.ready(function() {
 
         rgb = `rgb(${r}, ${g}, ${b})`;
         return rgb;
-        /*return chart.colors.getIndex(target.dataItem.index);*/
     });
 
     // Cursor

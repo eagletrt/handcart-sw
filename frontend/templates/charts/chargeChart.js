@@ -42,7 +42,7 @@ am4core.ready(function() {
     range1.value = 50;
     range1.endValue = 100;
     range1.axisFill.fillOpacity = 1;
-    range1.axisFill.fill = am4core.color("red");;
+    range1.axisFill.fill = am4core.color("red");
 
     /**
      * Label
