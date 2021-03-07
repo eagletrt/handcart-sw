@@ -46,6 +46,7 @@
     <script src="charts/ampereChart.js"></script>
     <script src="charts/cellChart.js"></script>
     <script src="charts/tempChart.js"></script>
+    <script src="charts/test.js"></script>
 </head>
 
 <body onload="elapsedTime()">
@@ -151,13 +152,42 @@
                             <div id="cellChart"></div>
                         </div>
                     </div>
-                    <div class="row">
+                    <div class="row align-items-center">
                         <div class="col-sm">
                             <div id="tempChart"></div>
                         </div>
                         <div class="col-sm">
+                            <div class="row">
+                                <div class="col-sm">
+                                    <button type="button" onclick="start()" id="start" class="btn btn-success btn-lg">Start</button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <button type="button" onclick="stop()" id="stop" class="btn btn-danger btn-lg" disabled>Stop</button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <button type="button" class="btn btn-secondary btn-lg">Settings</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm">
+                            <div class="row">
+                                <div class="col-sm">
+                                    <a href="" class="orange">
+                                        <span data-feather="alert-triangle" class="ico"></span> 5 WARNING
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <a href="" class="red">
+                                        <span data-feather="alert-triangle" class="ico"></span> 2 ERROR
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

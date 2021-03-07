@@ -72,3 +72,15 @@ var timeAndDateHandling = {
         }
     }
 }
+
+//------------------------------------------------------------------------------
+
+function start() {
+    document.getElementById("start").disabled = true;
+    document.getElementById("stop").disabled = false;
+}
+
+function stop() {
+    document.getElementById("start").disabled = false;
+    document.getElementById("stop").disabled = true;
+}

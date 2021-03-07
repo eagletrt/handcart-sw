@@ -36,3 +36,30 @@ body {
     width: 100%;
     height: 500px;
 }
+
+.col-sm > .row {
+    margin-top: 50px;
+    margin-bottom: 50px;
+}
+
+.btn {
+    width: 200px;
+}
+
+a:link, a:hover, a:active, a:visited {
+    text-decoration: none;
+}
+
+a.orange, a.red {
+    font-weight: bold;
+    font-size: 1.5em;
+    transition: all 0.1s linear;
+}
+
+a.orange:hover {
+    color: #ff8c00;
+}
+
+a.red:hover {
+    color: #cf001a;
+}
