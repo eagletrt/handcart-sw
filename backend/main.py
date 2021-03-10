@@ -18,17 +18,18 @@ import threading
 import queue
 import flask
 from flask import request
+import os
 
 CAN_BMS_ID = 170  # 0xAA
 BYTE_MASK = [
-    0b00000001,
-    0b00000010,
-    0b00000100,
-    0b00001000,
-    0b00010000,
-    0b00100000,
+    0b10000000,
     0b01000000,
-    0b10000000
+    0b00100000,
+    0b00010000,
+    0b00001000,
+    0b00000100,
+    0b00000010,
+    0b00000001
 ]
 
 
@@ -185,9 +186,9 @@ class VAL_NLG5_ST():
         for i in range(4):
             for mask in BYTE_MASK:
                 res = msg.data[i] & mask
-                self.values[pos] = res
-                if res:
-                    print(msgDef.NLG5_ST_DEF[pos])
+                if res > 0:
+                    self.values[pos] = True
+                    #print("[ST] " + msgDef.NLG5_ST_DEF[pos])
                 pos += 1
 
 
@@ -263,9 +264,9 @@ class VAL_NLG5_ERR():
             for mask in BYTE_MASK:
                 if pos != 30 and pos != 31:
                     res = msg.data[i] & mask
-                    if res:
+                    if res>0:
                         self.error_check = True
-                    self.values[pos] = res
+                        self.values[pos] = True
                     pos += 1
 
 
@@ -323,7 +324,7 @@ class CanListener():
     # Handles Brusa CAN status messages
     def doNLG5_ST(self, msg):
         self.brusa_connected = True
-        self.act_NLG5_ST.onNewMessage(msg.data)
+        self.act_NLG5_ST.onNewMessage(msg)
         if self.act_NLG5_ST.values[NLG5_ST_POS.NLG5_S_ERR.value] == True:
             self.brusa_err = True
 
@@ -339,10 +340,9 @@ class CanListener():
 
     # Handles brusa CAN error's message
     def doNLG5_ERR(self, msg):
-        self.act_NLG5_ERR.onNewMessage(msg.data)
+        self.act_NLG5_ERR.onNewMessage(msg)
         if self.act_NLG5_ERR.error_check:
             self.brusa_err = True
-            print("truee")
             for i in range(40):
                 if self.act_NLG5_ERR.values[i]:
                     self.brusa_err_str_list.append(msgDef.NLG5_ERR_DEF[i])
@@ -462,7 +462,7 @@ def canSend(bus, msg_id, data):
 def isPorkConnected():
     # canSend(BMS_HV, TS_STATUS_REQ)
     if (canread.bms_stat) != -1:
-        print("Accumulator connected")
+        #print("Accumulator connected")
         return True
     else:
         return False
@@ -471,7 +471,7 @@ def isPorkConnected():
 # Checks if brusa is connected
 def isBrusaConnected():
     if canread.brusa_connected:
-        print("Brusa connected")
+        #print("Brusa connected")
         return True
     else:
         return False
@@ -559,9 +559,10 @@ def doError():
     # Send to BMS stacca stacca
 
     if canread.brusa_err:
-        print("BRUSA Error: ")
+        #print("BRUSA Error: ")
         for i in canread.brusa_err_str_list:
-            print(i)
+            pass
+            #print("[ERR] " + i)
     if canread.bms_err:
         print("Accumulator Error: ")
         print(canread.bms_err_str)
@@ -600,6 +601,28 @@ doState = {
 
 lock = threading.Lock()
 
+def printConsole(FSM_stat):
+    os.system("clear")
+    print("STATE: " + str(FSM_stat))
+    print("")
+    print("pork: " + str(canread.bms_connected))
+    print("brusa: " + str(canread.brusa_connected))
+    print("")
+
+    if canread.brusa_connected:
+        print("BRUSA status:")
+        c=0
+        for i in canread.act_NLG5_ST.values:
+            if i:
+                print("[ST] " + msgDef.NLG5_ST_DEF[c])
+            c +=1
+
+    if(canread.brusa_err):
+        print("\nBRUSA errors:")
+        for i in canread.brusa_err_str_list:
+            print("[ERR] " + i)
+
+
 
 # Backend Thread
 def thread_1_FSM(lock):
@@ -613,13 +636,14 @@ def thread_1_FSM(lock):
             new_msg = rx_can_queue.get()
             canread.on_message_received(new_msg)
 
+        printConsole(act_stat)
+
         # Checks errors
         if canread.brusa_err or canread.bms_err or canread.can_err:
             next_stat = doState.get(STATE.ERROR)()
         else:
             next_stat = doState.get(act_stat)()
 
-        print("STATE: " + str(act_stat))
 
         if next_stat == STATE.EXIT:
             return
@@ -675,6 +699,13 @@ def thread_3_WEB(lock):
         with lock:
             return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(shared_data.FSM_state) + "\"}"
 
+    @app.route('/command/handcart/', methods=['POST'])
+    def send_command():
+        print(request.data)
+        # if req['com-type'] == 'start-cgh' and req['value'] == 'true':
+        #    print('okka')
+        return "ok"
+
     app.run(use_reloader=False)
 
     # while(1):
@@ -695,3 +726,4 @@ t3 = threading.Thread(target=thread_3_WEB, args=(lock,))
 t1.start()
 t2.start()
 t3.start()
+
