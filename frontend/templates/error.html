@@ -24,28 +24,12 @@
     <script src="https://unpkg.com/feather-icons"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
-    <!--<link rel="apple-touch-icon" href="resources/bootstrap-icons-1.1.0/apple-touch-icon.png" sizes="180x180">
-    <link rel="icon" href="resources/bootstrap-icons-1.1.0/favicon-32x32.png" sizes="32x32" type="image/png">
-    <link rel="icon" href="resources/bootstrap-icons-1.1.0/favicon-16x16.png" sizes="16x16" type="image/png">
-    <link rel="manifest" href="resources/bootstrap-icons-1.1.0/manifest.json">
-    <link rel="mask-icon" href="resources/bootstrap-icons-1.1.0/safari-pinned-tab.svg" color="#563d7c">
-    <link rel="icon" href="resources/bootstrap-icons-1.1.0/favicon.ico">
-    <meta name="msapplication-config" content="resources/bootstrap-icons-1.1.0/browserconfig.xml">
-    <meta name="theme-color" content="#563d7c">-->
-
     <link rel="icon" href="images/eagle.png" type="image/png">
 
     <!-- Custom styles for this template -->
     <link href="../main.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="js/script.js"></script>
-
-    <!-- charts -->
-    <script src="charts/voltChart.js"></script>
-    <script src="charts/chargeChart.js"></script>
-    <script src="charts/ampereChart.js"></script>
-    <script src="charts/cellChart.js"></script>
-    <script src="charts/tempChart.js"></script>
 </head>
 
 <body onload="elapsedTime()">
@@ -63,7 +47,7 @@
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link active" href="index.html">
-                                <span data-feather="home" class="ico"></span> Home <span class="sr-only">(current)</span>
+                                <span data-feather="home" class="ico"></span> Home
                             </a>
                         </li>
                         <li class="nav-item">
@@ -111,7 +95,7 @@
 
             <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Dashboard</h1>
+                    <h1 class="h2 red">Errors</h1>
                 </div>
 
                 <div class="container">
@@ -133,61 +117,6 @@
                             Elapsed time: <b id="timeText">00:00</b>
                         </div>
                         <div class="col-sm"><!-- empty column --></div>
-                    </div>
-                    <br>
-                    <div class="row">
-                        <div class="col-sm">
-                            <div id="voltChart"></div>
-                        </div>
-                        <div class="col-sm">
-                            <div id="chargeChart"></div>
-                        </div>
-                        <div class="col-sm">
-                            <div id="ampereChart"></div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm">
-                            <div id="cellChart"></div>
-                        </div>
-                    </div>
-                    <div class="row align-items-center">
-                        <div class="col-sm">
-                            <div id="tempChart"></div>
-                        </div>
-                        <div class="col-sm">
-                            <div class="row">
-                                <div class="col-sm">
-                                    <button type="button" onclick="start()" id="start" class="btn btn-success btn-lg">Start</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-sm">
-                                    <button type="button" onclick="stop()" id="stop" class="btn btn-danger btn-lg" disabled>Stop</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-sm">
-                                    <button type="button" class="btn btn-secondary btn-lg">Settings</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm">
-                            <div class="row">
-                                <div class="col-sm">
-                                    <a href="warning.html" class="orange">
-                                        <span data-feather="alert-triangle" class="ico"></span> 5 WARNING
-                                    </a>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-sm">
-                                    <a href="error.html" class="red">
-                                        <span data-feather="alert-triangle" class="ico"></span> 2 ERROR
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
