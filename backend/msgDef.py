@@ -32,7 +32,7 @@ NLG5_ERR_DEF = [
     "Emergency Shutdown Threshold 'Battery Temperature' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
     "Emergency Shutdown Threshold 'Battery Voltage' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
     "Emergency Shutdown Threshold 'Amp Hours' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
-    "	Emergency Shutdown Threshold 'Charging Time' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
+    "Emergency Shutdown Threshold 'Charging Time' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
     "",
     "",
     "Output power limited by low mains voltage",
@@ -46,7 +46,7 @@ NLG5_ERR_DEF = [
 
 NLG5_ST_DEF = [
     "Indicates if hardware enabled, i.e. a hi or lo signal is fed to the 'Power On' pin (pin3 of control connector)",
-    "	An error has been detected, red LED is ON, no power is output",
+    "An error has been detected, red LED is ON, no power is output",
     "Warning condition on, i.e. charging power limited due to any limiting condition; red LED is blinking",
     "Charger cooling fan is active",
     "European mains input detected (230V, 50Hz)",
@@ -56,7 +56,7 @@ NLG5_ST_DEF = [
     "Bypass detection bit 1; 00: no bypass, 01: DC bypass detected, 10:AC bypass in phase, 11: AC bypass not in phase",
     "Bypass detection bit 2; 00: no bypass, 01: DC bypass detected, 10:AC bypass in phase, 11: AC bypass not in phase",
     "Output power limited by battery output voltage limit",
-    "	Output power limited by battery output current limit",
+    "Output power limited by battery output current limit",
     "Output power limited by mains current limit",
     "Output power limited by analog input 'power indicator' (PI) limit",
     "Output power limited by control pilot signal (SAE J1772)",

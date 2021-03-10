@@ -2,6 +2,7 @@
 # Before use, pls run the script "start-can.sh"
 
 import can
+import time
 
 bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
@@ -10,8 +11,8 @@ bus = can.interface.Bus(interface='socketcan',
 msg = can.Message(arbitration_id=0xAA, data=[
                   3, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
 msg2 = can.Message(arbitration_id=0x610, data=[
-                   0, 1, 0, 0, 0, 0, 0, 0])  # BRUSA STATUS
-msg3 = can.Message(arbitration_id=0x614, data=[0, 2, 0, 0, 0])  # BRUSA ERR
+                   0xE8, 0, 0, 0])  # BRUSA STATUS
+msg3 = can.Message(arbitration_id=0x614, data=[0, 0, 0x44, 0, 0x08])  # BRUSA ERR
 
 try:
     bus.send(msg)
@@ -19,8 +20,16 @@ try:
 except can.CanError:
     print("Message NOT sent")
 
+time.sleep(1)
 try:
     bus.send(msg2)
+    print("Message sent on {}".format(bus.channel_info))
+except can.CanError:
+    print("Message NOT sent")
+time.sleep(1)
+
+try:
+    bus.send(msg3)
     print("Message sent on {}".format(bus.channel_info))
 except can.CanError:
     print("Message NOT sent")
