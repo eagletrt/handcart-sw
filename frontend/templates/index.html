@@ -33,25 +33,25 @@
     <meta name="msapplication-config" content="resources/bootstrap-icons-1.1.0/browserconfig.xml">
     <meta name="theme-color" content="#563d7c">-->
 
-    <link rel="icon" href="images/eagle.png" type="image/png">
+    <link rel="icon" href="{{url_for('static', filename='images/eagle.png')}}" type="image/png">
 
     <!-- Custom styles for this template -->
-    <link href="../main.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-    <script src="js/script.js"></script>
+    <link href="{{url_for('static', filename='css/main.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="{{url_for('static', filename='css/style.css')}}">
+    <script src="{{url_for('static', filename='js/script.js')}}"></script>
 
     <!-- charts -->
-    <script src="charts/voltChart.js"></script>
-    <script src="charts/chargeChart.js"></script>
-    <script src="charts/ampereChart.js"></script>
-    <script src="charts/cellChart.js"></script>
-    <script src="charts/tempChart.js"></script>
+    <script src="{{url_for('static', filename='charts/voltChart.js')}}"></script>
+    <script src="{{url_for('static', filename='charts/chargeChart.js')}}"></script>
+    <script src="{{url_for('static', filename='charts/ampereChart.js')}}"></script>
+    <script src="{{url_for('static', filename='charts/cellChart.js')}}"></script>
+    <script src="{{url_for('static', filename='charts/tempChart.js')}}"></script>
 </head>
 
 <body onload="elapsedTime()">
     <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <a class="navbar-brand col-md-3 col-lg-2 mr-0 px-3" href="#">
-            <img src="images/eagle.png" width="40">
+            <img src="{{url_for('static', filename='images/eagle.png')}}" width="40">
             E-Agle TRT - Handcart
         </a>
     </nav>
@@ -62,7 +62,7 @@
                 <div class="sidebar-sticky pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active" href="index.html">
+                            <a class="nav-link active" href="/">
                                 <span data-feather="home" class="ico"></span> Home <span class="sr-only">(current)</span>
                             </a>
                         </li>
@@ -175,14 +175,14 @@
                         <div class="col-sm">
                             <div class="row">
                                 <div class="col-sm">
-                                    <a href="warning.html" class="orange">
+                                    <a href="warning" class="orange">
                                         <span data-feather="alert-triangle" class="ico"></span> 5 WARNING
                                     </a>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-sm">
-                                    <a href="error.html" class="red">
+                                    <a href="error" class="red">
                                         <span data-feather="alert-triangle" class="ico"></span> 2 ERROR
                                     </a>
                                 </div>

@@ -14,3 +14,5 @@ doc/documentation.log
 doc/documentation.synctex.gz
 
 doc/documentation.toc
+
+frontend/__pycache__/

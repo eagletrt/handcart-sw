@@ -2,11 +2,6 @@ body {
     font-size: 18px;
 }
 
-.sidebar {
-    position: fixed;
-    font-size: 20px;
-}
-
 .ico {
     height: 1.5em;
     width: 1.5em;
