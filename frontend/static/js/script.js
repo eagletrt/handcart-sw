@@ -84,3 +84,28 @@ function stop() {
     document.getElementById("start").disabled = false;
     document.getElementById("stop").disabled = true;
 }
+
+//------------------------------------------------------------------------------
+
+function getRequest(url, path) {
+    let headers = new Headers();
+
+    headers.append('Content-Type', 'application/json');
+    headers.append('Accept', 'application/json');
+
+    headers.append('Access-Control-Allow-Origin', url);
+    headers.append('Access-Control-Allow-Credentials', 'true');
+
+    headers.append('GET', 'POST', 'OPTIONS');
+
+    //headers.append('Authorization', 'Basic ' + base64.encode(username + ":" + password));
+
+    let request = new Request(url + path, {
+        mode: 'same-origin',
+        credentials: 'omit',
+        method: 'GET',
+        headers: headers
+    });
+
+    return request;
+}
