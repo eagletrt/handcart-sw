@@ -210,6 +210,9 @@ class VAL_NLG5_ACT_I():
             msg.data[4:6], byteorder='big', signed=False) * 0.1
         self.NLG5_OC_ACT = int.from_bytes(
             msg.data[6:8], byteorder='big', signed=True) * 0.01
+        print(self.NLG5_MC_ACT)
+        print(self.NLG5_MV_ACT)
+        print(self.NLG5_OV_ACT)
 
 
 # Class that stores the info about the last related can msg
@@ -264,7 +267,7 @@ class VAL_NLG5_ERR():
             for mask in BYTE_MASK:
                 if pos != 30 and pos != 31:
                     res = msg.data[i] & mask
-                    if res>0:
+                    if res > 0:
                         self.error_check = True
                         self.values[pos] = True
                     pos += 1
@@ -273,6 +276,7 @@ class VAL_NLG5_ERR():
 # That listener is called wether a can message arrives, then
 # based on the msg ID, processes it, and save on itself the msg info
 class CanListener():
+    FSM_stat = -1  # useful value
     newBMSMessage = False
     newBRUSAMessage = False
 
@@ -398,6 +402,7 @@ class DataHolder():
     bms_connected = False
     bms_err_str = ""
     can_err = False
+    act_NLG5_ST = None
 
 
 PORK_CONNECTED = False
@@ -407,7 +412,7 @@ canread = CanListener()  # Access it ONLY with the FSM
 can_forward_enabled = False
 
 # IPC
-shared_data = DataHolder()
+shared_data = canread
 rx_can_queue = queue.Queue()
 tx_can_queue = queue.Queue()
 com_queue = queue.Queue()
@@ -601,6 +606,7 @@ doState = {
 
 lock = threading.Lock()
 
+
 def printConsole(FSM_stat):
     os.system("clear")
     print("STATE: " + str(FSM_stat))
@@ -611,17 +617,16 @@ def printConsole(FSM_stat):
 
     if canread.brusa_connected:
         print("BRUSA status:")
-        c=0
+        c = 0
         for i in canread.act_NLG5_ST.values:
             if i:
                 print("[ST] " + msgDef.NLG5_ST_DEF[c])
-            c +=1
+            c += 1
 
     if(canread.brusa_err):
         print("\nBRUSA errors:")
         for i in canread.brusa_err_str_list:
             print("[ERR] " + i)
-
 
 
 # Backend Thread
@@ -636,33 +641,35 @@ def thread_1_FSM(lock):
             new_msg = rx_can_queue.get()
             canread.on_message_received(new_msg)
 
-        printConsole(act_stat)
-
+        # printConsole(act_stat)
         # Checks errors
         if canread.brusa_err or canread.bms_err or canread.can_err:
             next_stat = doState.get(STATE.ERROR)()
         else:
             next_stat = doState.get(act_stat)()
-
-
         if next_stat == STATE.EXIT:
             return
+
+        canread.FSM_stat = act_stat
+
         act_stat = next_stat
 
         with lock:
             # Updates shared data with updated one
-            shared_data.FSM_state = act_stat
-            shared_data.bms_err = canread.bms_err
-            shared_data.bms_err_str = canread.bms_err_str
-            shared_data.bms_stat = canread.bms_stat
-            shared_data.bms_connected = canread.bms_connected
-            shared_data.brusa_connected = canread.brusa_connected
-            shared_data.brusa_err = canread.brusa_err
-            shared_data.brusa_err_str_list = canread.brusa_err_str_list
-            shared_data.can_err = canread.can_err
-
+            #shared_data.FSM_state = act_stat
+            #shared_data.bms_err = canread.bms_err
+            #shared_data.bms_err_str = canread.bms_err_str
+            #shared_data.bms_stat = canread.bms_stat
+            #shared_data.bms_connected = canread.bms_connected
+            #shared_data.brusa_connected = canread.brusa_connected
+            #shared_data.brusa_err = canread.brusa_err
+            #shared_data.brusa_err_str_list = canread.brusa_err_str_list
+            #shared_data.can_err = canread.can_err
+            shared_data = canread
 
 # Can thread
+
+
 def thread_2_CAN(lock):
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
@@ -688,16 +695,47 @@ def thread_3_WEB(lock):
 
     @app.route('/', methods=['GET'])
     def home():
-        return "asd"  # flask.render_template("index.html")
+        return "Hello World"  # flask.render_template("index.html")
 
     @app.route('/command/', methods=['POST'])
     def recv_command():
         print(request.json())
 
+    @app.route('/brusa/status/', methods=['GET'])
+    def get_brusa_status():
+        with lock:
+            res = '{"timestamp":"' + \
+                str(shared_data.act_NLG5_ST.lastUpdated) + '",\n'
+            res += '"status":[ \n'
+            c = 0
+            for i in shared_data.act_NLG5_ST.values:
+                if i == True:
+                    if c != 0:
+                        res += ','
+                    res += '{"desc":"' + msgDef.NLG5_ST_DEF[c] + '"}\n'
+                    c += 1
+            res += ']}'
+        return res
+
+    @app.route('/brusa/errors/', methods=['GET'])
+    def get_brusa_errors():
+        with lock:
+            res = '{"timestamp":"' + \
+                str(shared_data.act_NLG5_ST.lastUpdated) + '",\n'
+            res += '"errors":[ \n'
+            c = 0
+            for i in shared_data.brusa_err_str_list:
+                if c != 0:
+                    res += ','
+                res += '{"desc":"' + i + '"}\n'
+                c += 1
+            res += ']}'
+        return res
+
     @app.route('/handcart/status/', methods=['GET'])
     def send_status():
         with lock:
-            return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(shared_data.FSM_state) + "\"}"
+            return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(canread.FSM_stat) + "\"}"
 
     @app.route('/command/handcart/', methods=['POST'])
     def send_command():
@@ -707,13 +745,6 @@ def thread_3_WEB(lock):
         return "ok"
 
     app.run(use_reloader=False)
-
-    # while(1):
-    #    time.sleep(1)
-    #    print("ghesboro")
-    #    with lock:
-    #        # print(shared_data.bms_connected)
-    #        pass
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
@@ -726,4 +757,3 @@ t3 = threading.Thread(target=thread_3_WEB, args=(lock,))
 t1.start()
 t2.start()
 t3.start()
-
