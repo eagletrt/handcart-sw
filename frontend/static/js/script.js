@@ -4,7 +4,6 @@ var elapsedTimeIntervalRef;
 /** Stores the start time of timer */
 var startTime;
 
-
 /** Starts the stopwatch */
 function elapsedTime() {
     // Set start time based on whether it's stopped or resetted
@@ -78,14 +77,23 @@ var timeAndDateHandling = {
 function start() {
     document.getElementById("start").disabled = true;
     document.getElementById("stop").disabled = false;
+    document.getElementById("chargeState").innerHTML = "Charging";
+    document.getElementById("chargeState").className = "orange";
 }
 
 function stop() {
     document.getElementById("start").disabled = false;
     document.getElementById("stop").disabled = true;
+    document.getElementById("chargeState").innerHTML = "Not charging";
+    document.getElementById("chargeState").className = "red";
 }
 
 //------------------------------------------------------------------------------
+
+/*
+    url: -- the url from which you want to request data
+    path: - the missing part of the url
+*/
 
 function getRequest(url, path) {
     let headers = new Headers();
@@ -108,4 +116,45 @@ function getRequest(url, path) {
     });
 
     return request;
+}
+
+/*
+    json: ----- is the json that you would like to insert in the table
+
+    table: ---- is the table you want to create (you can create a new one or
+                use one already in the HTML code)
+                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
+
+    container:  is the container that will contains the table to display it
+*/
+
+function createTable(json, table, container) {
+    var col = [];
+    for (var key in json[0]) {
+        if (col.indexOf(key) === -1) {
+            col.push(key);
+        }
+    }
+
+    var thead = table.createTHead();
+    var tr = thead.insertRow(-1)
+
+    for (var i = 0; i < col.length; i++) {
+        var th = document.createElement("th")
+        th.innerHTML = col[i]
+        tr.appendChild(th)
+    }
+
+    var tbody = table.createTBody();
+    for (var i = 0; i < json.length; i++) {
+        tr = tbody.insertRow(-1);
+
+        for (var j = 0; j < col.length; j++) {
+            var tabCell = tr.insertCell(-1);
+            tabCell.innerHTML = json[i][col[j]];
+        }
+    }
+
+    container.innerHTML = ""
+    container.appendChild(table)
 }

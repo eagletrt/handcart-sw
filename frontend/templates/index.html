@@ -18,25 +18,7 @@
                 </div>
 
                 <div class="container">
-                    <div class="row">
-                        <div class="col-sm">
-                            Accumulator state: <b class="green">Connected</b>
-                        </div>
-                        <div class="col-sm">
-                            State: <b class="orange">Charging</b>
-                        </div>
-                        <div class="col-sm">
-                            Low accumulator state: <b class="red">Not connected</b>
-                        </div>
-                    </div>
-                    <br>
-                    <div class="row">
-                        <div class="col-sm"><!-- empty column --></div>
-                        <div class="col-sm">
-                            Elapsed time: <b id="timeText">00:00</b>
-                        </div>
-                        <div class="col-sm"><!-- empty column --></div>
-                    </div>
+                    {% include 'include/status.html' %}
                     <br>
                     <div class="row">
                         <div class="col-sm">
