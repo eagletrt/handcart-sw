@@ -1,12 +1,12 @@
 <div class="row">
     <div class="col-sm">
-        Accumulator state: <b id="accState"></b>
+        BMS state: <b id="bmsState"></b>
     </div>
     <div class="col-sm">
-        State: <b class="red" id="chargeState">Not charging</b>
+        State: <b class="red" id="chargeState">NOT CHARGING</b>
     </div>
     <div class="col-sm">
-        Brusa state: <b id="bmsState"></b>
+        Brusa state: <b id="brusaState"></b>
     </div>
 </div>
 <br>
@@ -22,53 +22,4 @@
     </div>
 </div>
 
-<script>
-    // GET THE ACCUMULATOR STATE
-    const url = 'http://127.0.0.1:5000';
-    var path = '/handcart/status';
-
-    request = getRequest(url, path);
-
-    fetch(request)
-        .then(response => response.json())
-        .then(json => {
-            var b = document.getElementById("accState")
-
-            for (var key in json[0]) {
-                if (key == "state") {
-                    var str = json[0][key].substr(6)
-                    b.innerHTML = str;
-
-                    switch (str) {
-                        case "IDLE":
-                            b.className = "green"
-                            break;
-                        case "ERROR":
-                            b.className = "red"
-                            break;
-                    }
-                }
-            }
-        })
-        .catch(error => console.log('Authorization failed : ' + error.message))
-
-        // GET THE BRUSA STATE
-        const url = 'http://127.0.0.1:5000';
-        var path = '/bms/status';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                var b = document.getElementById("bmsState")
-
-                for (var key in json[0]) {
-                    if (key == "status") {
-                        // come interpretare i dati in STATUS
-                        
-                    }
-                }
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-</script>
+<script src="{{url_for('static', filename='js/status.js')}}"></script>
