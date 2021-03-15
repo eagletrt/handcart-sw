@@ -5,7 +5,7 @@
     {% include 'include/head.html' %}
 </head>
 
-<body onload="elapsedTime()">
+<body onload="onLoadStartStop()">
     {% include 'include/header.html' %}
 
     <div class="container-fluid">
@@ -17,7 +17,7 @@
                     <h1 class="h2">Dashboard</h1>
                 </div>
 
-                <div class="container">
+                <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
                     {% include 'include/status.html' %}
                     <br>
                     <div class="row">
@@ -25,7 +25,17 @@
                             <div id="voltChart"></div>
                         </div>
                         <div class="col-sm">
-                            <div id="chargeChart"></div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <button type="button" onclick="startStop(false)" id="start" class="btn btn-success btn-lg">Start</button>
+                                    <button type="button" onclick="startStop(true)" id="stop" class="btn btn-danger btn-lg">Stop</button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <div id="chargeChart"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm">
                             <div id="ampereChart"></div>
@@ -42,8 +52,27 @@
                         </div>
                         <div class="col-sm">
                             <div class="row">
+                                <div class="col-sm" style="padding-left: 10%; text-align: left;">
+                                    <h1 class="h2">BMS HV:</h2>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-sm">
-                                    <button type="button" onclick="start()" id="start" class="btn btn-success btn-lg">Start</button>
+                                    <a href="warning" class="orange">
+                                        <span data-feather="alert-triangle" class="ico"></span> 5 WARNING
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <a href="error" class="red">
+                                        <span data-feather="alert-triangle" class="ico"></span> 2 ERROR
+                                    </a>
+                                </div>
+                            </div>
+                            <!--<div class="row">
+                                <div class="col-sm">
+                                    <button type="button" onclick="start()" id="startStop" class="btn btn-success btn-lg">Start</button>
                                 </div>
                             </div>
                             <div class="row">
@@ -55,9 +84,14 @@
                                 <div class="col-sm">
                                     <button type="button" class="btn btn-secondary btn-lg">Settings</button>
                                 </div>
-                            </div>
+                            </div>-->
                         </div>
                         <div class="col-sm">
+                            <div class="row">
+                                <div class="col-sm" style="padding-left: 10%; text-align: left;">
+                                    <h1 class="h2">Brusa:</h2>
+                                </div>
+                            </div>
                             <div class="row">
                                 <div class="col-sm">
                                     <a href="warning" class="orange">

@@ -5,7 +5,7 @@
     {% include 'include/head.html' %}
 </head>
 
-<body onload="elapsedTime()">
+<body onload="onLoadStartStop()">
     {% include 'include/header.html' %}
 
     <div class="container-fluid">
@@ -17,7 +17,7 @@
                     <h1 class="h2 red">Errors</h1>
                 </div>
 
-                <div class="container">
+                <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
                     {% include 'include/status.html' %}
                 </div>
 

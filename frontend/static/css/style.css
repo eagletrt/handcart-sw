@@ -32,6 +32,10 @@ body {
     height: 500px;
 }
 
+#chargeChart {
+    height: 350px;
+}
+
 .col-sm > .row {
     margin-top: 50px;
     margin-bottom: 50px;
@@ -39,6 +43,10 @@ body {
 
 .btn {
     width: 200px;
+}
+
+#stop {
+    display: none;
 }
 
 a:link, a:hover, a:active, a:visited {

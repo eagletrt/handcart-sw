@@ -3,7 +3,7 @@ from flask import Flask, render_template, url_for, request, jsonify
 app = Flask(__name__)
 app.config["DEBUG"] = True
 
-#-PAGES-------------------------------------------------------------------------
+#=PAGES=========================================================================
 
 @app.route('/', methods=['GET'])
 def home():
@@ -19,8 +19,7 @@ def warning():
 def error():
     return render_template("error.html")
 
-#-GETS--------------------------------------------------------------------------
-
+#=GETS==========================================================================
 
 #-HANDCART-(backend)------------------------------------------------------------
 
@@ -28,23 +27,12 @@ def error():
 def get_hc_status():
     data = [{
         "timestamp": "2020-12-01:ora",
-        "state": "STATE.IDLE",
+        "status": "STATE.IDLE",
         "entered": "2020-12-01:ora"
     }]
     resp = jsonify(data)
     resp.status_code = 200
     return resp
-
-
-    @app.route('/handcart/errors/', methods=['GET'])
-    def send_hc_errors():
-        data = [{
-            "timestamp": "2020-12-01:ora",
-            "error code": "ERRORCODE01"
-        }]
-        resp = jsonify(data)
-        resp.status_code = 200
-        return resp
 
 #-END-HANDCART-(backend)--------------------------------------------------------
 #-BMS-HV------------------------------------------------------------------------
@@ -53,7 +41,7 @@ def get_hc_status():
 def get_bms_status():
     data = [{
         "timestamp": "2020-12-01:ora",
-        "status": "STATE.TS_OFF"
+        "status": "STATE.TS_ON"         #TS_OFF, PRECHARGE, TS_ON, FATAL
     }]
     resp = jsonify(data)
     resp.status_code = 200
@@ -71,6 +59,45 @@ def get_bms_errors():
         {
             "code": 2,
             "desc": "cell 5 overvoltage"
+        }]
+    }]
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
+#-BMS-CELLS-DATA
+@app.route('/bms-hv/cells/', methods=['GET'])
+def get_bms_cells():
+    data = [{
+        "timestamp": "2020-12-01:ora",
+        "data": [{
+            "timestamp": "2020-12-01:ora",
+            "cells": [{
+                "id": 0,
+                "voltage": 3.2
+            },
+            {
+                "id": 1,
+                "voltage": 3.2
+            }]
+        }]
+    }]
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
+
+@app.route('/bms-hv/cells/last', methods=['GET'])
+def get_last_bms_cells():
+    data = [{
+        "timestamp": "2020-12-01:ora",
+        "cells": [{
+            "id": 0,
+            "voltage": 3.2
+        },
+        {
+            "id": 1,
+            "voltage": 3.2
         }]
     }]
     resp = jsonify(data)
@@ -182,24 +209,7 @@ def get_brusa_errors():
     return resp
 
 #-END-BRUSA---------------------------------------------------------------------
-
-
-
-@app.route('/handcart/warnings/', methods=['GET'])
-def send_warnings():
-    data = [{
-        "timestamp": "2020-12-01:ora",
-        "error code": "WARNINGCODE01"
-        },
-        {
-        "timestamp": "2020-12-01:ora",
-        "error code": "WARNINGCODE02"
-    }]
-    resp = jsonify(data)
-    resp.status_code = 200
-    return resp
-
-#-COMMANDS----------------------------------------------------------------------
+#=COMMANDS======================================================================
 
 @app.route('/command/', methods=['POST'])
 def recv_command():
