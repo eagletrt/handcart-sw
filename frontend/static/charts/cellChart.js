@@ -32,7 +32,7 @@ function setColor(chart, series) {
     });
 }
 
-function updateValue(chart, series) {
+function updateCellValue(chart, series) {
     setInterval(function () {
         var url = 'http://127.0.0.1:5000';
         var path = '/bms-hv/cells/last';
@@ -76,19 +76,19 @@ fetch(request)
             var chart = am4core.create("cellChart", am4charts.XYChart);
             chart.scrollbarX = new am4core.Scrollbar();
 
-            chart.data = []
-            cells = json[0]["data"][0]["cells"]
-            ncells = cells.length
+            chart.data = [];
+            cells = json[0]["data"][0]["cells"];
+            ncells = cells.length;
 
             for (i = 0; i < ncells; i++) {
-                voltage = cells[i]["voltage"]
-                cellName = "CELL " + (i + 1)
+                voltage = cells[i]["voltage"];
+                cellName = "CELL " + (i + 1);
 
                 element = {
                     "cell": cellName,
                     "voltage": voltage
                 }
-                chart.data.push(element)
+                chart.addData(element);
             }
 
             // Create axes
@@ -130,7 +130,7 @@ fetch(request)
             // Cursor
             chart.cursor = new am4charts.XYCursor();
 
-            updateValue(chart, series);
+            updateCellValue(chart, series);
 
         }); // end am4core.ready()
     })

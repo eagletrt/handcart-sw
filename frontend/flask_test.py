@@ -1,5 +1,5 @@
 from flask import Flask, render_template, url_for, request, jsonify
-import random
+import random, datetime
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -120,19 +120,23 @@ def get_last_bms_cells():
 def get_bms_volt():
     data = [{
         "timestamp": "2020-12-01:ora",
-        "data": [{
-            "timestamp": "2020-12-01:ora",
-            "volts": 304
-        },
-        {
-            "timestamp": "2020-12-01:ora",
-            "volts": 305
-        },
-        {
-            "timestamp": "2020-12-01:ora",
-            "volts": 304
-        }]
+        "data": []
     }]
+
+    n = 100
+    min = 0
+    max = 100
+    for i in range(1, n+1):
+        value = random.randrange(min, max)
+        timestamp = datetime.datetime.now()
+        timestamp = timestamp.replace(second=i%60)
+
+        voltage = {
+            "timestamp": timestamp,
+            "volts": value
+        }
+        data[0]["data"].append(voltage)
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -140,9 +144,14 @@ def get_bms_volt():
 
 @app.route('/bms-hv/volt/last', methods=['GET'])
 def get_last_bms_volt():
+    min = 0
+    max = 100
+    value = random.randrange(min, max)
+    timestamp = datetime.datetime.now()
+    
     data = [{
-        "timestamp": "2020-12-01:ora",
-        "volts": 305
+        "timestamp": timestamp,
+        "volts": value
     }]
     resp = jsonify(data)
     resp.status_code = 200
