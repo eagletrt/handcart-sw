@@ -1,4 +1,5 @@
 from flask import Flask, render_template, url_for, request, jsonify
+import random
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -72,16 +73,21 @@ def get_bms_cells():
         "timestamp": "2020-12-01:ora",
         "data": [{
             "timestamp": "2020-12-01:ora",
-            "cells": [{
-                "id": 0,
-                "voltage": 3.2
-            },
-            {
-                "id": 1,
-                "voltage": 3.2
-            }]
+            "cells": []
         }]
     }]
+    ncells = 108
+    digits = 3
+    min = 0
+    max = 100
+    for i in range(1, ncells+1):
+        value = round(random.uniform(min, max), digits)
+        cell = {
+            "id": i,
+            "voltage": value
+        }
+        data[0]["data"][0]["cells"].append(cell)
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -91,15 +97,20 @@ def get_bms_cells():
 def get_last_bms_cells():
     data = [{
         "timestamp": "2020-12-01:ora",
-        "cells": [{
-            "id": 0,
-            "voltage": 3.2
-        },
-        {
-            "id": 1,
-            "voltage": 3.2
-        }]
+        "cells": []
     }]
+    ncells = 108
+    digits = 3
+    min = 0
+    max = 100
+    for i in range(1, ncells+1):
+        value = round(random.uniform(min, max), digits)
+        cell = {
+            "id": i,
+            "voltage": value
+        }
+        data[0]["cells"].append(cell)
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
