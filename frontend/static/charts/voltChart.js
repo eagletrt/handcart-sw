@@ -83,7 +83,7 @@ fetch(request)
             dateAxis.renderer.ticks.template.disabled = true;
 
             chart.events.on("datavalidated", function () {
-                dateAxis.zoom({ start: 1/2, end: 1.1 }, false, true);
+                dateAxis.zoom({ start: 1/1.25, end: 1.1 }, false, true);
             });
 
             var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
@@ -111,7 +111,7 @@ fetch(request)
             //*
             series.interpolationDuration = 500;
             series.defaultState.transitionDuration = 0;
-            series.tensionX = 0.8;
+            //series.tensionX = 0.8;
 
             dateAxis.interpolationDuration = 500;
             dateAxis.rangeChangeDuration = 500;

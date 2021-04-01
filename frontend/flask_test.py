@@ -1,8 +1,10 @@
 from flask import Flask, render_template, url_for, request, jsonify
-import random, datetime
+import random, datetime, pytz
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
+
+tz = pytz.timezone('Europe/Rome')
 
 #=PAGES=========================================================================
 
@@ -126,10 +128,13 @@ def get_bms_volt():
     n = 100
     min = 0
     max = 100
-    for i in range(1, n+1):
+
+    now = datetime.datetime.now(tz)
+    last_100_seconds=[(now - datetime.timedelta(seconds=i)) for i in range(n)]
+    last_100_seconds.reverse() # an array with the last n seconds form the older date to the now date
+
+    for timestamp in last_100_seconds:
         value = random.randrange(min, max)
-        timestamp = datetime.datetime.now()
-        timestamp = timestamp.replace(second=i%60)
 
         voltage = {
             "timestamp": timestamp,
@@ -147,12 +152,13 @@ def get_last_bms_volt():
     min = 0
     max = 100
     value = random.randrange(min, max)
-    timestamp = datetime.datetime.now()
-    
+    timestamp = datetime.datetime.now(tz)
+
     data = [{
         "timestamp": timestamp,
         "volts": value
     }]
+    
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -162,19 +168,26 @@ def get_last_bms_volt():
 def get_bms_ampere():
     data = [{
         "timestamp": "2020-12-01:ora",
-        "data": [{
-            "timestamp": "2020-12-01:ora",
-            "amperes": 2
-        },
-        {
-            "timestamp": "2020-12-01:ora",
-            "amperes": 5
-        },
-        {
-            "timestamp": "2020-12-01:ora",
-            "amperes": 4
-        }]
+        "data": []
     }]
+
+    n = 100
+    min = 0
+    max = 10
+
+    now = datetime.datetime.now(tz)
+    last_100_seconds=[(now - datetime.timedelta(seconds=i)) for i in range(n)]
+    last_100_seconds.reverse() # an array with the last n seconds form the older date to the now date
+
+    for timestamp in last_100_seconds:
+        value = random.randrange(min, max)
+
+        amperes = {
+            "timestamp": timestamp,
+            "amperes": value
+        }
+        data[0]["data"].append(amperes)
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -182,10 +195,16 @@ def get_bms_ampere():
 
 @app.route('/bms-hv/ampere/last', methods=['GET'])
 def get_last_bms_ampere():
+    min = 0
+    max = 10
+    value = random.randrange(min, max)
+    timestamp = datetime.datetime.now(tz)
+
     data = [{
-        "timestamp": "2020-12-01:ora",
-        "amperes": 4
+        "timestamp": timestamp,
+        "amperes": value
     }]
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
