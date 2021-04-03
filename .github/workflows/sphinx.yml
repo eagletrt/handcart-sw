@@ -14,7 +14,7 @@ jobs:
         author: Eagletrt           # project author
         project: Handcart          # project name
         rootfile: Title            # project title
-        folders: ../          # path of folders and files you want to document
+        folders: ../main.py          # path of folders and files you want to document
         version: 1.0.0             # project version
         release: 1.0.0             # project release
         language: python           # language used
