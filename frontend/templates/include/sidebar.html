@@ -3,21 +3,23 @@
     <div class="sidebar-sticky pt-3">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="/">
+                <a class="nav-link" id="home" href="/">
                     <span data-feather="home" class="ico"></span> Home
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" id="can" href="#">
                     <span data-feather="file-text" class="ico"></span> CAN details
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" id="settings" href="/settings">
                     <span data-feather="settings" class="ico"></span> Settings
                 </a>
             </li>
         </ul>
+
+        <script src="{{url_for('static', filename='js/active.js')}}"></script>
 
         <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
             <span>Saved reports</span>

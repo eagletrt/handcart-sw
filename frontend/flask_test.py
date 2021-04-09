@@ -22,6 +22,10 @@ def warning():
 def error():
     return render_template("error.html")
 
+@app.route('/settings')
+def settings():
+    return render_template("settings.html")
+
 #=GETS==========================================================================
 
 #-HANDCART-(backend)------------------------------------------------------------
@@ -158,7 +162,7 @@ def get_last_bms_volt():
         "timestamp": timestamp,
         "volts": value
     }]
-    
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp

@@ -69,6 +69,31 @@ function createTable(json, table, container) {
     container.appendChild(table)
 }
 
+/*
+*/
+
+function changeValue(sliderName, label) {
+    var slider = document.getElementById(sliderName);
+    var output = document.getElementById(label);
+
+    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
+    slider.style.background = 'linear-gradient(to right, #00ba44 0%, #00ba44 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
+
+    output.innerHTML = slider.value;
+}
+
+function overSlider(sliderName) {
+    var slider = document.getElementById(sliderName);
+    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
+    slider.style.background = 'linear-gradient(to right, #009837 0%, #009837 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
+}
+
+function outSlider(sliderName) {
+    var slider = document.getElementById(sliderName);
+    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
+    slider.style.background = 'linear-gradient(to right, #00ba44 0%, #00ba44 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
+}
+
 //------------------------------------------------------------------------------
 
 /** Stores the reference to the elapsed time interval*/
