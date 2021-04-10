@@ -20,33 +20,74 @@
                 <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
                     {% include 'include/status.html' %}
                     <br>
-                    <div class="row">
+                    <div class="row align-items-center">
                         <div class="col-sm">
-                            <form action="#">
-                                CUT-OFF Voltage: <span id="COValue"></span>V<br>
-                                <input type="range" oninput="changeValue('COSlider', 'COValue')"
-                                    onmouseover="overSlider('COSlider')" onmouseout="outSlider('COSlider')"
-                                    min="1" max="100" value="50" class="slider" id="COSlider"><br>
-                                <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
-                            </form>
+                            <div class="row">
+                                <div class="col-sm col-title">
+                                    <h1 class="h2">CUT-OFF Voltage: <span id="COValue"></span>V</h1>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <form method="POST" id="COForm"> <!-- Cut-Off Form -->
+                                        <input type="hidden" name="comType" value="cutoff">
+                                        <input type="range" oninput="changeValue('COSlider', 'COValue')"
+                                            min="1" max="100" value="50" class="slider" id="COSlider" name="value"><br><br>
+                                        <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm col-title">
+                                    <h1 class="h2">Max Current from Outlet: <span id="AValue"></span>A</h1>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <form method="POST" id="AForm"> <!-- Ampere Form -->
+                                        <input type="hidden" name="comType" value="ampere">
+                                        <input type="range" oninput="changeValue('ASlider', 'AValue')"
+                                            min="1" max="10" value="5" class="slider" id="ASlider" name="value"><br><br>
+                                        <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm">
-                            Fast-Charge
-                            <button type="button" onclick="enableDisable(false)" id="enable" class="btn btn-success btn-lg">Enable</button>
-                            <button type="button" onclick="enableDisable(true)" id="disable" class="btn btn-danger btn-lg">Disable</button>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm">
-                            <form action="#">
-                                Max Current from Outlet: <span id="AValue"></span>A<br>
-                                <input type="range" oninput="changeValue('ASlider', 'AValue')"
-                                    min="1" max="10" value="5" class="slider" id="ASlider"><br>
-                                <button type="button" id="enable" class="btn btn-success btn-lg">Send</button>
-                            </form>
+                            <div class="row">
+                                <div class="col-sm col-title">
+                                    <h1 class="h2">Fast-Charge</h1>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <form method="POST" id="FCEForm"> <!-- FastCharge Enabled Form -->
+                                        <input type="hidden" name="comType" value="fast-charge">
+                                        <input type="hidden" name="value" value="true">
+                                        <input type="submit" onclick="enableDisable(false)" id="enable"
+                                            class="btn btn-success btn-lg" value="Enable">
+                                    </form>
+                                    <form method="POST" id="FCDForm"> <!-- FastCharge Disabled Form -->
+                                        <input type="hidden" name="comType" value="fast-charge">
+                                        <input type="hidden" name="value" value="false">
+                                        <input type="submit" onclick="enableDisable(true)" id="disable"
+                                            class="btn btn-danger btn-lg" value="Disable">
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <script>
+                        var COForm = document.getElementById("COForm");
+                        var AForm = document.getElementById("AForm");
+                        var FCEForm = document.getElementById("FCEForm");
+                        var FCDForm = document.getElementById("FCDForm");
+
+                        formListener(COForm);
+                        formListener(AForm);
+                        formListener(FCEForm);
+                        formListener(FCDForm);
+
                         changeValue('COSlider', 'COValue');
                         changeValue('ASlider', 'AValue');
                     </script>

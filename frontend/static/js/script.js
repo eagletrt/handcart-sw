@@ -28,6 +28,13 @@ function getRequest(url, path) {
     return request;
 }
 
+function postRequest(url, data) {
+    fetch(url, {
+        method: 'POST',
+        body: data
+    });
+}
+
 /*
     json: ----- is the json that you would like to insert in the table
 
@@ -70,6 +77,44 @@ function createTable(json, table, container) {
 }
 
 /*
+    json: ----- is the json that you would like to insert in the table
+
+    table: ---- is the table you want to create (you can create a new one or
+                use one already in the HTML code)
+                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
+
+    container:  is the container that will contains the table to display it
+*/
+
+function enableDisable(enabled) {
+    let enableButton = document.getElementById("enable");
+    let disableButton = document.getElementById("disable");
+
+    // should get the actual fast charge statur (enabled or not)
+
+    if (!enabled) {                             // if fast charge isn't enabled
+        enableButton.style.display = "none";    // hide the enable button
+        disableButton.style.display = "inline"; // and show the disable button
+    } else {                                    // if the fast charge has been enabled
+        enableButton.style.display = "inline";  // show the enable button
+        disableButton.style.display = "none";   // and hide the disabled button
+    }
+}
+
+function formListener(form) {
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();                 // prevent page from refreshing
+        const formData = new FormData(form);    // grab the data inside the form fields
+        let url = '/command/';
+        postRequest(url, formData);
+    });
+}
+
+
+/*
+    sliderName: the id of the slider
+
+    label: ---- the id of where you want to print the slider value
 */
 
 function changeValue(sliderName, label) {
@@ -80,18 +125,6 @@ function changeValue(sliderName, label) {
     slider.style.background = 'linear-gradient(to right, #00ba44 0%, #00ba44 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
 
     output.innerHTML = slider.value;
-}
-
-function overSlider(sliderName) {
-    var slider = document.getElementById(sliderName);
-    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
-    slider.style.background = 'linear-gradient(to right, #009837 0%, #009837 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
-}
-
-function outSlider(sliderName) {
-    var slider = document.getElementById(sliderName);
-    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
-    slider.style.background = 'linear-gradient(to right, #00ba44 0%, #00ba44 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
 }
 
 //------------------------------------------------------------------------------

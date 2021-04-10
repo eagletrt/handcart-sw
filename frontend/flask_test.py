@@ -23,6 +23,7 @@ def warning():
 def error():
     return render_template("error.html")
 
+
 @app.route('/settings')
 def settings():
     return render_template("settings.html")
@@ -265,7 +266,18 @@ def get_brusa_errors():
 
 @app.route('/command/', methods=['POST'])
 def recv_command():
-    print(request.json())
+    comType = request.form.get("comType")
+    value = request.form.get("value")
+
+    command = {
+        "com-type": comType,
+        "value": value
+    }
+
+    print(command["com-type"], " - ", command["value"])
+    command = jsonify(command)
+
+    return command
 
 
 if __name__ == '__main__':
