@@ -13,6 +13,7 @@ This is the repo for Fenice's handcart.
 - [Bootstrap dashboard template](https://getbootstrap.com/docs/4.5/examples/dashboard/)
 - [JS Charts](https://www.amcharts.com)
 - [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
+- [Charge state machine of BMS](https://github.com/eagletrt/chimera-bms/blob/sw-charging/src/Src/chg.c)
 
 ## Structure
 ![General diagram](https://lucid.app/publicSegments/view/04f173a9-55f8-42e4-9aa7-747b02ec5147/image.jpeg)

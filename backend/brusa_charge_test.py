@@ -3,33 +3,67 @@
 
 import can
 import time
+import re
+import os
 
 bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-# msg = can.Message(arbitration_id=0xAA, data=[
-#                  3, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
-# msg2 = can.Message(arbitration_id=0x610, data=[
-#                   0, 1, 0, 0, 0, 0, 0, 0])  # BRUSA STATUS
-# msg3 = can.Message(arbitration_id=0x614, data=[0, 2, 0, 0, 0])  # BRUSA ERR
-
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
                        0, 0, 0x14, 0x0F, 0XA0, 0, 0x0A], is_extended_id=True)
-exit()
-while(1):
-    time.sleep(0.15)
-    #can.send_periodic(bus, nlg5_ctl, 0.1)
 
+CHG_V = int(350 / 0.1)
+CHG_A = int(2 / 0.1)
+MAX_C_O = int(16 / 0.1)
+
+os.system('clear')
+r_CHG_V = input("Charging voltage: ")
+if r_CHG_V != "":
+    if re.match('^[0-9]*$', r_CHG_V) and 0 < int(r_CHG_V) < 400: # just numbers allowed
+        CHG_V = int(int(r_CHG_V) / 0.1)
+    else:
+        print("[ERROR] invalid input")
+
+r_CHG_A = input("Charging current: ")
+if r_CHG_A != "":
+    if re.match('^[0-9]*$', r_CHG_A) and 0 < int(r_CHG_A) < 16:
+        CHG_A = int(int(r_CHG_A) / 0.1)
+    else:
+        print("[ERROR] invalid input")
+
+r_MAX_C_O = input("Max current drawn from outlet: ")
+if r_MAX_C_O != "":
+    if re.match('^[0-9]*$', r_MAX_C_O) and 0 < int(r_MAX_C_O) < 16:
+        MAX_C_O = int(int(r_MAX_C_O) / 0.1)
+    else:
+        print("[ERROR] invalid input")
+
+b_CHG_V = CHG_V.to_bytes(2, 'big', signed=False)
+b_CHG_A = CHG_A.to_bytes(2, 'big', signed=False)
+b_MAX_C_O = MAX_C_O.to_bytes(2, 'big', signed=False)
+
+b_CHG_ENABLED = 0x80
+
+nlg5_ctl = can.Message(arbitration_id=0x618, data=[
+                       0, b_CHG_V[0], b_CHG_V[1], b_CHG_A[0], b_CHG_A[1], b_MAX_C_O[0], b_MAX_C_O[1]],
+                       is_extended_id=True)
+
+os.system('clear')
+print("When the charge starts, the program will wait 3 seconds, and then send the start command to BRUSA")
+input("type something to start charging")
+
+t = time.time()
+charging = False
+while 1:
+    time.sleep(0.14)
+    if (not charging) and time.time() - t > 3:
+        print("Charge enabled")
+        nlg5_ctl.data[0] = b_CHG_ENABLED
+        charging = True
     try:
         bus.send(nlg5_ctl)
         print("Message sent on {}".format(bus.channel_info))
     except can.CanError:
         print("Message NOT sent")
-
-# try:
-#    bus.send(msg2)
-#    print("Message sent on {}".format(bus.channel_info))
-# except can.CanError:
-#    print("Message NOT sent")

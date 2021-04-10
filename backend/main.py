@@ -1,12 +1,11 @@
-#
-#   Handcart backend
-#   For more info read the ../../doc section, or contact matteo.bitussi@studenti.unitn.it
-#   For test purposes, launch start-can.sh before launching this file
-#
+"""@package Handcart backend
+For more info read the ../../doc section, or contact matteo.bitussi@studenti.unitn.it
+For test purposes, launch start-can.sh before launching this file
 
-#   Notes
-#       NLG5 - Stands for the BRUSA (also the charger)
-#       BMS - Stands for Battery Manage System (also the accumulator)
+Notes:
+    NLG5 - Stands for the BRUSA (also the charger)
+    BMS (or BMS HV) - Stands for Battery Manage System (also the accumulator)
+"""
 
 from enum import Enum
 import msgDef
@@ -51,6 +50,7 @@ class CAN_BRUSA_MSG_ID(Enum):
     NLG5_ACT_I = 0x611
     NLG5_ACT_II = 0x612
     NLG5_ST = 0x610
+    NLG5_CTL = 0x618
 
 
 # ID's of BMS can messages
@@ -355,8 +355,11 @@ class BMS_HV:
 
 # That listener is called wether a can message arrives, then
 # based on the msg ID, processes it, and save on itself the msg info
+# It also contains all the useful info to be used in threads
 class CanListener:
     FSM_stat = -1  # useful value
+    fast_charge = False
+
     can_err = False
 
     brusa = BRUSA()
@@ -390,11 +393,27 @@ class CanListener:
 
 
 class Can_rx_listener(Listener):
+    volt_chg_req = 0
+    current_chg_req = 0
+
     def __init__(self):
         pass
 
     def on_message_received(self, msg):
         rx_can_queue.put(msg)
+        with forward_lock:
+            if can_forward_enabled and (
+                    msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_VOLTAGE or msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_CURRENT):
+                tx_can_queue.put(self.canChgMsgBmstoBrusa(msg))
+
+    # creates a message for brusa from bms chg request one
+    def canChgMsgBmstoBrusa(self, bms_msg):
+        if bms_msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_VOLTAGE:
+            self.volt_chg_req = bms_msg.data[0]  # to be defined
+        if bms_msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_CURRENT:
+            self.current_chg_req = bms_msg.data[0]  # to be defined
+        if self.volt_chg_req != 0 and self.current_chg_req != 0:
+            return can.Message(arbitration_id=CAN_BRUSA_MSG_ID.NLG5_CTL, data=[])  # to be properly defined
 
 
 class DataHolder:
@@ -423,6 +442,8 @@ com_queue = queue.Queue()
 lock = threading.Lock()
 forward_lock = threading.Lock()
 
+# FSM vars
+precharge_asked = False
 
 # function that clear all the errors stored
 # USE WITH CARE
@@ -492,15 +513,21 @@ def doIdle():
 
 
 # Do state PRECHARGE
-def doPreCharge(data):
+def doPreCharge():
     # ask pork to do precharge
     # Send req to bms "TS_ON"
-
     PRECHARGE_DONE = False
+    global precharge_asked
 
-    if data.bms_stat == BMS_STATE.TS_ON:
+    if not precharge_asked:
+        ts_on_msg = can.Message(arbitration_id=HANDCART_MSG_ID.TS_STATUS_REQ, data=[BMS_HV_STATE.TS_ON])
+        tx_can_queue.put(ts_on_msg)
+        precharge_asked = True
+
+    if canread.bms_hv.status == BMS_HV_STATE.TS_ON:
         print("Precharge done, TS is on")
         PRECHARGE_DONE = True
+        precharge_asked = False;
 
     if PRECHARGE_DONE:
         return STATE.READY
@@ -508,12 +535,19 @@ def doPreCharge(data):
 
 # Do state READY
 def doReady():
+    if canread.bms_hv.status != BMS_HV_STATE.TS_ON:
+        print("BMS_HV is not in TS_ON, going back idle")
+        # note that errors are already managed in mainloop
+        return STATE.IDLE
+
     act_com = {"com-type": "", "value": False}  # Init
     if not com_queue.empty():
         act_com = com_queue.get()
 
         if act_com['com-type'] == "charge" and act_com['value'] == True:
             return STATE.CHARGE
+        else:
+            com_queue.put(act_com)
 
     else:
         return STATE.READY
@@ -522,6 +556,8 @@ def doReady():
 # Do state CHARGE
 def doCharge():
     # canread has to forward charging msgs from bms to brusa
+    global can_forward_enabled
+
     with forward_lock:
         can_forward_enabled = True
 
@@ -544,19 +580,22 @@ def doC_done():
 
 # Do state ERROR
 def doError():
+    global can_forward_enabled
+
     with forward_lock:
         can_forward_enabled = False
 
     # Send to BMS stacca stacca
+    if not canread.bms_hv.error:
+        msg = can.Message(arbitration_id=HANDCART_MSG_ID.TS_STATUS_REQ, data=[BMS_HV_STATE.TS_OFF])
+        tx_can_queue.put(msg)
 
-    if canread.brusa_err:
-        # print("BRUSA Error: ")
-        for i in canread.brusa_err_str_list:
-            pass
-            # print("[ERR] " + i)
-    if canread.bms_err:
+    if canread.brusa.error:
+        for i in canread.brusa.act_NLG5_ERR_str:
+            print("[ERR] " + i)
+    if canread.bms_hv.error:
         print("Accumulator Error: ")
-        print(canread.bms_err_str)
+        print(canread.bms_hv.error_str)
     if canread.can_err:
         print("Can Error")
 
@@ -612,11 +651,12 @@ def thread_1_FSM(lock):
             next_stat = doState.get(STATE.ERROR)()
         else:
             next_stat = doState.get(act_stat)()
+
         if next_stat == STATE.EXIT:
+            print("Exiting")
             return
 
         canread.FSM_stat = act_stat
-
         if act_stat != next_stat:
             print("STATE: " + str(next_stat))
 
@@ -634,14 +674,9 @@ def thread_2_CAN(lock):
     while 1:
         time.sleep(1)
 
-        with forward_lock:
-            if can_forward_enabled == True:
-                # Sends all messages in tx queue
-                while not tx_can_queue.empty:
-                    time.sleep(1)
-                    act = tx_can_queue.get()
-                    canSend(canbus, act.id, act.data)
-                    # Va controllato in qualche modo quando la carica è finita
+        while not tx_can_queue.empty():
+            act = tx_can_queue.get()
+            canSend(canbus, act.id, act.data)
 
 
 # Webserver thread
@@ -690,9 +725,20 @@ def thread_3_WEB(lock):
         return res
 
     @app.route('/handcart/status/', methods=['GET'])
+    def get_hc_status():
+        data = [{
+            "timestamp": "2020-12-01:ora",
+            "status": str(canread.FSM_stat),
+            "entered": "2020-12-01:ora"
+        }]
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
     def send_status():
         with lock:
             return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(canread.FSM_stat) + "\"}"
+
 
     @app.route('/command/handcart/', methods=['POST'])
     def send_command():
