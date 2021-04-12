@@ -6,7 +6,8 @@ Notes:
     NLG5 - Stands for the BRUSA (also the charger)
     BMS (or BMS HV) - Stands for Battery Manage System (also the accumulator)
 """
-
+import datetime
+import sys
 from enum import Enum
 import msgDef
 import can
@@ -15,7 +16,10 @@ import time
 import threading
 import queue
 import flask
-from flask import request
+from flask import request, jsonify
+
+from can_cicd.naked_generator.Primary.py.Primary import *
+from can_cicd.includes_generator.Primary.ids import *
 
 CAN_BMS_ID = 170  # 0xAA
 
@@ -58,7 +62,7 @@ class BMS_HV_MSG_ID(Enum):
     HV_VOLTAGE = 0
     HV_CURRENT = 0
     HV_TEMP = 0
-    HV_STATUS = 0
+    HV_STATUS = 0xAA
     HV_ERROR = 0
     CHG_SET_CURRENT = 0
     CHG_SET_VOLTAGE = 0
@@ -187,8 +191,7 @@ class NLG5_ERR_POS(Enum):
 
 
 class BRUSA:
-    lastupdated = 0
-    connected = False
+    lastupdated = ""
 
     # ST
     act_NLG5_ST_values = []
@@ -214,9 +217,11 @@ class BRUSA:
     act_NLG5_ERR_values = []
     act_NLG5_ERR_str = []
 
+    def isConnected(self):
+        return not self.lastupdated == ""
+
     # Handles Brusa CAN status messages
     def doNLG5_ST(self, msg):
-        self.brusa_connected = True
 
         self.lastupdated = msg.timestamp
         pos = 0
@@ -290,8 +295,7 @@ class BRUSA:
 
 
 class BMS_HV:
-    lastupdated = 0
-    connected = False
+    lastupdated = ""
 
     all_voltage = {}
     all_current = {}
@@ -311,6 +315,9 @@ class BMS_HV:
     act_average_temp = -1
     min_temp = -1
     max_temp = -1
+
+    def isConnected(self):
+        return not self.lastupdated == ""
 
     def doHV_VOLTAGE(self, msg):
         # someway somehow you have to extract:
@@ -338,18 +345,23 @@ class BMS_HV:
         self.max_temp = msg.data[2]
 
     def doHV_ERROR(self, msg):
+        self.lastupdated = msg.timestamp
         pass
 
     def doHV_STATUS(self, msg):
+        self.lastupdated = msg.timestamp
         pass
 
     def do_CHG_SET_CURRENT(self, msg):
+        self.lastupdated = msg.timestamp
         pass
 
     def doCHG_SET_VOLTAGE(self, msg):
+        self.lastupdated = msg.timestamp
         pass
 
     def doCHG_STATE(self, msg):
+        self.lastupdated = msg.timestamp
         pass
 
 
@@ -358,6 +370,7 @@ class BMS_HV:
 # It also contains all the useful info to be used in threads
 class CanListener:
     FSM_stat = -1  # useful value
+    FSM_entered_stat = ""
     fast_charge = False
 
     can_err = False
@@ -416,21 +429,6 @@ class Can_rx_listener(Listener):
             return can.Message(arbitration_id=CAN_BRUSA_MSG_ID.NLG5_CTL, data=[])  # to be properly defined
 
 
-class DataHolder:
-    FSM_state = -1
-    brusa_err = False
-    brusa_err_str_list = []  # the list of errors in string format
-    bms_err = False
-    bms_stat = -1
-    brusa_connected = False
-    bms_connected = False
-    bms_err_str = ""
-    can_err = False
-    act_NLG5_ST = None
-
-
-PORK_CONNECTED = False
-BRUSA_CONNECTED = False
 canread = CanListener()  # Access it ONLY with the FSM
 can_forward_enabled = False
 
@@ -494,7 +492,7 @@ def canSend(bus, msg_id, data):
 
 # Do state CHECK
 def doCheck():
-    if canread.bms_hv.connected and canread.brusa.connected:
+    if canread.bms_hv.isConnected() and canread.brusa.isConnected():
         return STATE.IDLE
     else:
         return STATE.CHECK
@@ -587,8 +585,11 @@ def doError():
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.error:
-        msg = can.Message(arbitration_id=HANDCART_MSG_ID.TS_STATUS_REQ, data=[BMS_HV_STATE.TS_OFF])
+        sts = SetTsStatus()
+        data = sts.serialize(Ts_Status_Set.OFF.value)
+        msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
         tx_can_queue.put(msg)
+
 
     if canread.brusa.error:
         for i in canread.brusa.act_NLG5_ERR_str:
@@ -658,6 +659,7 @@ def thread_1_FSM(lock):
 
         canread.FSM_stat = act_stat
         if act_stat != next_stat:
+            canread.FSM_entered_stat = datetime.datetime.now().isoformat()
             print("STATE: " + str(next_stat))
 
         act_stat = next_stat
@@ -676,7 +678,9 @@ def thread_2_CAN(lock):
 
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
-            canSend(canbus, act.id, act.data)
+            print(act.arbitration_id)
+            print(act.data)
+            canSend(canbus, act.arbitration_id, act.data)
 
 
 # Webserver thread
@@ -689,63 +693,81 @@ def thread_3_WEB(lock):
     def home():
         return "Hello World"  # flask.render_template("index.html")
 
-    @app.route('/command/', methods=['POST'])
-    def recv_command():
-        print(request.json())
+    @app.route('/bms-hv/status/', methods=['GET'])
+    def get_bms_hv_status():
+        with lock:
+            if shared_data.bms_hv.isConnected():
+                res = '{"timestamp":"' + \
+                      str(shared_data.bms_hv.lastupdated) + '",\n'
+                res += '"status": "' + str(shared_data.bms_hv.status) + '"}';
+            else:
+                res = jsonify("not connected")
+                res.status_code = 400
+        return res
 
     @app.route('/brusa/status/', methods=['GET'])
     def get_brusa_status():
         with lock:
-            res = '{"timestamp":"' + \
-                  str(shared_data.act_NLG5_ST.lastUpdated) + '",\n'
-            res += '"status":[ \n'
-            c = 0
-            for i in shared_data.act_NLG5_ST.values:
-                if i == True:
-                    if c != 0:
-                        res += ','
-                    res += '{"desc":"' + msgDef.NLG5_ST_DEF[c] + '"}\n'
-                    c += 1
-            res += ']}'
+            if shared_data.brusa.isConnected():
+                res = '{"timestamp":"' + \
+                      str(shared_data.brusa.lastupdated) + '",\n'
+                res += '"status":[ \n'
+                c = 0
+                for pos, i in enumerate(shared_data.brusa.act_NLG5_ST_values):
+                    if i:
+                        if c != 0:
+                            res += ','
+                        res += '{"desc":"' + msgDef.NLG5_ST_DEF[pos] + '", "pos": "' + str(pos) + '"}\n'
+                        c += 1
+                res += ']}'
+            else:
+                res = jsonify("not connected")
+                res.status_code = 400
         return res
 
     @app.route('/brusa/errors/', methods=['GET'])
     def get_brusa_errors():
         with lock:
             res = '{"timestamp":"' + \
-                  str(shared_data.act_NLG5_ST.lastUpdated) + '",\n'
+                  str(shared_data.brusa.lastupdated) + '",\n'
             res += '"errors":[ \n'
             c = 0
-            for i in shared_data.brusa_err_str_list:
-                if c != 0:
-                    res += ','
-                res += '{"desc":"' + i + '"}\n'
-                c += 1
+            for pos, i in enumerate(shared_data.brusa.act_NLG5_ERR_values):
+                if i:
+                    if c != 0:
+                        res += ','
+                    res += '{"desc":"' + msgDef.NLG5_ERR_DEF[pos] + '", "pos": "' + str(pos) + '"}\n'
+                    c += 1
             res += ']}'
-        return res
+            return res
 
     @app.route('/handcart/status/', methods=['GET'])
     def get_hc_status():
-        data = [{
-            "timestamp": "2020-12-01:ora",
-            "status": str(canread.FSM_stat),
-            "entered": "2020-12-01:ora"
-        }]
-        resp = jsonify(data)
-        resp.status_code = 200
-        return resp
-
-    def send_status():
         with lock:
-            return "{\"timestamp\": \"2020-12-01:ora\", \"state\": \"" + str(canread.FSM_stat) + "\"}"
+            data = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "state": str(shared_data.FSM_stat),
+                "entered": shared_data.FSM_entered_stat
+            }
+            resp = jsonify(data)
+            resp.status_code = 200
+            return resp
 
+    @app.route('/command/', methods=['POST'])
+    def recv_command():
+        comType = request.form.get("comType")
+        value = request.form.get("value")
 
-    @app.route('/command/handcart/', methods=['POST'])
-    def send_command():
-        print(request.data)
-        # if req['com-type'] == 'start-cgh' and req['value'] == 'true':
-        #    print('okka')
-        return "ok"
+        command = {
+            "com-type": comType,
+            "value": value
+        }
+
+        com_queue.put(command)
+        print(command["com-type"], " - ", command["value"])
+
+        resp = jsonify(success=True)
+        return resp
 
     app.run(use_reloader=False)
 

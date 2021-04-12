@@ -13,14 +13,6 @@ brusa_connected = False
 bms_connected = False
 handcart_state = ""
 
-try:
-    r = requests.get(SERVER_ADDRESS)
-
-    if r.status_code == 200:
-        server_connected = True
-except requests.exceptions.ConnectionError:
-    pass
-
 
 def printcolor(color, text):
     if color == "green":
@@ -32,15 +24,17 @@ def printcolor(color, text):
 def printbrusaerrors():
     r = requests.get(SERVER_ADDRESS + "brusa/errors/")
     try:
-        if r.status_code==200:
+        if r.status_code == 200:
             for i in r.json()['errors']:
                 printcolor("red", "[Brusa] " + i['desc'])
     except:
         global server_connected
         server_connected = False
 
+
 def printcommands():
     pass
+
 
 def main():
     printcolor("green", "▂▃▅▇█▓▒░۩۞۩    Handcart    ۩۞۩░▒▓█▇▅▃▂")
@@ -60,11 +54,21 @@ def main():
     else:
         print("BMS:\tnot connected")
 
+    if not server_connected:
+        try:
+            r = requests.get(SERVER_ADDRESS)
+
+            if r.status_code == 200:
+                server_connected = True
+        except requests.exceptions.ConnectionError:
+            pass
+
     try:
         r = requests.get(SERVER_ADDRESS + 'handcart/status/')
         if r.status_code == 200:
             print("")
-            handcart_state = r.json()['state']
+            handcart_state = r.json()
+            handcart_state = handcart_state['state']
             print("Handcart state: " + handcart_state)
 
     except requests.exceptions.ConnectionError:
@@ -74,6 +78,17 @@ def main():
         r = requests.get(SERVER_ADDRESS + 'brusa/status/')
         if r.status_code == 200:
             brusa_connected = True
+        elif r.status_code == 400:
+            brusa_connected = False
+    except requests.exceptions.ConnectionError:
+        server_connected = False
+
+    try:
+        r = requests.get(SERVER_ADDRESS + 'bms-hv/status/')
+        if r.status_code == 200:
+            bms_connected = True
+        elif r.status_code == 400:
+            bms_connected = False
     except requests.exceptions.ConnectionError:
         server_connected = False
 
@@ -82,6 +97,7 @@ def main():
         printcolor("red", "[ Errors ] (╥﹏╥)")
         printbrusaerrors()
 
+
 def isData():
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
@@ -89,25 +105,42 @@ def isData():
 old_settings = termios.tcgetattr(sys.stdin)
 try:
     tty.setcbreak(sys.stdin.fileno())
+    buff = ""
+    refresh = True
     while 1:
+
+        #time = time.time()
         # Main loop
         os.system("clear")
         main()
+        print()
+        print("Avaiable commands:")
+        print("")
+        print("\t[c] Start charge\t[b] Stop charge")
+        print("\t[f] Enable fast charge\t[t] Set cutoff voltage")
+        print("")
 
-        print("Command: ")
+        print("Command: " + buff)
 
         if isData():
             c = sys.stdin.read(1)
-            print("stream: " + c)
-            if c == '\x1b':         # x1b is ESC
+
+            if c == "c":
+                print("sdasd")
+            elif c == "b":
+                pass
+            elif c == "f":
+                pass
+            elif c == "t":
+                desired_cutoff = input("Cutoff voltage: ")
+
+            if c == '\x1b':  # x1b is ESC
                 break
+
         time.sleep(0.5)
 
 finally:
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
-
-
 
 exit()
 
