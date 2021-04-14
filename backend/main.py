@@ -350,7 +350,7 @@ class BMS_HV:
 
     def doHV_STATUS(self, msg):
         self.lastupdated = msg.timestamp
-        pass
+        self.status = TsStatus.deserialize(msg.data)
 
     def do_CHG_SET_CURRENT(self, msg):
         self.lastupdated = msg.timestamp
@@ -387,7 +387,7 @@ class CanListener:
         CAN_BRUSA_MSG_ID.NLG5_ERR.value: brusa.doNLG5_ERR,
         CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
         # BMS_HV
-        BMS_HV_MSG_ID.HV_VOLTAGE.value: bms_hv.doHV_VOLTAGE,
+        ID_HV_VOLTAGE.value: bms_hv.doHV_VOLTAGE,
         BMS_HV_MSG_ID.HV_CURRENT.value: bms_hv.doHV_CURRENT,
         BMS_HV_MSG_ID.HV_ERROR.value: bms_hv.doHV_ERROR,
         BMS_HV_MSG_ID.HV_TEMP.value: bms_hv.doHV_TEMP,
@@ -584,7 +584,7 @@ def doError():
         can_forward_enabled = False
 
     # Send to BMS stacca stacca
-    if not canread.bms_hv.error:
+    if not canread.bms_hv.status == Ts_Status.OFF.value:
         sts = SetTsStatus()
         data = sts.serialize(Ts_Status_Set.OFF.value)
         msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
