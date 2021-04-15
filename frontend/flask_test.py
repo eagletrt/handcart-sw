@@ -36,11 +36,12 @@ def settings():
 
 @app.route('/handcart/status/', methods=['GET'])
 def get_hc_status():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "status": "STATE.IDLE",
         "entered": "2020-12-01:ora"
-    }]
+    }
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -51,10 +52,11 @@ def get_hc_status():
 
 @app.route('/bms-hv/status/', methods=['GET'])
 def get_bms_status():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "status": "STATE.TS_ON"  # TS_OFF, PRECHARGE, TS_ON, FATAL
-    }]
+    }
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -62,17 +64,18 @@ def get_bms_status():
 
 @app.route('/bms-hv/errors/', methods=['GET'])
 def get_bms_errors():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "errors": [{
             "code": 1,
             "desc": "Sto esplodendo"
         },
-            {
-                "code": 2,
-                "desc": "cell 5 overvoltage"
-            }]
-    }]
+        {
+            "code": 2,
+            "desc": "cell 5 overvoltage"
+        }]
+    }
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -81,24 +84,26 @@ def get_bms_errors():
 # -BMS-CELLS-DATA
 @app.route('/bms-hv/cells/', methods=['GET'])
 def get_bms_cells():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
-        "data": [{
+        "data": {
             "timestamp": "2020-12-01:ora",
             "cells": []
-        }]
-    }]
+        }
+    }
+
     ncells = 108
     digits = 3
     min = 0
     max = 100
+
     for i in range(1, ncells + 1):
         value = round(random.uniform(min, max), digits)
         cell = {
             "id": i,
             "voltage": value
         }
-        data[0]["data"][0]["cells"].append(cell)
+        data["data"]["cells"].append(cell)
 
     resp = jsonify(data)
     resp.status_code = 200
@@ -107,21 +112,23 @@ def get_bms_cells():
 
 @app.route('/bms-hv/cells/last', methods=['GET'])
 def get_last_bms_cells():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "cells": []
-    }]
+    }
+
     ncells = 108
     digits = 3
     min = 0
     max = 100
+
     for i in range(1, ncells + 1):
         value = round(random.uniform(min, max), digits)
         cell = {
             "id": i,
             "voltage": value
         }
-        data[0]["cells"].append(cell)
+        data["cells"].append(cell)
 
     resp = jsonify(data)
     resp.status_code = 200
@@ -131,10 +138,10 @@ def get_last_bms_cells():
 # -BMS-VOLTAGE-DATA
 @app.route('/bms-hv/volt/', methods=['GET'])
 def get_bms_volt():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "data": []
-    }]
+    }
 
     n = 100
     min = 0
@@ -151,7 +158,7 @@ def get_bms_volt():
             "timestamp": timestamp,
             "volts": value
         }
-        data[0]["data"].append(voltage)
+        data["data"].append(voltage)
 
     resp = jsonify(data)
     resp.status_code = 200
@@ -165,10 +172,10 @@ def get_last_bms_volt():
     value = random.randrange(min, max)
     timestamp = datetime.datetime.now(tz)
 
-    data = [{
+    data = {
         "timestamp": timestamp,
         "volts": value
-    }]
+    }
 
     resp = jsonify(data)
     resp.status_code = 200
@@ -178,10 +185,10 @@ def get_last_bms_volt():
 # -BMS-AMPERE-DATA
 @app.route('/bms-hv/ampere/', methods=['GET'])
 def get_bms_ampere():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "data": []
-    }]
+    }
 
     n = 100
     min = 0
@@ -198,7 +205,7 @@ def get_bms_ampere():
             "timestamp": timestamp,
             "amperes": value
         }
-        data[0]["data"].append(amperes)
+        data["data"].append(amperes)
 
     resp = jsonify(data)
     resp.status_code = 200
@@ -212,32 +219,78 @@ def get_last_bms_ampere():
     value = random.randrange(min, max)
     timestamp = datetime.datetime.now(tz)
 
-    data = [{
+    data = {
         "timestamp": timestamp,
         "amperes": value
-    }]
+    }
+
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
+# -BMS-TEMPERATURE-DATA
+@app.route('/bms-hv/temp/', methods=['GET'])
+def get_bms_temp():
+    data = {
+        "timestamp": "2020-12-01:ora",
+        "data": []
+    }
+
+    n = 100
+    min = 0
+    max = 10
+
+    now = datetime.datetime.now(tz)
+    last_100_seconds = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
+    last_100_seconds.reverse()  # an array with the last n seconds form the older date to the now date
+
+    for timestamp in last_100_seconds:
+        value = random.randrange(min, max)
+
+        temperature = {
+            "timestamp": timestamp,
+            "temp": value
+        }
+        data["data"].append(temperature)
 
     resp = jsonify(data)
     resp.status_code = 200
     return resp
 
 
+@app.route('/bms-hv/temp/last', methods=['GET'])
+def get_last_bms_temp():
+    min = 0
+    max = 10
+    value = random.randrange(min, max)
+    timestamp = datetime.datetime.now(tz)
+
+    data = {
+        "timestamp": timestamp,
+        "temp": value
+    }
+
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
 # -END-BMS-HV--------------------------------------------------------------------
 # -BRUSA-------------------------------------------------------------------------
 
 @app.route('/brusa/status/', methods=['GET'])  # 8-23 WARNINGS
 def get_brusa_status():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "status": [{
             "desc": "brusa on bla bla",
             "pos": 0
         },
-            {
-                "desc": "brusa current limited",
-                "pos": 2
-            }]
-    }]
+        {
+            "desc": "brusa current limited",
+            "pos": 2
+        }]
+    }
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -245,17 +298,18 @@ def get_brusa_status():
 
 @app.route('/brusa/errors/', methods=['GET'])
 def get_brusa_errors():
-    data = [{
+    data = {
         "timestamp": "2020-12-01:ora",
         "errors": [{
             "desc": "brusa is on fire",
             "pos": 3
         },
-            {
-                "desc": "brusa current limited",
-                "pos": 5
-            }]
-    }]
+        {
+            "desc": "brusa current limited",
+            "pos": 5
+        }]
+    }
+
     resp = jsonify(data)
     resp.status_code = 200
     return resp
@@ -264,7 +318,7 @@ def get_brusa_errors():
 # -END-BRUSA---------------------------------------------------------------------
 # =COMMANDS======================================================================
 
-@app.route('/command/', methods=['POST'])
+@app.route('/command/settings', methods=['POST'])
 def recv_command():
     comType = request.form.get("comType")
     value = request.form.get("value")
@@ -278,6 +332,25 @@ def recv_command():
     command = jsonify(command)
 
     return command
+
+@app.route('/command/settings', methods=['GET'])
+def get_settings_command():
+    data = [{
+        "com-type": "cutoff",
+        "value": 300
+    },
+    {
+        "com-type": "max-c-o",
+        "value": 5
+    },
+    {
+        "com-type": "fast-charge",
+        "value": True
+    }]
+
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
 
 
 if __name__ == '__main__':

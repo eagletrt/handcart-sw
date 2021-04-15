@@ -27,7 +27,7 @@ fetch(request)
 
         // if there's only one status message to read
         let key = "status"
-        let str = json[0][key].substr(6)    // to take STATE.[status]
+        let str = json[key].substr(6)    // to take STATE.[status]
         b.innerHTML = str                   // i.e. STATE.TS_OFF = TS_OFF
 
         switch (str) {
@@ -59,7 +59,7 @@ fetch(request)
 
         // if there's only one status message to read
         let key = "status"
-        let str = json[0][key].substr(6)    // to take STATE.[status]
+        let str = json[key].substr(6)    // to take STATE.[status]
         b.innerHTML = str                   // i.e. STATE.TS_OFF = TS_OFF
 
         switch (str) {
@@ -90,7 +90,7 @@ fetch(request)
 
         // if there's only one status message to read
         let key = "status"
-        
+
     })
     .catch(error => console.log('Authorization failed : ' + error.message))
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------

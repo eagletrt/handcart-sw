@@ -8,11 +8,11 @@ function updateAmpereValue(chart, series) {
         fetch(request)
             .then(response => response.json())
             .then(json => {
-                timestamp = json[0]["timestamp"]
-                volt = json[0]["amperes"]
+                timestamp = json["timestamp"]
+                amp = json["amperes"]
                 element = {
                     date: new Date(timestamp),
-                    value: volt
+                    value: amp
                 }
                 chart.addData(element, 1);
             })
@@ -41,9 +41,8 @@ fetch(request)
             chart.zoomOutButton.disabled = true;
 
             var data = [];
-            var volt = 10;
             var previousValue;
-            amperes = json[0]["data"];
+            amperes = json["data"];
             n = amperes.length;
 
             for (var i = 0; i < n; i++) {
@@ -59,7 +58,7 @@ fetch(request)
                 }
 
                 element = {
-                    date: new Date(voltages[i]["timestamp"]),
+                    date: new Date(amperes[i]["timestamp"]),
                     value: amp
                 };
 

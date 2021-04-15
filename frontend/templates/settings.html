@@ -5,7 +5,7 @@
     {% include 'include/head.html' %}
 </head>
 
-<body onload="onLoadStartStop()">
+<body onload="onLoadStartStop();onLoadEnableDisable()">
     {% include 'include/header.html' %}
 
     <div class="container-fluid">
@@ -37,17 +37,18 @@
                                     </form>
                                 </div>
                             </div>
+                            <br><br>
                             <div class="row">
                                 <div class="col-sm col-title">
-                                    <h1 class="h2">Max Current from Outlet: <span id="AValue"></span>A</h1>
+                                    <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A</h1>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-sm">
-                                    <form method="POST" id="AForm"> <!-- Ampere Form -->
-                                        <input type="hidden" name="comType" value="ampere">
-                                        <input type="range" oninput="changeValue('ASlider', 'AValue')"
-                                            min="1" max="10" value="5" class="slider" id="ASlider" name="value"><br><br>
+                                    <form method="POST" id="MCOForm"> <!-- Max Current Outlet Form -->
+                                        <input type="hidden" name="comType" value="max-c-o">
+                                        <input type="range" oninput="changeValue('MCOSlider', 'MCOValue')"
+                                            min="1" max="10" value="5" class="slider" id="MCOSlider" name="value"><br><br>
                                         <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
                                     </form>
                                 </div>
@@ -64,13 +65,13 @@
                                     <form method="POST" id="FCEForm"> <!-- FastCharge Enabled Form -->
                                         <input type="hidden" name="comType" value="fast-charge">
                                         <input type="hidden" name="value" value="true">
-                                        <input type="submit" onclick="enableDisable(false)" id="enable"
+                                        <input type="submit" onclick="enableDisable(true)" id="enable"
                                             class="btn btn-success btn-lg" value="Enable">
                                     </form>
                                     <form method="POST" id="FCDForm"> <!-- FastCharge Disabled Form -->
                                         <input type="hidden" name="comType" value="fast-charge">
                                         <input type="hidden" name="value" value="false">
-                                        <input type="submit" onclick="enableDisable(true)" id="disable"
+                                        <input type="submit" onclick="enableDisable(false)" id="disable"
                                             class="btn btn-danger btn-lg" value="Disable">
                                     </form>
                                 </div>
@@ -79,147 +80,18 @@
                     </div>
                     <script>
                         var COForm = document.getElementById("COForm");
-                        var AForm = document.getElementById("AForm");
+                        var MCOForm = document.getElementById("MCOForm");
                         var FCEForm = document.getElementById("FCEForm");
                         var FCDForm = document.getElementById("FCDForm");
 
                         formListener(COForm);
-                        formListener(AForm);
+                        formListener(MCOForm);
                         formListener(FCEForm);
                         formListener(FCDForm);
 
                         changeValue('COSlider', 'COValue');
-                        changeValue('ASlider', 'AValue');
+                        changeValue('MCOSlider', 'MCOValue');
                     </script>
-                </div>
-
-                <h2>Section title</h2>
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Header</th>
-                                <th>Header</th>
-                                <th>Header</th>
-                                <th>Header</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>1,001</td>
-                                <td>Lorem</td>
-                                <td>ipsum</td>
-                                <td>dolor</td>
-                                <td>sit</td>
-                            </tr>
-                            <tr>
-                                <td>1,002</td>
-                                <td>amet</td>
-                                <td>consectetur</td>
-                                <td>adipiscing</td>
-                                <td>elit</td>
-                            </tr>
-                            <tr>
-                                <td>1,003</td>
-                                <td>Integer</td>
-                                <td>nec</td>
-                                <td>odio</td>
-                                <td>Praesent</td>
-                            </tr>
-                            <tr>
-                                <td>1,003</td>
-                                <td>libero</td>
-                                <td>Sed</td>
-                                <td>cursus</td>
-                                <td>ante</td>
-                            </tr>
-                            <tr>
-                                <td>1,004</td>
-                                <td>dapibus</td>
-                                <td>diam</td>
-                                <td>Sed</td>
-                                <td>nisi</td>
-                            </tr>
-                            <tr>
-                                <td>1,005</td>
-                                <td>Nulla</td>
-                                <td>quis</td>
-                                <td>sem</td>
-                                <td>at</td>
-                            </tr>
-                            <tr>
-                                <td>1,006</td>
-                                <td>nibh</td>
-                                <td>elementum</td>
-                                <td>imperdiet</td>
-                                <td>Duis</td>
-                            </tr>
-                            <tr>
-                                <td>1,007</td>
-                                <td>sagittis</td>
-                                <td>ipsum</td>
-                                <td>Praesent</td>
-                                <td>mauris</td>
-                            </tr>
-                            <tr>
-                                <td>1,008</td>
-                                <td>Fusce</td>
-                                <td>nec</td>
-                                <td>tellus</td>
-                                <td>sed</td>
-                            </tr>
-                            <tr>
-                                <td>1,009</td>
-                                <td>augue</td>
-                                <td>semper</td>
-                                <td>porta</td>
-                                <td>Mauris</td>
-                            </tr>
-                            <tr>
-                                <td>1,010</td>
-                                <td>massa</td>
-                                <td>Vestibulum</td>
-                                <td>lacinia</td>
-                                <td>arcu</td>
-                            </tr>
-                            <tr>
-                                <td>1,011</td>
-                                <td>eget</td>
-                                <td>nulla</td>
-                                <td>Class</td>
-                                <td>aptent</td>
-                            </tr>
-                            <tr>
-                                <td>1,012</td>
-                                <td>taciti</td>
-                                <td>sociosqu</td>
-                                <td>ad</td>
-                                <td>litora</td>
-                            </tr>
-                            <tr>
-                                <td>1,013</td>
-                                <td>torquent</td>
-                                <td>per</td>
-                                <td>conubia</td>
-                                <td>nostra</td>
-                            </tr>
-                            <tr>
-                                <td>1,014</td>
-                                <td>per</td>
-                                <td>inceptos</td>
-                                <td>himenaeos</td>
-                                <td>Curabitur</td>
-                            </tr>
-                            <tr>
-                                <td>1,015</td>
-                                <td>sodales</td>
-                                <td>ligula</td>
-                                <td>in</td>
-                                <td>libero</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </main>
         </div>

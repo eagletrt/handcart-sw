@@ -1,18 +1,3 @@
-// Add data
-/*chart.data = [];
-ncells = 100;
-
-for (i = 0; i < ncells; i++) {
-    voltage = Math.floor(Math.random() * 101);
-    cellName = "CELL " + (i + 1);
-
-    element = {
-        "cell": cellName,
-        "voltage": voltage
-    };
-    chart.data.push(element);
-}*/
-
 function setColor(chart, series) {
     series.columns.template.adapter.add("fill", function(fill, target) {
         var i = target.dataItem.index;
@@ -44,7 +29,7 @@ function updateCellValue(chart, series) {
             .then(json => {
                 am4core.array.each(chart.data, function (item) {
                     i = parseInt(item["cell"].substr(5)) - 1
-                    cells = json[0]["cells"]
+                    cells = json["cells"]
                     voltage = cells[i]["voltage"]
 
                     item.voltage = voltage
@@ -77,7 +62,7 @@ fetch(request)
             chart.scrollbarX = new am4core.Scrollbar();
 
             chart.data = [];
-            cells = json[0]["data"][0]["cells"];
+            cells = json["data"]["cells"];
             ncells = cells.length;
 
             for (i = 0; i < ncells; i++) {

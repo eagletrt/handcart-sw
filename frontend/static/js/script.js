@@ -76,6 +76,31 @@ function createTable(json, table, container) {
     container.appendChild(table)
 }
 
+//-SETTINGS-FUNCTIONS-----------------------------------------------------------
+
+function onLoadEnableDisable() {
+    (async () => { // syncronization is necessary
+        var url = 'http://127.0.0.1:5000';
+        var path = '/command/settings';
+
+        request = getRequest(url, path);
+
+        let enabled;
+
+        await fetch(request) // to sync
+            .then(response => response.json())
+            .then(json => {
+                for (i = 0; i < json.length; i++) {
+                    if (json[i]["com-type"] == "fast-charge") {
+                        enabled = json[i]["value"];
+                    }
+                }
+            })
+            .catch(error => console.log('Authorization failed : ' + error.message))
+
+        enableDisable(enabled);
+    })();
+}
 /*
     json: ----- is the json that you would like to insert in the table
 
@@ -90,9 +115,8 @@ function enableDisable(enabled) {
     let enableButton = document.getElementById("enable");
     let disableButton = document.getElementById("disable");
 
-    // should get the actual fast charge statur (enabled or not)
-
-    if (!enabled) {                             // if fast charge isn't enabled
+    // modify are sent by the formListener
+    if (enabled) {                             // if fast charge isn't enabled
         enableButton.style.display = "none";    // hide the enable button
         disableButton.style.display = "inline"; // and show the disable button
     } else {                                    // if the fast charge has been enabled
@@ -101,11 +125,15 @@ function enableDisable(enabled) {
     }
 }
 
+/*
+    form: - the form to be listened
+*/
+
 function formListener(form) {
     form.addEventListener('submit', function(event) {
         event.preventDefault();                 // prevent page from refreshing
         const formData = new FormData(form);    // grab the data inside the form fields
-        let url = '/command/';
+        let url = '/command/settings';
         postRequest(url, formData);
     });
 }
@@ -118,11 +146,14 @@ function formListener(form) {
 */
 
 function changeValue(sliderName, label) {
-    var slider = document.getElementById(sliderName);
-    var output = document.getElementById(label);
+    let slider = document.getElementById(sliderName);
+    let output = document.getElementById(label);
 
-    var value = (slider.value-slider.min)/(slider.max-slider.min)*100;
-    slider.style.background = 'linear-gradient(to right, #00ba44 0%, #00ba44 ' + value + '%, #d3d3d3 ' + value + '%, #d3d3d3 100%)';
+    let green = "#00ba44";
+    let gray = "#d3d3d3";
+
+    let value = (slider.value-slider.min)/(slider.max-slider.min)*100; // adjust the left-side slider color
+    slider.style.background = 'linear-gradient(to right, ' + green + ' 0%, ' + green + ' ' + value + '%, ' + gray + ' ' + value + '%, ' + gray + ' 100%)';
 
     output.innerHTML = slider.value;
 }
@@ -160,8 +191,14 @@ function startStop(started) {
     let stopButton = document.getElementById("stop");
 
     if (!started) {                             // if the timer has started
-        startButton.style.display = "none";     // hide the start button
-        stopButton.style.display = "inline";    // and show the stop button
+        let href = window.location.href;
+        let re = /.*\/(.*)/;
+        let page = href.match(re)[1];
+
+        if (page == "") {                       // check if I am in the home page
+            startButton.style.display = "none"; // hide the start button
+            stopButton.style.display = "inline";// and show the stop button
+        }
 
         elapsedTime();                          // then start the timer
     } else {                                    // if the timer haven't been started or it have been stopped

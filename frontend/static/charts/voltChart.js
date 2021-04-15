@@ -8,8 +8,8 @@ function updateVoltValue(chart, series) {
         fetch(request)
             .then(response => response.json())
             .then(json => {
-                timestamp = json[0]["timestamp"]
-                volt = json[0]["volts"]
+                timestamp = json["timestamp"]
+                volt = json["volts"]
                 element = {
                     date: new Date(timestamp),
                     value: volt
@@ -41,9 +41,8 @@ fetch(request)
             chart.zoomOutButton.disabled = true;
 
             var data = [];
-            var volt = 10;
             var previousValue;
-            voltages = json[0]["data"];
+            voltages = json["data"];
             n = voltages.length;
 
             for (var i = 0; i < n; i++) {
