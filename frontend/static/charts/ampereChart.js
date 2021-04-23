@@ -15,10 +15,10 @@ function updateAmpereValue(chart, series) {
                     value: amp
                 }
                 chart.addData(element, 1);
+                document.getElementById("amp").innerHTML = amp + "A";
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
+    }, 2000);
 }
 
 var url = 'http://127.0.0.1:5000';

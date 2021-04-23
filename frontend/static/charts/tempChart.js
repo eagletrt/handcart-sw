@@ -15,6 +15,7 @@ function updateTempValue(chart, series) {
                     value: temp
                 }
                 chart.addData(element, 1);
+                document.getElementById("temp").innerHTML = temp + "°";
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }

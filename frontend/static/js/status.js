@@ -7,7 +7,7 @@ request = getRequest(url, path);
 fetch(request)
     .then(response => response.json())
     .then(json => {
-        var b = document.getElementById("bmsState")
+        let b = document.getElementById("bmsState")
 
         /*for (var key in json[0]) {
             if (key == "state") {
@@ -48,14 +48,14 @@ fetch(request)
 
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
 //var url = 'http://127.0.0.1:5000';
-var path = '/handcart/status';
+path = '/handcart/status';
 
 request = getRequest(url, path);
 
 fetch(request)
     .then(response => response.json())
     .then(json => {
-        var b = document.getElementById("hcState")
+        let b = document.getElementById("hcState")
 
         // if there's only one status message to read
         let key = "status"
@@ -79,14 +79,14 @@ fetch(request)
 
 //-GET-THE-BRUSA-STATUS---------------------------------------------------------
 //var url = 'http://127.0.0.1:5000';
-var path = '/brusa/status';
+path = '/brusa/status';
 
 request = getRequest(url, path);
 
 fetch(request)
     .then(response => response.json())
     .then(json => {
-        var b = document.getElementById("brusaState")
+        let b = document.getElementById("brusaState")
 
         // if there's only one status message to read
         let key = "status"
@@ -94,3 +94,22 @@ fetch(request)
     })
     .catch(error => console.log('Authorization failed : ' + error.message))
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
+
+//-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
+path = '/command/settings';
+
+request = getRequest(url, path);
+
+fetch(request)
+    .then(response => response.json())
+    .then(json => {
+        var b = document.getElementById("COvolt")
+
+        for (i = 0; i < json.length; i++) {
+            if(json[i]["com-type"] == "cutoff") {
+                b.innerHTML = json[i]["value"] + "V"
+            }
+        }
+    })
+    .catch(error => console.log('Authorization failed : ' + error.message))
+//-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

@@ -15,6 +15,11 @@ function updateVoltValue(chart, series) {
                     value: volt
                 }
                 chart.addData(element, 1);
+                document.getElementById("volt").innerHTML = volt + "V"; // insert the value in the top bar
+
+                /*let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
+                let value = parseInt(100*volt/coVolt);
+                document.getElementById("charge").innerHTML = value + "%";*/ // calculate the value of the charge
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }

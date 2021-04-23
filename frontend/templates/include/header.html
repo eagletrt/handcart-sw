@@ -5,9 +5,27 @@
         <img src="{{url_for('static', filename='images/eagle.png')}}" width="40">
         E-Agle TRT - Handcart
     </a>
+
     <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-toggle="collapse" data-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
+
+    <div class="nav-container">
+        <div class="left">
+            <div class="status">BMS state: <b id="bmsState"></b></div>
+            <div class="status">State: <b id="hcState"></b></div>
+            <div class="status">Brusa state: <b id="brusaState"></b></div>
+            <div class="status">Elapsed time: <b id="timeText">00:00</b></div>
+        </div>
+        <div class="right">
+            <div class="status" id="temp">56°</div>
+            <div class="status"><span id="volt">100V</span>/<span id="COvolt">150V</span></div> <!-- tensione/cut-off -->
+            <div class="status" id="amp">5A</div>
+            <div class="status" id="charge">100%</div>
+        </div>
+    </div>
 </nav>
+
+<script src="{{url_for('static', filename='js/status.js')}}"></script>
 
 {% endblock %}

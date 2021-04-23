@@ -337,7 +337,7 @@ def recv_command():
 def get_settings_command():
     data = [{
         "com-type": "cutoff",
-        "value": 300
+        "value": 150
     },
     {
         "com-type": "max-c-o",
@@ -345,7 +345,7 @@ def get_settings_command():
     },
     {
         "com-type": "fast-charge",
-        "value": True
+        "value": False
     }]
 
     resp = jsonify(data)

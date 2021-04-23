@@ -75,7 +75,13 @@ am4core.ready(function() {
     });
 
     setInterval(function() {
-        var value = Math.round(Math.random() * 100);
+        let volt = parseInt(document.getElementById("volt").innerHTML); // insert the value in the top bar
+        let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
+        let value = Math.round(100*(100*volt/coVolt))/100;
+
+        document.getElementById("charge").innerHTML = Math.round(value) + "%"; // calculate the value of the charge
+
+        //var value = Math.round(Math.random() * 100);
         var animation = new am4core.Animation(hand, {
             property: "value",
             to: value
