@@ -17,11 +17,15 @@ import threading
 import queue
 import flask
 from flask import request, jsonify
+import cantools
 
 from can_cicd.naked_generator.Primary.py.Primary import *
 from can_cicd.includes_generator.Primary.ids import *
 
-CAN_BMS_ID = 170  # 0xAA
+brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
+
+FAST_CHARGE_AMPERE = 16
+STANDARD_CHARGE_AMPERE = 6
 
 BYTE_MASK = [
     0b10000000,
@@ -57,241 +61,68 @@ class CAN_BRUSA_MSG_ID(Enum):
     NLG5_CTL = 0x618
 
 
-# ID's of BMS can messages
-class BMS_HV_MSG_ID(Enum):
-    HV_VOLTAGE = 0
-    HV_CURRENT = 0
-    HV_TEMP = 0
-    HV_STATUS = 0xAA
-    HV_ERROR = 0
-    CHG_SET_CURRENT = 0
-    CHG_SET_VOLTAGE = 0
-    CHG_STATE = 0
-
-
-# The possible states of BMS
-class BMS_HV_STATE(Enum):
-    TS_OFF = 0
-    PRECHARGE = 0
-    TS_ON = 0
-    FATAL = 0
-
-
-class BMS_HV_CHG_STATE(Enum):
-    CHG_OFF = 0
-    CHG_CC = 0
-    CHG_CV = 0
-
-
-# ids of handcart messages exiting
-class HANDCART_MSG_ID(Enum):
-    CHG_STATE_REQ = 0
-    CHG_SETTINGS = 0
-    TS_STATUS_REQ = 0
-
-
-# Gives the position of things in "NLG5_ST_POS" can message's data segment
-# See BRUSA's can messages sheet for reference
-class NLG5_ST_POS(Enum):
-    NLG5_S_HE = 0
-    NLG5_S_ERR = 1
-    NLG5_S_WAR = 2
-    NLG5_S_FAN = 3
-    NLG5_S_EUM = 4
-    NLG5_S_UM_I = 5
-    NLG5_S_UM_II = 6
-    NLG5_S_CP_DT = 7
-    NLG5_S_BPD_I = 8
-    NLG5_S_BPD_II = 9
-    NLG5_S_L_OV = 10
-    NLG5_S_L_OC = 11
-    NLG5_S_L_MC = 12
-    NLG5_S_L_PI = 13
-    NLG5_S_L_CP = 14
-    NLG5_S_L_PMAX = 15
-    NLG5_S_L_MC_MAX = 16
-    NLG5_S_L_OC_MAX = 17
-    NLG5_S_L_MO_MAX = 18
-    NLG5_S_L_T_CPRIM = 19
-    NLG5_S_L_T_POW = 20
-    NLG5_S_L_T_DIO = 21
-    NLG5_S_L_T_TR = 22
-    NLG5_S_L_T_BATT = 23
-    NLG5_S_AAC = 31
-
-
-# Gives the position of things in  can message's data segment
-# See BRUSA's can messages sheet for reference
-class NLG5_ACT_I_POS(Enum):
-    NLG5_MC_ACT = 0
-    NLG5_MV_ACT = 16
-    NLG5_OV_ACT = 32
-    NLG5_OC_ACT = 48
-
-
-# Gives the position of things in  can message's data segment
-# See BRUSA's can messages sheet for reference
-class NLG5_ACT_II_POS(Enum):
-    NLG5_S_MC_M_CP = 0
-    NLG5_S_MC_M_PI = 16
-    NLG5_ABV = 24
-    NLG5_AHC_EXT = 32
-    NLG5_OC_BO = 48
-
-
-# Gives the position of things in  can message's data segment
-# See BRUSA's can messages sheet for reference
-class NLG5_TEMP_POS(Enum):
-    NLG5_P_TMP = 0
-    NLG5_TMP_EXT1 = 16
-    NLG5_TEMP_EXT2 = 32
-    NLG5_TMP_EXT3 = 48
-
-
-# Gives the position of things in  can message's data segment
-# See BRUSA's can messages sheet for reference
-class NLG5_ERR_POS(Enum):
-    NLG5_E_OOV = 0
-    NLG5_E_MOV_II = 1
-    NLG5_E_MOV_I = 2
-    NLG5_E_SC = 3
-    NLG5_E_P_OM = 4
-    NLG5_E_P_MV = 5
-    NLG5_E_OF = 6
-    NLG5_E_MF = 7
-    NLG5_E_B_P = 8
-    NLG5_E_T_C = 9
-    NLG5_E_T_POW = 10
-    NLG5_E_T_DIO = 11
-    NLG5_E_T_TR = 12
-    NLG5_E_T_EXT1 = 13
-    NLG5_E_T_EXT2 = 14
-    NLG5_E_T_EXT3 = 15
-    NLG5_E_F_CRC = 16
-    NLG5_E_NV_CRC = 17
-    NLG5_E_ES_CRC = 18
-    NLG5_E_EP_CRC = 19
-    NLG5_E_WDT = 20
-    NLG5_E_INIT = 21
-    NLG5_E_C_TO = 22
-    NLG5_E_C_OFF = 23
-    NLG5_E_C_TX = 24
-    NLG5_E_C_RX = 25
-    NLG5_E_SDT_BT = 26
-    NLG5_E_SDT_BV = 27
-    NLG5_E_SDT_AH = 28
-    NLG5_E_SDT_CT = 29
-    NLG5_W_PL_MV = 32
-    NLG5_W_PL_BV = 33
-    NLG5_W_PL_IT = 34
-    NLG5_W_C_VOR = 35
-    NLG5_W_CM_NA = 36
-    NLG5_W_OD = 38
-    NLG5_W_SC_M = 39
-
-
 class BRUSA:
     lastupdated = ""
 
-    # ST
-    act_NLG5_ST_values = []
+    act_NLG5_ST_values = {}
+    act_NLG5_ACT_I = {}
+    act_NLG5_ACT_II = {}
+    act_NLG5_TEMP = {}
+    act_NLG5_ERR = {}
 
-    # ACT_1
-    NLG5_MC_ACT = 0
-    NLG5_MV_ACT = 0
-    NLG5_OV_ACT = 0
-    NLG5_OC_ACT = 0
-
-    # ACT_2
-    NLG5_S_MC_M_CP = 0  # 16 bit
-    NLG5_S_MC_M_PI = 0  # 8 bit
-    NLG5_ABV = 0  # 8 bit
-    NLG5_AHC_EXT = 0  # 16 bit
-    NLG5_OC_BO = 0  # 16 bit
-
-    # TEMP
-    NLG5_P_TEMP = 0
-
-    # ERR
     error = False
-    act_NLG5_ERR_values = []
     act_NLG5_ERR_str = []
+    act_NLG5_ST_srt = []
 
     def isConnected(self):
         return not self.lastupdated == ""
 
     # Handles Brusa CAN status messages
     def doNLG5_ST(self, msg):
-
         self.lastupdated = msg.timestamp
-        pos = 0
-        for i in range(4):
-            for mask in BYTE_MASK:
-                res = msg.data[i] & mask
-                if res > 0:
-                    self.act_NLG5_ST_values[pos] = True
-                    # print("[ST] " + msgDef.NLG5_ST_DEF[pos])
-                pos += 1
 
-        if self.act_NLG5_ST_values[NLG5_ST_POS.NLG5_S_ERR.value]:
+        self.act_NLG5_ST_values = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        for key in self.act_NLG5_ST_values:
+            value = self.act_NLG5_ST_values[key]
+            if (value == 1):
+                signals = brusa_dbc.get_message_by_name('NLG5_ST').signals
+                for s in signals:
+                    if s.name == key:
+                        self.act_NLG5_ST_srt.append(s.comment)
+                        break
+
+        if self.act_NLG5_ST_values['NLG5_S_ERR'] == 1:
             self.error = True
 
     def doNLG5_ACT_I(self, msg):
-        # Manca da trasformare i valori in bit in valori decimali
         self.lastupdated = msg.timestamp
-        self.NLG5_MC_ACT = int.from_bytes(
-            msg.data[:2], byteorder='big', signed=False) * 0.01
-        self.NLG5_MV_ACT = int.from_bytes(
-            msg.data[2:4], byteorder='big', signed=False) * 0.1
-        self.NLG5_OV_ACT = int.from_bytes(
-            msg.data[4:6], byteorder='big', signed=False) * 0.1
-        self.NLG5_OC_ACT = int.from_bytes(
-            msg.data[6:8], byteorder='big', signed=True) * 0.01
+        self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ACT_II(self, msg):
         self.lastupdated = msg.timestamp
-
-        self.NLG5_S_MC_M_CP = int.from_bytes(
-            msg.data[:2], byteorder='big', signed=False) * 0.1
-        self.NLG5_S_MC_M_PI = int.from_bytes(
-            msg.data[2:3], byteorder='big', signed=False) * 0.1
-        self.NLG5_ABV = int.from_bytes(
-            msg.data[3:4], byteorder='big', signed=False) * 0.1
-        self.NLG5_AHC_EXT = int.from_bytes(
-            msg.data[4:6], byteorder='big', signed=True) * 0.01
-        self.NLG5_OC_BO = int.from_bytes(
-            msg.data[6:8], byteorder='big', signed=False) * 0.01
+        self.act_NLG5_ACT_II = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_TEMP(self, msg):
         self.lastupdated = msg.timestamp
+        self.act_NLG5_TEMP = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
-        self.NLG5_P_TEMP = int.from_bytes(
-            msg.data[:2], byteorder='big', signed=True) * 0.1
-
-    # Handles brusa CAN error's message
     def doNLG5_ERR(self, msg):
         self.lastupdated = msg.timestamp
+        self.act_NLG5_ERR = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_ERR_str = []
 
-        pos = 0
-        for i in range(5):
-            for mask in BYTE_MASK:
-                if pos != 30 and pos != 31:
-                    res = msg.data[i] & mask
-                    if res > 0:
-                        self.error = True
-                        self.act_NLG5_ERR_values[pos] = True
-                    pos += 1
-
-        if self.error:
-            for i in range(40):
-                if self.act_NLG5_ERR_values[i]:
-                    self.act_NLG5_ERR_str.append(msgDef.NLG5_ERR_DEF[i])
+        for key in self.act_NLG5_ERR:
+            value = self.act_NLG5_ERR[key]
+            if (value == 1):
+                self.error = True
+                signals = brusa_dbc.get_message_by_name('NLG5_ERR').signals
+                for s in signals:
+                    if s.name == key:
+                        self.act_NLG5_ERR_str.append(s.comment)
+                        break
 
     def __init__(self):
-        for i in range(32):
-            self.act_NLG5_ST_values.append(False)
-        for i in range(40):
-            self.act_NLG5_ERR_values.append(False)
+        pass
 
 
 class BMS_HV:
@@ -310,11 +141,14 @@ class BMS_HV:
     error_str = ""
     status = -1
     chg_status = -1
-    req_current = -1
-    req_voltage = -1
+    req_chg_current = 0
+    req_chg_voltage = 0
     act_average_temp = -1
     min_temp = -1
     max_temp = -1
+
+    def __init__(self):
+        pass
 
     def isConnected(self):
         return not self.lastupdated == ""
@@ -352,17 +186,18 @@ class BMS_HV:
         self.lastupdated = msg.timestamp
         self.status = TsStatus.deserialize(msg.data)
 
-    def do_CHG_SET_CURRENT(self, msg):
+    def do_CHG_SET_POWER(self, msg):
         self.lastupdated = msg.timestamp
-        pass
+        power = SetChgPower.deserialize(msg.data)
+        self.req_chg_current = power.current
+        if power.voltage > 500:
+            self.error = True
+            self.error_str = "Required charging voltage exceeds 500 Volts"
+        self.req_chg_voltage = power.voltage
 
-    def doCHG_SET_VOLTAGE(self, msg):
+    def doCHG_STATUS(self, msg):
         self.lastupdated = msg.timestamp
-        pass
-
-    def doCHG_STATE(self, msg):
-        self.lastupdated = msg.timestamp
-        pass
+        self.status = ChgStatus.deserialize(msg.data).status
 
 
 # That listener is called wether a can message arrives, then
@@ -387,14 +222,13 @@ class CanListener:
         CAN_BRUSA_MSG_ID.NLG5_ERR.value: brusa.doNLG5_ERR,
         CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
         # BMS_HV
-        ID_HV_VOLTAGE.value: bms_hv.doHV_VOLTAGE,
-        BMS_HV_MSG_ID.HV_CURRENT.value: bms_hv.doHV_CURRENT,
-        BMS_HV_MSG_ID.HV_ERROR.value: bms_hv.doHV_ERROR,
-        BMS_HV_MSG_ID.HV_TEMP.value: bms_hv.doHV_TEMP,
-        BMS_HV_MSG_ID.HV_STATUS.value: bms_hv.doHV_STATUS,
-        BMS_HV_MSG_ID.CHG_SET_CURRENT.value: bms_hv.do_CHG_SET_CURRENT,
-        BMS_HV_MSG_ID.CHG_SET_VOLTAGE.value: bms_hv.doCHG_SET_VOLTAGE,
-        BMS_HV_MSG_ID.CHG_STATE.value: bms_hv.doCHG_STATE
+        ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
+        ID_HV_CURRENT: bms_hv.doHV_CURRENT,
+        ID_HV_ERROR: bms_hv.doHV_ERROR,
+        ID_HV_TEMP: bms_hv.doHV_TEMP,
+        ID_TS_STATUS: bms_hv.doHV_STATUS,
+        ID_SET_CHG_POWER: bms_hv.do_CHG_SET_POWER,
+        ID_CHG_STATUS: bms_hv.doCHG_STATUS
     }
 
     # Function called when a new message arrive, maps it to
@@ -406,27 +240,11 @@ class CanListener:
 
 
 class Can_rx_listener(Listener):
-    volt_chg_req = 0
-    current_chg_req = 0
-
     def __init__(self):
         pass
 
     def on_message_received(self, msg):
         rx_can_queue.put(msg)
-        with forward_lock:
-            if can_forward_enabled and (
-                    msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_VOLTAGE or msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_CURRENT):
-                tx_can_queue.put(self.canChgMsgBmstoBrusa(msg))
-
-    # creates a message for brusa from bms chg request one
-    def canChgMsgBmstoBrusa(self, bms_msg):
-        if bms_msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_VOLTAGE:
-            self.volt_chg_req = bms_msg.data[0]  # to be defined
-        if bms_msg.arbitration_id == BMS_HV_MSG_ID.CHG_SET_CURRENT:
-            self.current_chg_req = bms_msg.data[0]  # to be defined
-        if self.volt_chg_req != 0 and self.current_chg_req != 0:
-            return can.Message(arbitration_id=CAN_BRUSA_MSG_ID.NLG5_CTL, data=[])  # to be properly defined
 
 
 canread = CanListener()  # Access it ONLY with the FSM
@@ -442,6 +260,8 @@ forward_lock = threading.Lock()
 
 # FSM vars
 precharge_asked = False
+precharge_done = False
+
 
 # function that clear all the errors stored
 # USE WITH CARE
@@ -514,26 +334,26 @@ def doIdle():
 def doPreCharge():
     # ask pork to do precharge
     # Send req to bms "TS_ON"
-    PRECHARGE_DONE = False
-    global precharge_asked
+    global precharge_asked, precharge_done
 
     if not precharge_asked:
-        ts_on_msg = can.Message(arbitration_id=HANDCART_MSG_ID.TS_STATUS_REQ, data=[BMS_HV_STATE.TS_ON])
-        tx_can_queue.put(ts_on_msg)
-        precharge_asked = True
+        ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=[SetTsStatus.serialize(Ts_Status_Set.ON)])
 
-    if canread.bms_hv.status == BMS_HV_STATE.TS_ON:
+        tx_can_queue.put(ts_on_msg);
+        precharge_asked = True;
+
+    if canread.bms_hv.status == Ts_Status.ON:
         print("Precharge done, TS is on")
-        PRECHARGE_DONE = True
-        precharge_asked = False;
+        precharge_done = True
+        precharge_asked = False
 
-    if PRECHARGE_DONE:
+    if precharge_done:
         return STATE.READY
 
 
 # Do state READY
 def doReady():
-    if canread.bms_hv.status != BMS_HV_STATE.TS_ON:
+    if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
         return STATE.IDLE
@@ -556,6 +376,9 @@ def doCharge():
     # canread has to forward charging msgs from bms to brusa
     global can_forward_enabled
 
+    # Set Brusa's PON to 12v (relay)
+    #
+
     with forward_lock:
         can_forward_enabled = True
 
@@ -573,7 +396,7 @@ def doCharge():
 def doC_done():
     # User decide wether charge again, going idle, or charge again
     # Req "CHG_OFF" to bms
-    pass
+    return STATE.C_DONE
 
 
 # Do state ERROR
@@ -589,7 +412,6 @@ def doError():
         data = sts.serialize(Ts_Status_Set.OFF.value)
         msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
         tx_can_queue.put(msg)
-
 
     if canread.brusa.error:
         for i in canread.brusa.act_NLG5_ERR_str:
@@ -616,6 +438,19 @@ def doError():
 # Do state EXIT
 def doExit():
     exit(0)
+
+
+'''
+This function checks for commands in the queue shared between the FSM and the server,
+i.e. if an "fast charge" command is found, the value of that command is set in the fsm
+'''
+
+
+def checkCommands():
+    if not com_queue.empty():
+        act_com = com_queue.get()
+        if act_com['com_type'] == 'fast-charge':
+            canread.fast_charge = act_com['value']
 
 
 # Maps state to it's function
@@ -672,15 +507,48 @@ def thread_1_FSM(lock):
 def thread_2_CAN(lock):
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
+    last_brusa_ctl_sent = 0
 
     while 1:
-        time.sleep(1)
+        # time.sleep(1)
 
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
-            print(act.arbitration_id)
-            print(act.data)
             canSend(canbus, act.arbitration_id, act.data)
+
+        # Handles the brusa ctl messages
+        with forward_lock:
+            if time.time() - last_brusa_ctl_sent > 0.1:  # every tot time send a message
+                NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
+                if can_forward_enabled:
+                    with lock:
+                        if 0 < shared_data.bms_hv.req_chg_voltage <= 500 and shared_data.bms_hv.req_chg_current != 0:
+                            if shared_data.fast_charge:
+                                ampere = FAST_CHARGE_AMPERE
+                            else:
+                                ampere = STANDARD_CHARGE_AMPERE
+                            data = NLG5_CTL.encode({
+                                'NLG5_C_C_EN': 1,
+                                'NLG5_C_C_EL': 0,
+                                'NLG5_C_CP_V': 0,
+                                'NLG5_C_MR': 0,
+                                'NLG5_MC_MAX': ampere,
+                                'NLG5_OV_COM': shared_data.bms_hv.req_chg_voltage,
+                                'NLG5_OC_COM': shared_data.bms_hv.req_chg_current
+                            })
+                else:
+                    data = NLG5_CTL.encode({
+                        'NLG5_C_C_EN': 0,
+                        'NLG5_C_C_EL': 0,
+                        'NLG5_C_CP_V': 0,
+                        'NLG5_C_MR': 0,
+                        'NLG5_MC_MAX': 0,
+                        'NLG5_OV_COM': 0,
+                        'NLG5_OC_COM': 0
+                    })
+                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id, data=data)
+                tx_can_queue.put(NLG5_CTL_message)
+                last_brusa_ctl_sent = time.time()
 
 
 # Webserver thread
