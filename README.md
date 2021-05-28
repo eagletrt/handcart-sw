@@ -22,3 +22,7 @@ This is the repo for Fenice's handcart.
 https://lucid.app/lucidchart/invitations/accept/dbc53a3d-c901-4d6a-a692-972de6713d43
 
 https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md
+
+## Raspberry configuration
+Follow the guide here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD).
+The password of the raspberry is "handcartpi"

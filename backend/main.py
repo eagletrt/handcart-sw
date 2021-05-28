@@ -6,10 +6,8 @@ Notes:
     NLG5 - Stands for the BRUSA (also the charger)
     BMS (or BMS HV) - Stands for Battery Manage System (also the accumulator)
 """
+
 import datetime
-import sys
-from enum import Enum
-import msgDef
 import can
 from can.listener import Listener
 import time
@@ -27,20 +25,11 @@ brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 FAST_CHARGE_AMPERE = 16
 STANDARD_CHARGE_AMPERE = 6
 
-BYTE_MASK = [
-    0b10000000,
-    0b01000000,
-    0b00100000,
-    0b00010000,
-    0b00001000,
-    0b00000100,
-    0b00000010,
-    0b00000001
-]
 
 
-# States of the backend's state-machine
 class STATE(Enum):
+    """Enum containing the states of the backend's state-machine
+    """
     CHECK = 0
     IDLE = 1
     PRECHARGE = 2
@@ -51,8 +40,8 @@ class STATE(Enum):
     EXIT = -2
 
 
-# ID of BRUSA's can messages
 class CAN_BRUSA_MSG_ID(Enum):
+    """Enum containing the IDs of BRUSA's can messages"""
     NLG5_ERR = 0x614
     NLG5_TEMP = 0x613
     NLG5_ACT_I = 0x611
@@ -62,6 +51,8 @@ class CAN_BRUSA_MSG_ID(Enum):
 
 
 class BRUSA:
+    """Class to store and process all the Brusa data
+    """
     lastupdated = ""
 
     act_NLG5_ST_values = {}
@@ -75,10 +66,16 @@ class BRUSA:
     act_NLG5_ST_srt = []
 
     def isConnected(self):
+        """Checks if Brusa is connected
+        :return: True if Brusa is connected
+        """
         return not self.lastupdated == ""
 
-    # Handles Brusa CAN status messages
     def doNLG5_ST(self, msg):
+        """
+        Processes a CAN Status message from Brusa
+        :param msg: the Can message
+        """
         self.lastupdated = msg.timestamp
 
         self.act_NLG5_ST_values = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
@@ -95,25 +92,41 @@ class BRUSA:
             self.error = True
 
     def doNLG5_ACT_I(self, msg):
+        """
+        Process a CAN ACT_I message from Brusa
+        :param msg: the ACT_I can message
+        """
         self.lastupdated = msg.timestamp
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ACT_II(self, msg):
+        """
+        Process a CAN ACT_II message from Brusa
+        :param msg: the ACT_II can message
+        """
         self.lastupdated = msg.timestamp
         self.act_NLG5_ACT_II = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_TEMP(self, msg):
+        """
+        Process a CAN TEMP message from Brusa
+        :param msg: the TEMP can message
+        """
         self.lastupdated = msg.timestamp
         self.act_NLG5_TEMP = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ERR(self, msg):
+        """
+        Process a CAN ERR message from Brusa
+        :param msg: the ERR can message
+        """
         self.lastupdated = msg.timestamp
         self.act_NLG5_ERR = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
         self.act_NLG5_ERR_str = []
 
         for key in self.act_NLG5_ERR:
             value = self.act_NLG5_ERR[key]
-            if (value == 1):
+            if value == 1:
                 self.error = True
                 signals = brusa_dbc.get_message_by_name('NLG5_ERR').signals
                 for s in signals:
@@ -121,11 +134,11 @@ class BRUSA:
                         self.act_NLG5_ERR_str.append(s.comment)
                         break
 
-    def __init__(self):
-        pass
-
 
 class BMS_HV:
+    """
+    Class that stores and processes all the data of the BMS_HV
+    """
     lastupdated = ""
 
     all_voltage = {}
@@ -147,13 +160,18 @@ class BMS_HV:
     min_temp = -1
     max_temp = -1
 
-    def __init__(self):
-        pass
-
     def isConnected(self):
+        """
+        Check if BMS_HV is connected
+        :return: True if BMS_HV is connected
+        """
         return not self.lastupdated == ""
 
     def doHV_VOLTAGE(self, msg):
+        """
+        Processes th HV_VOLTAGE CAN message from BMS_HV
+        :param msg: the HV_VOLTAGE CAN message
+        """
         # someway somehow you have to extract:
         self.lastupdated = msg.timestamp
 
@@ -165,12 +183,20 @@ class BMS_HV:
         self.min_cell_voltage = msg.data[3]
 
     def doHV_CURRENT(self, msg):
+        """
+        Processes the HV_CURRENT CAN message from BMS_HV
+        :param msg: the HV_CURRENT CAN message
+        """
         self.lastupdated = msg.timestamp
 
         self.act_current = msg.data[0]
         self.all_current[self.lastupdated](msg.data[0])
 
     def doHV_TEMP(self, msg):
+        """
+        Processes the HV_TEMP CAN message from BMS_HV
+        :param msg: the HV_TEMP CAN message
+        """
         self.lastupdated = msg.timestamp
         self.act_average_temp = msg.data[0]
         self.all_temp[self.lastupdated](msg.data[0])
@@ -178,15 +204,27 @@ class BMS_HV:
         self.min_temp = msg.data[1]
         self.max_temp = msg.data[2]
 
-    def doHV_ERROR(self, msg):
+    def doHV_ERRORS(self, msg):
+        """
+        Processes the HV_ERRORS CAN message from BMS_HV
+        :param msg: the HV_ERRORS CAN message
+        """
         self.lastupdated = msg.timestamp
         pass
 
     def doHV_STATUS(self, msg):
+        """
+        Processes the HV_STATUS CAN message from BMS_HV
+        :param msg: the HV_STATUS CAN message
+        """
         self.lastupdated = msg.timestamp
         self.status = TsStatus.deserialize(msg.data)
 
     def do_CHG_SET_POWER(self, msg):
+        """
+        Processes the CHG_SET_POWER CAN message from BMS_HV
+        :param msg: the CHG_SET_POWER CAN message
+        """
         self.lastupdated = msg.timestamp
         power = SetChgPower.deserialize(msg.data)
         self.req_chg_current = power.current
@@ -196,16 +234,22 @@ class BMS_HV:
         self.req_chg_voltage = power.voltage
 
     def doCHG_STATUS(self, msg):
+        """
+        Processes the CHG_STATUS CAN message from BMS_HV
+        :param msg: the CHG_STATUS CAN message
+        """
         self.lastupdated = msg.timestamp
         self.status = ChgStatus.deserialize(msg.data).status
 
 
-# That listener is called wether a can message arrives, then
-# based on the msg ID, processes it, and save on itself the msg info
-# It also contains all the useful info to be used in threads
 class CanListener:
-    FSM_stat = -1  # useful value
-    FSM_entered_stat = ""
+    """
+    That listener is called wether a can message arrives, then
+    based on the msg ID, processes it, and save on itself the msg info.
+    This class also stores all the data recived from the devices
+    """
+    FSM_stat = -1  # The actual state of the FSM (mirror the main variable)
+    FSM_entered_stat = "" # The moment in time the FSM has entered that state
     fast_charge = False
 
     can_err = False
@@ -213,7 +257,7 @@ class CanListener:
     brusa = BRUSA()
     bms_hv = BMS_HV()
 
-    # Maps the can msg to relative function
+    # Maps the incoming can msgs to relative function
     doMsg = {
         # brusa
         CAN_BRUSA_MSG_ID.NLG5_ST.value: brusa.doNLG5_ST,
@@ -224,7 +268,7 @@ class CanListener:
         # BMS_HV
         ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
         ID_HV_CURRENT: bms_hv.doHV_CURRENT,
-        ID_HV_ERROR: bms_hv.doHV_ERROR,
+        ID_HV_ERRORS: bms_hv.doHV_ERRORS,
         ID_HV_TEMP: bms_hv.doHV_TEMP,
         ID_TS_STATUS: bms_hv.doHV_STATUS,
         ID_SET_CHG_POWER: bms_hv.do_CHG_SET_POWER,
@@ -234,38 +278,51 @@ class CanListener:
     # Function called when a new message arrive, maps it to
     # relative function based on ID
     def on_message_received(self, msg):
+        """
+        This function is called whether a new message arrives, it then
+        calls the corresponding function to process the message
+        :param msg: the incoming message
+        """
         print(msg)
         if self.doMsg.get(msg.arbitration_id) is not None:
             self.doMsg.get(msg.arbitration_id)(msg)
 
 
 class Can_rx_listener(Listener):
-    def __init__(self):
-        pass
+    """
+    This class is a listener for the incoming can messages,
+    it has to be linked to the canbus object.
+    """
 
     def on_message_received(self, msg):
+        """
+        This method is called when a new message arrives to the interface,
+        it then put the message in the rx queue
+        :param msg: the incoming message
+        """
         rx_can_queue.put(msg)
 
 
-canread = CanListener()  # Access it ONLY with the FSM
-can_forward_enabled = False
-
-# IPC
-shared_data = canread
-rx_can_queue = queue.Queue()
-tx_can_queue = queue.Queue()
-com_queue = queue.Queue()
-lock = threading.Lock()
-forward_lock = threading.Lock()
-
 # FSM vars
+canread = CanListener()  # Access it ONLY with the FSM
 precharge_asked = False
 precharge_done = False
 
+# IPC (shared between threads)
+shared_data = canread  # Variable that holds a copy of canread, to get the information from web thread
+rx_can_queue = queue.Queue()  # Queue for incoming can messages
+tx_can_queue = queue.Queue()  # Queue for outgoing can messages
+com_queue = queue.Queue()  # Command queue
+lock = threading.Lock()
+can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
+forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
-# function that clear all the errors stored
-# USE WITH CARE
+
 def clrErr():
+    """
+    Function that clears all the errors in the FSM, use with care
+    :return:
+    """
     canread.brusa_err = False
     canread.bms_err = False
     canread.bms_err_str = ""
@@ -273,8 +330,12 @@ def clrErr():
     canread.can_err = False
 
 
-# connects to canbus, and liks the listener
 def canInit(listener):
+    """
+    Inits the canbus, connect to it, and links the canbus
+    :param listener:
+    :return:
+    """
     try:
         canbus = can.interface.Bus(interface="socketcan", channel="can0")
         # links the bus with the listener
@@ -295,8 +356,13 @@ def canInit(listener):
         return False
 
 
-# Send can message
 def canSend(bus, msg_id, data):
+    """
+    Function to send a CAN message
+    :param bus: the canbus object
+    :param msg_id: the msg id
+    :param data: the msg content
+    """
     # doesn't check the msg before sending it
     msg = can.Message(arbitration_id=msg_id, data=data)
     try:
@@ -310,37 +376,44 @@ def canSend(bus, msg_id, data):
         raise can.CanError
 
 
-# Do state CHECK
 def doCheck():
+    """
+    Do check status of the state machine
+    """
     if canread.bms_hv.isConnected() and canread.brusa.isConnected():
         return STATE.IDLE
     else:
         return STATE.CHECK
 
 
-# Do state IDLE
 def doIdle():
+    """
+    Do Idle status of the state machine
+    :return:
+    """
     act_com = {"com-type": "", "value": False}  # Init
     if not com_queue.empty():
         act_com = com_queue.get()
 
     if act_com['com-type'] == "precharge" and act_com['value'] == True:
         return STATE.PRECHARGE
-    else:
-        return STATE.IDLE
+
+    return STATE.IDLE
 
 
-# Do state PRECHARGE
 def doPreCharge():
+    """
+    Function that do the precharge status
+    """
     # ask pork to do precharge
     # Send req to bms "TS_ON"
     global precharge_asked, precharge_done
 
-    if not precharge_asked:
+    if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
         ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=[SetTsStatus.serialize(Ts_Status_Set.ON)])
 
-        tx_can_queue.put(ts_on_msg);
-        precharge_asked = True;
+        tx_can_queue.put(ts_on_msg)
+        precharge_asked = True
 
     if canread.bms_hv.status == Ts_Status.ON:
         print("Precharge done, TS is on")
@@ -351,8 +424,10 @@ def doPreCharge():
         return STATE.READY
 
 
-# Do state READY
 def doReady():
+    """
+    Function that do the ready state of the state machine
+    """
     if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
@@ -371,19 +446,23 @@ def doReady():
         return STATE.READY
 
 
-# Do state CHARGE
 def doCharge():
+    """
+    Function that do the charge state of the state machine
+    :return:
+    """
     # canread has to forward charging msgs from bms to brusa
     global can_forward_enabled
 
     # Set Brusa's PON to 12v (relay)
-    #
 
     with forward_lock:
         can_forward_enabled = True
 
     CHARGE_COMPLETE = False
 
+    if canread.bms_hv.chg_status == Status.CHG_OFF:
+        CHARGE_COMPLETE = True
     # Check if voltage is cutoff voltage
 
     if CHARGE_COMPLETE:
@@ -392,26 +471,35 @@ def doCharge():
         return STATE.CHARGE
 
 
-# Do state CHARGE_DONE
 def doC_done():
-    # User decide wether charge again, going idle, or charge again
-    # Req "CHG_OFF" to bms
+    """
+    Function that do the charge done of the state machine
+    :return:
+    """
+    # User decide wether charge again or going idle
+
+    if not canread.bms_hv.chg_status == Status.CHG_OFF:
+        # Req "CHG_OFF" to bms
+        data = SetChgStatus.serialize(Status.CHG_OFF)
+        msg = can.Message(arbitration_id=ID_SET_CHG_STATUS, data=data)
+        tx_can_queue.put(msg)
+
     return STATE.C_DONE
 
 
-# Do state ERROR
 def doError():
+    """
+    Do the error state of the state machine
+    """
     global can_forward_enabled
 
     with forward_lock:
         can_forward_enabled = False
 
+
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
-        sts = SetTsStatus()
-        data = sts.serialize(Ts_Status_Set.OFF.value)
-        msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
-        tx_can_queue.put(msg)
+        staccastacca()
 
     if canread.brusa.error:
         for i in canread.brusa.act_NLG5_ERR_str:
@@ -435,18 +523,37 @@ def doError():
         return STATE.ERROR
 
 
-# Do state EXIT
 def doExit():
+    """
+    Function that does the state Exit of the state machine
+    """
     exit(0)
 
 
-'''
-This function checks for commands in the queue shared between the FSM and the server,
-i.e. if an "fast charge" command is found, the value of that command is set in the fsm
-'''
+def staccastacca():
+    """
+    Function that is to be called in an unsafe environment, this function
+    will ask the BMS_HV to close the airs and it will disable the Brusa
+    and all the devices
+    """
+    global precharge_asked, precharge_done, can_forward_enabled
+    sts = SetTsStatus()
+    data = sts.serialize(Ts_Status_Set.OFF.value)
+    msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
+    tx_can_queue.put(msg)
+
+    # Set PON to off
+    # Open shutdown
+    precharge_asked = False
+    precharge_done = False
+    can_forward_enabled = False
 
 
 def checkCommands():
+    """
+    This function checks for commands in the queue shared between the FSM and the server,
+    i.e. if an "fast charge" command is found, the value of that command is set in the fsm
+    """
     if not com_queue.empty():
         act_com = com_queue.get()
         if act_com['com_type'] == 'fast-charge':
@@ -467,8 +574,12 @@ doState = {
 
 
 # Backend Thread
-def thread_1_FSM(lock):
-    # Pls read the infos about the state machine
+def thread_1_FSM():
+    """
+    The thread that runs the backend state machine
+    Pls read the documentation about the state machine
+    """
+
     global shared_data
 
     act_stat = STATE.CHECK
@@ -482,6 +593,11 @@ def thread_1_FSM(lock):
             new_msg = rx_can_queue.get()
             canread.on_message_received(new_msg)
 
+        if act_stat != STATE.CHECK and (not canread.bms_hv.isConnected() or not canread.brusa.isConnected()):
+            staccastacca()
+            next_stat = doState.get(STATE.CHECK)
+            continue
+
         # Checks errors
         if canread.brusa.error or canread.bms_hv.error or canread.can_err:
             next_stat = doState.get(STATE.ERROR)()
@@ -491,6 +607,8 @@ def thread_1_FSM(lock):
         if next_stat == STATE.EXIT:
             print("Exiting")
             return
+
+        checkCommands()
 
         canread.FSM_stat = act_stat
         if act_stat != next_stat:
@@ -503,8 +621,10 @@ def thread_1_FSM(lock):
             shared_data = canread
 
 
-# Can thread
-def thread_2_CAN(lock):
+def thread_2_CAN():
+    """
+    Thread managing the can connection, getting and sending messages
+    """
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
     last_brusa_ctl_sent = 0
@@ -551,8 +671,11 @@ def thread_2_CAN(lock):
                 last_brusa_ctl_sent = time.time()
 
 
-# Webserver thread
-def thread_3_WEB(lock):
+def thread_3_WEB():
+    """
+    The webserver thread that runs the server serving the RESFUL requests
+    :return:
+    """
     app = flask.Flask(__name__)
 
     app.config["DEBUG"] = True
@@ -560,54 +683,6 @@ def thread_3_WEB(lock):
     @app.route('/', methods=['GET'])
     def home():
         return "Hello World"  # flask.render_template("index.html")
-
-    @app.route('/bms-hv/status/', methods=['GET'])
-    def get_bms_hv_status():
-        with lock:
-            if shared_data.bms_hv.isConnected():
-                res = '{"timestamp":"' + \
-                      str(shared_data.bms_hv.lastupdated) + '",\n'
-                res += '"status": "' + str(shared_data.bms_hv.status) + '"}';
-            else:
-                res = jsonify("not connected")
-                res.status_code = 400
-        return res
-
-    @app.route('/brusa/status/', methods=['GET'])
-    def get_brusa_status():
-        with lock:
-            if shared_data.brusa.isConnected():
-                res = '{"timestamp":"' + \
-                      str(shared_data.brusa.lastupdated) + '",\n'
-                res += '"status":[ \n'
-                c = 0
-                for pos, i in enumerate(shared_data.brusa.act_NLG5_ST_values):
-                    if i:
-                        if c != 0:
-                            res += ','
-                        res += '{"desc":"' + msgDef.NLG5_ST_DEF[pos] + '", "pos": "' + str(pos) + '"}\n'
-                        c += 1
-                res += ']}'
-            else:
-                res = jsonify("not connected")
-                res.status_code = 400
-        return res
-
-    @app.route('/brusa/errors/', methods=['GET'])
-    def get_brusa_errors():
-        with lock:
-            res = '{"timestamp":"' + \
-                  str(shared_data.brusa.lastupdated) + '",\n'
-            res += '"errors":[ \n'
-            c = 0
-            for pos, i in enumerate(shared_data.brusa.act_NLG5_ERR_values):
-                if i:
-                    if c != 0:
-                        res += ','
-                    res += '{"desc":"' + msgDef.NLG5_ERR_DEF[pos] + '", "pos": "' + str(pos) + '"}\n'
-                    c += 1
-            res += ']}'
-            return res
 
     @app.route('/handcart/status/', methods=['GET'])
     def get_hc_status():
@@ -621,18 +696,78 @@ def thread_3_WEB(lock):
             resp.status_code = 200
             return resp
 
-    @app.route('/command/', methods=['POST'])
-    def recv_command():
-        comType = request.form.get("comType")
-        value = request.form.get("value")
+    @app.route('/bms-hv/status/', methods=['GET'])
+    def get_bms_hv_status():
+        with lock:
+            if shared_data.bms_hv.isConnected():
+                res = {"timestamp": shared_data.bms_hv.lastupdated,
+                       "status": shared_data.bms_hv.status}
+                res = jsonify(res)
+            else:
+                res = jsonify("not connected")
+                res.status_code = 400
+        return res
 
-        command = {
-            "com-type": comType,
-            "value": value
-        }
+    @app.route('/bms-hv/errors/', methods=['GET'])
+    def get_bms_hv_errors():
+        with lock:
+            if shared_data.bms_hv.isConnected():
+                error_list = shared_data.bms_hv.error_str
 
+                res = {"timestamp": shared_data.brusa.lastupdated,
+                       "status": error_list}
+                res = jsonify(res)
+            else:
+                res = jsonify("not connected")
+                res.status_code = 400
+        return res
+
+    @app.route('/brusa/status/', methods=['GET'])
+    def get_brusa_status():
+        with lock:
+            if shared_data.brusa.isConnected():
+                status_list = shared_data.brusa.act_NLG5_ST_srt
+
+                res = {"timestamp": shared_data.brusa.lastupdated,
+                       "status": status_list}
+                res = jsonify(res)
+            else:
+                res = jsonify("not connected")
+                res.status_code = 400
+        return res
+
+    @app.route('/brusa/errors/', methods=['GET'])
+    def get_brusa_errors():
+        with lock:
+            if not shared_data.brusa.isConnected():
+                res = jsonify("not connected")
+                res.status_code = 400
+                return res
+
+            errorList = shared_data.brusa.act_NLG5_ERR_str
+            res = {"timestamp": time.time(), "errors": errorList}
+            return jsonify(res)
+
+
+
+    @app.route('/command/setting/', methods=['POST'])
+    def recv_command_setting():
+        print(request.get_json())
+        j = request.get_json()
+
+        command = jsonify(j)
         com_queue.put(command)
-        print(command["com-type"], " - ", command["value"])
+
+        resp = jsonify(success=True)
+        return resp
+
+    @app.route('/command/action/', methods=['POST'])
+    def recv_command_action():
+        print(request.get_json())
+        j = request.get_json()
+
+        command = jsonify(j)
+        com_queue.put(command)
 
         resp = jsonify(success=True)
         return resp
@@ -650,3 +785,5 @@ t3 = threading.Thread(target=thread_3_WEB, args=(lock,))
 t1.start()
 t2.start()
 t3.start()
+
+

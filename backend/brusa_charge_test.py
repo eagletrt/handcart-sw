@@ -12,10 +12,10 @@ bus = can.interface.Bus(interface='socketcan',
 
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
-                       0, 0, 0x14, 0x0F, 0XA0, 0, 0x0A], is_extended_id=True)
+                       0, 0x00, 0x0A, 0x10, 0x68, 0, 0x0A], is_extended_id=False)
 
-CHG_V = int(350 / 0.1)
-CHG_A = int(2 / 0.1)
+CHG_V = int(450 / 0.1)
+CHG_A = int(9 / 0.1)
 MAX_C_O = int(16 / 0.1)
 
 os.system('clear')
@@ -47,8 +47,8 @@ b_MAX_C_O = MAX_C_O.to_bytes(2, 'big', signed=False)
 b_CHG_ENABLED = 0x80
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
-                       0, b_CHG_V[0], b_CHG_V[1], b_CHG_A[0], b_CHG_A[1], b_MAX_C_O[0], b_MAX_C_O[1]],
-                       is_extended_id=True)
+                       0, b_MAX_C_O[0], b_MAX_C_O[1], b_CHG_V[0], b_CHG_V[1], b_CHG_A[0], b_CHG_A[1]],
+                       is_extended_id=False)
 
 os.system('clear')
 print("When the charge starts, the program will wait 3 seconds, and then send the start command to BRUSA")
@@ -57,8 +57,8 @@ input("type something to start charging")
 t = time.time()
 charging = False
 while 1:
-    time.sleep(0.14)
-    if (not charging) and time.time() - t > 3:
+    time.sleep(0.10)
+    if (not charging) and time.time() - t > 5:
         print("Charge enabled")
         nlg5_ctl.data[0] = b_CHG_ENABLED
         charging = True
