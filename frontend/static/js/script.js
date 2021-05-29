@@ -46,34 +46,47 @@ function postRequest(url, data) {
 */
 
 function createTable(json, table, container) {
-    var col = [];
-    for (var key in json[0]) {
+    let col = [];
+    for (let key in json) {
         if (col.indexOf(key) === -1) {
             col.push(key);
         }
     }
 
-    var thead = table.createTHead();
-    var tr = thead.insertRow(-1)
+    let thead = table.createTHead();
+    let tr = thead.insertRow(-1);
 
-    for (var i = 0; i < col.length; i++) {
-        var th = document.createElement("th")
-        th.innerHTML = col[i]
-        tr.appendChild(th)
+    for (let i = 0; i < col.length; i++) {
+        let th = document.createElement("th");
+        th.innerHTML = col[i].charAt(0).toUpperCase() + col[i].slice(1);
+        tr.appendChild(th);
     }
 
-    var tbody = table.createTBody();
-    for (var i = 0; i < json.length; i++) {
-        tr = tbody.insertRow(-1);
+    let tbody = table.createTBody();
 
-        for (var j = 0; j < col.length; j++) {
-            var tabCell = tr.insertCell(-1);
-            tabCell.innerHTML = json[i][col[j]];
+    let array = [];
+    for (let i = 0; i < col.length; i++) {
+        if (Array.isArray(json[col[i]])) {
+            array = json[col[i]];
         }
     }
 
-    container.innerHTML = ""
-    container.appendChild(table)
+    for (let i = 0; i < array.length; i++) {
+        tr = tbody.insertRow(-1);
+        for (let j = 0; j < col.length; j++) {
+            let tabCell = tr.insertCell(-1);
+            let elem = json[col[j]];
+
+            if (!Array.isArray(elem)) {
+                tabCell.innerHTML = elem;
+            } else {
+                tabCell.innerHTML = elem[i]["desc"];
+            }
+        }
+    }
+
+    container.innerHTML = "";
+    container.appendChild(table);
 }
 
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------
@@ -195,10 +208,10 @@ function startStop(started) {
         let re = /.*\/(.*)/;
         let page = href.match(re)[1];
 
-        if (page == "") {                       // check if I am in the home page
+        //if (page == "") {                       // check if I am in the home page
             startButton.style.display = "none"; // hide the start button
             stopButton.style.display = "inline";// and show the stop button
-        }
+        //}
 
         elapsedTime();                          // then start the timer
     } else {                                    // if the timer haven't been started or it have been stopped

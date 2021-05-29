@@ -17,14 +17,23 @@
                     <h1 class="h2 orange">Warnings</h1>
                 </div>
 
+                <!--<div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
+                </div>-->
                 <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
-                    {% include 'include/status.html' %}
+                    <div class="row">
+                        <div class="col-sm">
+                            <h1 class="h2">BMS-HV</h1>
+                            <div id="table-responsive-bms"></div>
+                        </div>
+                        <div class="col-sm">
+                            <h1 class="h2">Brusa</h1>
+                            <div id="table-responsive-brusa"></div>
+                        </div>
+                    </div>
                 </div>
-
-                <div id="table-responsive"></div>
                 <script>
                     var url = 'http://127.0.0.1:5000';
-                    var path = '/handcart/warnings';
+                    var path = '/bms-hv/warnings';
 
                     request = getRequest(url, path);
 
@@ -34,7 +43,26 @@
                             var table = document.createElement("table")
                             table.className += "table table-striped table-sm"
 
-                            var container = document.getElementById("table-responsive")
+                            var container = document.getElementById("table-responsive-bms")
+
+                            createTable(json, table, container)
+                        })
+                        .catch(error => console.log('Authorization failed : ' + error.message))
+
+//------------------------------------------------------------------------------
+
+                    var url = 'http://127.0.0.1:5000';
+                    var path = '/brusa/status';
+
+                    request = getRequest(url, path);
+
+                    fetch(request)
+                        .then(response => response.json())
+                        .then(json => {
+                            var table = document.createElement("table")
+                            table.className += "table table-striped table-sm"
+
+                            var container = document.getElementById("table-responsive-brusa")
 
                             createTable(json, table, container)
                         })

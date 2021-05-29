@@ -62,16 +62,33 @@ def get_bms_status():
     return resp
 
 
+@app.route('/bms-hv/warnings/', methods=['GET'])
+def get_bms_warnings():
+    data = {
+        "timestamp": "2020-12-01:ora",
+        "warnings": [{
+            "id": "0",
+            "desc": "Sto esplodendo"
+        },
+        {
+            "id": "5",
+            "desc": "cell 5 overvoltage"
+        }]
+    }
+
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
+
 @app.route('/bms-hv/errors/', methods=['GET'])
 def get_bms_errors():
     data = {
         "timestamp": "2020-12-01:ora",
         "errors": [{
-            "code": 1,
             "desc": "Sto esplodendo"
         },
         {
-            "code": 2,
             "desc": "cell 5 overvoltage"
         }]
     }

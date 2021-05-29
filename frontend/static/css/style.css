@@ -2,6 +2,10 @@ body {
     font-size: 18px;
 }
 
+main {
+    padding-bottom: 50px;
+}
+
 .nav-container {
     width: 100%;
     color: white;

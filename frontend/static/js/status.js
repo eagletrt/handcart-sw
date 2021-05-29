@@ -28,7 +28,7 @@ fetch(request)
         // if there's only one status message to read
         let key = "status"
         let str = json[key].substr(6)    // to take STATE.[status]
-        b.innerHTML = str                   // i.e. STATE.TS_OFF = TS_OFF
+        b.innerHTML = str                // i.e. STATE.TS_OFF = TS_OFF
 
         switch (str) {
             case "TS_ON":
@@ -96,6 +96,30 @@ fetch(request)
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
+
+setInterval(function () {
+    path = '/command/settings';
+
+    request = getRequest(url, path);
+
+    fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            var b = document.getElementById("COvolt")
+
+            for (i = 0; i < json.length; i++) {
+                if(json[i]["com-type"] == "cutoff") {
+                    b.innerHTML = json[i]["value"] + "V"
+                }
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+}
+, 2000);
+
+// every 2 seconds or every time it has been changed
+
+/*
 path = '/command/settings';
 
 request = getRequest(url, path);
@@ -112,4 +136,5 @@ fetch(request)
         }
     })
     .catch(error => console.log('Authorization failed : ' + error.message))
+*/
 //-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

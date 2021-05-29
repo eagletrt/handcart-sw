@@ -22,7 +22,7 @@
                         <div class="col-sm">
                             <div class="row">
                                 <div class="col-sm col-title">
-                                    <h1 class="h2">CUT-OFF Voltage: <span id="COValue"></span>V</h1>
+                                    <h1 class="h2">CUT-OFF Voltage: <span id="COValue"></span>V - 150V</h1>
                                 </div>
                             </div>
                             <div class="row">
@@ -38,7 +38,7 @@
                             <br><br>
                             <div class="row">
                                 <div class="col-sm col-title">
-                                    <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A</h1>
+                                    <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A - 5A</h1>
                                 </div>
                             </div>
                             <div class="row">
@@ -53,6 +53,19 @@
                             </div>
                         </div>
                         <div class="col-sm">
+                            <div class="row">
+                                <div class="col-sm col-title">
+                                    <h1 class="h2">Precharge</h1>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm">
+                                    <!-- check if pre-charge is enabled -->
+                                    <button type="button" onclick="startStop(false)" id="start" class="btn btn-success btn-lg">Start</button>
+                                    <button type="button" onclick="startStop(true)" id="stop" class="btn btn-danger btn-lg">Stop</button>
+                                </div>
+                            </div>
+                            <br><br>
                             <div class="row">
                                 <div class="col-sm col-title">
                                     <h1 class="h2">Fast-Charge</h1>
