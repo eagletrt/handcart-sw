@@ -17,6 +17,22 @@
             <div class="status">Brusa state: <b id="brusaState"></b></div>
             <div class="status">Elapsed time: <b id="timeText">00:00</b></div>
         </div>
+        <div class="left">
+            <button type="button" class="btn btn-light position-relative hbtn" onclick="window.location.href = './warning'">
+                <span data-feather="alert-triangle" class="ico orange"></span>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="nWarnings">
+                    5
+                </span>
+            </button>
+        </div>
+        <div class="left">
+            <button type="button" class="btn btn-light position-relative hbtn" onclick="window.location.href = './error'">
+                <span data-feather="alert-triangle" class="ico red"></span>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="nErrors">
+                    3
+                </span>
+            </button>
+        </div>
         <div>
             <!-- fast-charge and precharge state -->
         </div>

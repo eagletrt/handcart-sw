@@ -13,6 +13,7 @@ main {
 
 .left {
     float: left;
+    margin-right: 20px;
 }
 
 .right {
@@ -28,6 +29,16 @@ main {
 .ico {
     height: 1.5em;
     width: 1.5em;
+}
+
+.hico {
+    height: 1em;
+    width: 1em;
+    float: left;
+}
+
+#nErrors, #nWarnings {
+    color: white;
 }
 
 .green {
@@ -60,24 +71,31 @@ main {
 }
 
 #tempChart {
-    height: 150px;
+    height: 350px;
 }
 
 #cellChart {
-    height: 200px;
+    height: 250px;
 }
 
 #chargeChart {
-    height: 250px;
+    height: 300px;
 }
 
 .col-sm > .row {
     margin-top: 40px;
-    /*margin-bottom: 40px;*/
 }
 
 .btn {
     width: 200px;
+}
+
+.hbtn {
+    margin-top: -5px;
+    border-radius: 100%;
+    background: none;
+    border: none;
+    width: auto;
 }
 
 #start, #stop, #cancel, #chargeBtn, #ok, #disable {

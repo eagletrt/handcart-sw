@@ -105,7 +105,7 @@ fetch(request)
             series.strokeWidth = 2;
             series.fillOpacity = 0.25;
             series.fill = am4core.color("green");
-            series.tooltipText = "Battery: {valueY}\nChange: {valueY.previousChange}";
+            series.tooltipText = "Temperature: {valueY}\nChange: {valueY.previousChange}";
             series.tooltip.getFillFromObject = false;
             series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
             //*
