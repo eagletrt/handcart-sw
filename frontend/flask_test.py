@@ -291,6 +291,32 @@ def get_last_bms_temp():
     resp.status_code = 200
     return resp
 
+
+@app.route('/bms-hv/heat', methods=['GET'])
+def get_bms_heat():
+    min = 20
+    max = 250
+    ncells = 108
+
+    timestamp = datetime.datetime.now(tz)
+
+    data = {
+        "timestamp": timestamp,
+        "data": []
+    }
+
+    for i in range(1, ncells + 1):
+        value = random.randrange(min, max)
+        element = {
+            "cell": i,
+            "temp": value
+        }
+        data["data"].append(element)
+
+    resp = jsonify(data)
+    resp.status_code = 200
+    return resp
+
 # -END-BMS-HV--------------------------------------------------------------------
 # -BRUSA-------------------------------------------------------------------------
 
@@ -313,7 +339,7 @@ def get_brusa_status():
     return resp
 
 
-@app.route('/brusa/errors/', methods=['GET'])
+@app.route('/brusa/errors/', methods=['GET']) # 32-39 WARNINGS
 def get_brusa_errors():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -345,7 +371,7 @@ def recv_command():
         "value": value
     }
 
-    print(command["com-type"], " - ", command["value"])
+    #print(command["com-type"], " - ", command["value"])
     command = jsonify(command)
 
     return command

@@ -208,10 +208,10 @@ function startStop(started) {
         let re = /.*\/(.*)/;
         let page = href.match(re)[1];
 
-        //if (page == "") {                       // check if I am in the home page
+        if (page == "") {                       // check if I am in the home page
             startButton.style.display = "none"; // hide the start button
             stopButton.style.display = "inline";// and show the stop button
-        //}
+        }
 
         elapsedTime();                          // then start the timer
     } else {                                    // if the timer haven't been started or it have been stopped
