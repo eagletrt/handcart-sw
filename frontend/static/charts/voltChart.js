@@ -1,31 +1,3 @@
-function updateVoltValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/volt/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                timestamp = json["timestamp"]
-                volt = json["volts"]
-                element = {
-                    date: new Date(timestamp),
-                    value: volt
-                }
-                chart.addData(element, 1);
-                document.getElementById("volt").innerHTML = volt + "V"; // insert the value in the top bar
-
-                /*let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
-                let value = parseInt(100*volt/coVolt);
-                document.getElementById("charge").innerHTML = value + "%";*/ // calculate the value of the charge
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
-}
-
 var url = 'http://127.0.0.1:5000';
 var path = '/bms-hv/volt';
 

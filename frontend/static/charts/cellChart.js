@@ -17,34 +17,6 @@ function setColor(chart, series) {
     });
 }
 
-function updateCellValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/cells/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                am4core.array.each(chart.data, function (item) {
-                    let i = parseInt(item["cell"]) - 1;
-                    let cells = json["cells"];
-                    let voltage = cells[i]["voltage"];
-
-                    item.voltage = voltage;
-                })
-
-                chart.invalidateRawData();
-
-                series.columns.each(function(column) {
-                    column.fill = column.fill;
-                })
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }, 2000);
-}
-
 //------------------------------------------------------------------------------
 
 var url = 'http://127.0.0.1:5000';

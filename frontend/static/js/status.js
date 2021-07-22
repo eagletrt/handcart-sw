@@ -1,5 +1,5 @@
-//-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 var url = 'http://127.0.0.1:5000';
+//-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 var path = '/bms-hv/status';
 
 request = getRequest(url, path);
@@ -7,47 +7,64 @@ request = getRequest(url, path);
 fetch(request)
     .then(response => response.json())
     .then(json => {
-        let state = document.getElementById("bmsState")
-
-        /*for (var key in json[0]) {
-            if (key == "state") {
-                var str = json[0][key].substr(6)
-                b.innerHTML = str;
-
-                switch (str) {
-                    case "IDLE":
-                        b.className = "green"
-                        break;
-                    case "ERROR":
-                        b.className = "red"
-                        break;
-                }
-            }
-        }*/
+        let state = document.getElementById("bmsState");
 
         // if there's only one status message to read
-        let key = "status"
-        let str = json[key].substr(6)    // to take STATE.[status]
-        state.innerHTML = str                // i.e. STATE.TS_OFF = TS_OFF
+        let key = "status";
+        let str = json[key].substr(6);  // to take STATE.[status]
+        state.innerHTML = str;          // i.e. STATE.TS_OFF = TS_OFF
 
         switch (str) {
             case "TS_ON":
-                state.className = "green"
+                state.className = "green";
                 break;
             case "PRECHARGE":
-                state.className = "orange"
+                state.className = "orange";
                 break;
             case "FATAL":
             case "TS_OFF":
-                state.className = "red"
+                state.className = "red";
                 break;
         }
     })
     .catch(error => console.log('Authorization failed : ' + error.message))
-//-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 
+async function bmsStatus(path, field) {
+    let bms = 0;
+
+    let request = getRequest(url, path);
+
+    await fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            let s = json[field];
+
+            if(s.length > 0) {
+                bms = s.length;
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+
+    return bms;
+}
+
+((async () => {
+    let errors = await bmsStatus("/bms-hv/errors", "errors");
+    let warnings = await bmsStatus("/bms-hv/warnings", "warnings");
+
+    if(errors > 0) {
+        let nErr = document.getElementById("nErrors");
+        nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of warnings
+    }
+
+    if(warnings > 0) {
+        let nWarn = document.getElementById("nWarnings");
+        nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings;
+    }
+})());
+
+//-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
-//var url = 'http://127.0.0.1:5000';
 path = '/handcart/status';
 
 request = getRequest(url, path);
@@ -55,28 +72,28 @@ request = getRequest(url, path);
 fetch(request)
     .then(response => response.json())
     .then(json => {
-        let state = document.getElementById("hcState")
+        let state = document.getElementById("hcState");
 
-        let start = document.getElementById("start")
-        let stop = document.getElementById("stop")
-        let cancel = document.getElementById("cancel")
-        let charge = document.getElementById("chargeBtn")
-        let ok = document.getElementById("ok")
+        let start = document.getElementById("start");
+        let stop = document.getElementById("stop");
+        let cancel = document.getElementById("cancel");
+        let charge = document.getElementById("chargeBtn");
+        let ok = document.getElementById("ok");
 
         // if there's only one status message to read
-        let key = "status"
-        let str = json[key].substr(6)    // to take STATE.[status]
-        state.innerHTML = str            // i.e. STATE.TS_OFF = TS_OFF
+        let key = "status";
+        let str = json[key].substr(6);   // to take STATE.[status]
+        state.innerHTML = str;           // i.e. STATE.TS_OFF = TS_OFF
 
         // get the actual path to check if there sould be buttons or not
         let href = window.location.href;
         let re = /.*\/(.*)/;
         let page = href.match(re)[1];
 
-        var buttons = false
+        var buttons = false;
 
         if (page == "") {                       // check if I am in the home page
-            buttons = true
+            buttons = true;
         }
 
         /*
@@ -90,100 +107,162 @@ fetch(request)
         switch (str) {
             case "CHECK":
                 if(buttons) {
-                    start.style.display = "none"
-                    stop.style.display = "none"
-                    cancel.style.display = "none"
-                    charge.style.display = "none"
-                    ok.style.display = "none"
+                    start.style.display = "none";
+                    stop.style.display = "none";
+                    cancel.style.display = "none";
+                    charge.style.display = "none";
+                    ok.style.display = "none";
                 }
 
-                state.className = "orange"
-                // data can't be received
+                state.className = "orange";
                 break;
             case "IDLE":
                 if(buttons) {
-                    start.style.display = "inline"
-                    stop.style.display = "none"
-                    cancel.style.display = "none"
-                    charge.style.display = "none"
-                    ok.style.display = "none"
+                    start.style.display = "inline";
+                    stop.style.display = "none";
+                    cancel.style.display = "none";
+                    charge.style.display = "none";
+                    ok.style.display = "none";
                 }
 
-                state.className = "green"
+                state.className = "green";
                 break;
             case "PRECHARGE":
                 if(buttons) {
-                    start.style.display = "none"
-                    stop.style.display = "none"
-                    cancel.style.display = "inline"
-                    charge.style.display = "none"
-                    ok.style.display = "none"
+                    start.style.display = "none";
+                    stop.style.display = "none";
+                    cancel.style.display = "inline";
+                    charge.style.display = "none";
+                    ok.style.display = "none";
                 }
 
-                state.className = "orange"
+                state.className = "orange";
                 break;
             case "READY":
                 if(buttons) {
-                    start.style.display = "none"
-                    stop.style.display = "none"
-                    cancel.style.display = "none"
-                    charge.style.display = "inline"
-                    ok.style.display = "none"
+                    start.style.display = "none";
+                    stop.style.display = "none";
+                    cancel.style.display = "none";
+                    charge.style.display = "inline";
+                    ok.style.display = "none";
                 }
 
-                state.className = "green"
+                state.className = "green";
                 break;
             case "CHARGE":
                 if(buttons) {
-                    start.style.display = "none"
-                    stop.style.display = "inline"
-                    cancel.style.display = "none"
-                    charge.style.display = "none"
-                    ok.style.display = "none"
+                    start.style.display = "none";
+                    stop.style.display = "inline";
+                    cancel.style.display = "none";
+                    charge.style.display = "none";
+                    ok.style.display = "none";
                 }
 
-                state.className = "orange"
+                state.className = "orange";
                 break;
             case "C_DONE":
                 if(buttons) {
-                    start.style.display = "none"
-                    stop.style.display = "none"
-                    cancel.style.display = "none"
-                    charge.style.display = "none"
-                    ok.style.display = "inline"
+                    start.style.display = "none";
+                    stop.style.display = "none";
+                    cancel.style.display = "none";
+                    charge.style.display = "none";
+                    ok.style.display = "inline";
                 }
 
-                state.className = "green"
+                state.className = "green";
                 break;
             case "ERROR":
-                state.className = "red"
+                if(buttons) {
+                    start.style.display = "none";
+                    stop.style.display = "none";
+                    cancel.style.display = "none";
+                    charge.style.display = "none";
+                    ok.style.display = "none";
+                }
+
+                state.className = "red";
                 break;
         }
     })
     .catch(error => console.log('Authorization failed : ' + error.message))
 //-END-GET-THE-HANDCART-STATUS--------------------------------------------------
-
 //-GET-THE-BRUSA-STATUS---------------------------------------------------------
-//var url = 'http://127.0.0.1:5000';
-path = '/brusa/status';
+async function brusaErrors() {
+    let errors = 0;
 
-request = getRequest(url, path);
+    let path = '/brusa/errors';
 
-fetch(request)
-    .then(response => response.json())
-    .then(json => {
-        let state = document.getElementById("brusaState")
+    let request = getRequest(url, path);
 
-        // if there's only one status message to read
-        let key = "status"
+    await fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            let err = json["errors"];
 
-    })
-    .catch(error => console.log('Authorization failed : ' + error.message))
+            if(err.length > 0) {
+                errors = err.length;
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+
+    return errors;
+}
+
+async function brusaWarnings() {
+    let warnings = 0;
+
+    let path = '/brusa/status';
+
+    let request = getRequest(url, path);
+
+    await fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            let status = json["status"];
+
+            for(let i = 0; i < status.length; i++) {
+                if(status[i]["pos"] >= 8 && status[i]["pos"] <= 23) { // find warnings in the brusa status (code 8-23)
+                    warnings++;
+                }
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+
+    return warnings;
+}
+
+// these 2 function above can't be moved in the "script.js", else it won't work
+
+((async () => {
+    let errors = await brusaErrors();       // get the number of brusa's errors
+    let warnings = await brusaWarnings();   // get the number of brusa's warning
+
+    let state = document.getElementById("brusaState");
+
+    if(errors > 0 || warnings > 0) {        // check if there are errors or warnings
+        if(warnings > 0) {                  // if there are warnings
+            state.innerHTML = "WARNING";    // change the text
+            state.className = "orange";     // and the color
+
+            let nWarn = document.getElementById("nWarnings");
+            nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings; // then set the number of warnings
+        }
+                                            // even if there are warnings
+        if(errors > 0) {                    // if there are errors
+            state.innerHTML = "ERROR";      // change the text
+            state.className = "red";        // and the color
+
+            let nErr = document.getElementById("nErrors");
+            nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of errors
+        }
+    } else {                                // if there's no errors and warnings
+        state.innerHTML = "IDLE";           // change the text
+        state.className = "green";          // and the color
+    }
+})());
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
-
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
-
-setInterval(function () {
+setInterval(function () { // every 2 seconds or every time it has been changed
     path = '/command/settings';
 
     request = getRequest(url, path);
@@ -191,36 +270,15 @@ setInterval(function () {
     fetch(request)
         .then(response => response.json())
         .then(json => {
-            var b = document.getElementById("COvolt")
+            var cov = document.getElementById("COvolt");
 
-            for (i = 0; i < json.length; i++) {
+            for (let i = 0; i < json.length; i++) {
                 if(json[i]["com-type"] == "cutoff") {
-                    b.innerHTML = json[i]["value"] + "V"
+                    cov.innerHTML = json[i]["value"] + "V";
                 }
             }
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
 }
 , 2000);
-
-// every 2 seconds or every time it has been changed
-
-/*
-path = '/command/settings';
-
-request = getRequest(url, path);
-
-fetch(request)
-    .then(response => response.json())
-    .then(json => {
-        var b = document.getElementById("COvolt")
-
-        for (i = 0; i < json.length; i++) {
-            if(json[i]["com-type"] == "cutoff") {
-                b.innerHTML = json[i]["value"] + "V"
-            }
-        }
-    })
-    .catch(error => console.log('Authorization failed : ' + error.message))
-*/
 //-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

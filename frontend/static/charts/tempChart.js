@@ -1,27 +1,3 @@
-function updateTempValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/temp/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                timestamp = json["timestamp"]
-                temp = json["temp"]
-                element = {
-                    date: new Date(timestamp),
-                    value: temp
-                }
-                chart.addData(element, 1);
-                document.getElementById("temp").innerHTML = temp + "°";
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
-}
-
 var url = 'http://127.0.0.1:5000';
 var path = '/bms-hv/temp';
 
@@ -59,7 +35,7 @@ fetch(request)
                 }
 
                 element = {
-                    date: new Date(voltages[i]["timestamp"]),
+                    date: new Date(temperature[i]["timestamp"]),
                     value: temp
                 };
 

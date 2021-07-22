@@ -1,26 +1,3 @@
-function updateAmpereValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/ampere/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                timestamp = json["timestamp"]
-                amp = json["amperes"]
-                element = {
-                    date: new Date(timestamp),
-                    value: amp
-                }
-                chart.addData(element, 1);
-                document.getElementById("amp").innerHTML = amp + "A";
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }, 2000);
-}
-
 var url = 'http://127.0.0.1:5000';
 var path = '/bms-hv/ampere';
 

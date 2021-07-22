@@ -89,8 +89,29 @@ function createTable(json, table, container) {
     container.appendChild(table);
 }
 
-//-SETTINGS-FUNCTIONS-----------------------------------------------------------
+function errorTable(path, id, msg) {
+    let url = 'http://127.0.0.1:5000';
 
+    request = getRequest(url, path);
+
+    fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            var container = document.getElementById("table-responsive-" + id);
+
+            if(json["errors"].length > 0) {
+                var table = document.createElement("table");
+                table.className += "table table-striped table-sm";
+
+                createTable(json, table, container);
+            } else {
+                container.innerHTML = msg;
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+}
+
+//-SETTINGS-FUNCTIONS-----------------------------------------------------------
 function onLoadEnableDisable() {
     (async () => { // syncronization is necessary
         var url = 'http://127.0.0.1:5000';
@@ -114,6 +135,7 @@ function onLoadEnableDisable() {
         enableDisable(enabled);
     })();
 }
+
 /*
     json: ----- is the json that you would like to insert in the table
 
