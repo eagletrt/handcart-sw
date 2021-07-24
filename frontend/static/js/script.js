@@ -89,6 +89,10 @@ function createTable(json, table, container) {
     container.appendChild(table);
 }
 
+/*
+
+*/
+
 function errorTable(path, id, msg) {
     let url = 'http://127.0.0.1:5000';
 

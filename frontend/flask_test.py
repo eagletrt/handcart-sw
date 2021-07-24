@@ -32,7 +32,16 @@ def settings():
 def charts():
     chart = request.args.get("chart")
 
-    return render_template(chart + ".html")
+    return render_template("charts.html", c = chart)
+
+#=UTILITIES=====================================================================
+
+def getLastNSeconds(n):
+    now = datetime.datetime.now(tz)
+    a = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
+    a.reverse()  # an array with the last n seconds form the older date to the now date
+
+    return a
 
 #=GETS==========================================================================
 
@@ -102,31 +111,45 @@ def get_bms_errors():
     return resp
 
 
-# -BMS-CELLS-DATA
+#-BMS-CELLS-DATA
 @app.route('/bms-hv/cells/', methods=['GET'])
 def get_bms_cells():
     data = {
         "timestamp": "2020-12-01:ora",
-        "data": {
-            "timestamp": "2020-12-01:ora",
-            "cells": []
-        }
+        "data": []
     }
 
     ncells = 108
     digits = 3
     min = 0
     max = 100
+    n = 30
 
-    for i in range(1, ncells + 1):
-        value = round(random.uniform(min, max), digits)
-        cell = {
-            "id": i,
-            "voltage": value
+    last_n_seconds = getLastNSeconds(n)
+
+    for timestamp in last_n_seconds:
+        element = {
+            "timestamp": timestamp,
+            "cells": []
         }
-        data["data"]["cells"].append(cell)
+        for i in range(1, ncells + 1):
+            value = round(random.uniform(min, max), digits)
+            cell = {
+                "id": i,
+                "voltage": value
+            }
+            element["cells"].append(cell)
+        data["data"].append(element)
 
-    resp = jsonify(data)
+    c = request.args.get("c")
+    # get all data, if there's a parameter in the request, then it will return
+    # a json with only the specified cell values
+    if c != null and c != "":
+        # TO-DO
+        resp = jsonify(data)
+    else:
+        resp = jsonify(data)
+
     resp.status_code = 200
     return resp
 
@@ -156,7 +179,7 @@ def get_last_bms_cells():
     return resp
 
 
-# -BMS-VOLTAGE-DATA
+#-BMS-VOLTAGE-DATA
 @app.route('/bms-hv/volt/', methods=['GET'])
 def get_bms_volt():
     data = {
@@ -168,9 +191,7 @@ def get_bms_volt():
     min = 0
     max = 100
 
-    now = datetime.datetime.now(tz)
-    last_100_seconds = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
-    last_100_seconds.reverse()  # an array with the last n seconds form the older date to the now date
+    last_100_seconds = getLastNSeconds(n)
 
     for timestamp in last_100_seconds:
         value = random.randrange(min, max)
@@ -203,7 +224,7 @@ def get_last_bms_volt():
     return resp
 
 
-# -BMS-AMPERE-DATA
+#-BMS-AMPERE-DATA
 @app.route('/bms-hv/ampere/', methods=['GET'])
 def get_bms_ampere():
     data = {
@@ -215,9 +236,7 @@ def get_bms_ampere():
     min = 0
     max = 10
 
-    now = datetime.datetime.now(tz)
-    last_100_seconds = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
-    last_100_seconds.reverse()  # an array with the last n seconds form the older date to the now date
+    last_100_seconds = getLastNSeconds(n)
 
     for timestamp in last_100_seconds:
         value = random.randrange(min, max)
@@ -249,7 +268,7 @@ def get_last_bms_ampere():
     resp.status_code = 200
     return resp
 
-# -BMS-TEMPERATURE-DATA
+#-BMS-TEMPERATURE-DATA
 @app.route('/bms-hv/temp/', methods=['GET'])
 def get_bms_temp():
     data = {
@@ -261,9 +280,7 @@ def get_bms_temp():
     min = 0
     max = 10
 
-    now = datetime.datetime.now(tz)
-    last_100_seconds = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
-    last_100_seconds.reverse()  # an array with the last n seconds form the older date to the now date
+    last_100_seconds = getLastNSeconds(n)
 
     for timestamp in last_100_seconds:
         value = random.randrange(min, max)

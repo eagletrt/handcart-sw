@@ -1,28 +1,48 @@
-//-AMPERE-CHART-----------------------------------------------------------------
-function updateAmpereValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/ampere/last';
+//-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
+function updateLineChartValue(chart, series, path, param, label, u) {
+    var url = 'http://127.0.0.1:5000';
 
+    path += "/last";
+    setInterval(function () {
         request = getRequest(url, path);
 
         fetch(request)
             .then(response => response.json())
             .then(json => {
-                timestamp = json["timestamp"]
-                amp = json["amperes"]
+                timestamp = json["timestamp"];
+                d = json[param];
+
                 element = {
                     date: new Date(timestamp),
-                    value: amp
-                }
+                    value: d
+                };
                 chart.addData(element, 1);
-                document.getElementById("amp").innerHTML = amp + "A";
+                document.getElementById(label).innerHTML = d + u;
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 }
 //-END-AMPERE-CHART-------------------------------------------------------------
 //-CELL-CHART-------------------------------------------------------------------
+function setColor(chart, series) {
+    series.columns.template.adapter.add("fill", function(fill, target) {
+        var i = target.dataItem.index;
+        var perc = chart.data[i].voltage/* /maxVolt*100 */;
+
+        if (perc < 50) {
+            r = 255;
+            g = Math.round(5.1 * perc);
+        } else {
+            g = 255;
+            r = Math.round(510 - 5.10 * perc);
+        }
+        b = 0;
+
+        rgb = `rgb(${r}, ${g}, ${b})`;
+        return rgb;
+    });
+}
+
 function updateCellValue(chart, series) {
     setInterval(function () {
         var url = 'http://127.0.0.1:5000';
@@ -71,36 +91,43 @@ function setHeatColor(value) {
     return rgb;
 }
 
-function updateHeatValue(chart, series, nrows) {
-    setInterval(function() {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/heat';
+function getHeatData(cells, ncells, nrows, subcells, group) {
+    let data = [];
 
-        request = getRequest(url, path);
+    let ncols = ncells / (nrows * group);
+    let nelem = nrows * subcells;
 
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                am4core.array.each(chart.data, function(item) {
-                    let x = item.x;
-                    let y = item.y;
-                    let i = parseInt((x-1)*nrows + (y-1));
+    let j = 0;
+    let k = 0;
+    let value = 0;
 
-                    let cell = json["data"][i];
-                    let value = cell["temp"];
+    for(let i = 0; i < cells.length; i++) {
+        value += cells[i]["temp"];
+        j++;
 
-                    item.value = value;
+        if(j % group == 0) {
+            let x = (k % subcells) + (Math.floor(k / nelem) * subcells) + 1;
+            let y = Math.floor((k % nelem) / subcells) + 1;
+            value = value / group;
 
-                    item.color = setHeatColor(value);
+            let element = {
+                "x": x,
+                "y": y,
+                "color": setHeatColor(value),
+                "value": value
+            }
 
-                    chart.invalidateData();
-                })
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }, 2000);
+            data.push(element);
+
+            k++;
+            j = 0;
+            value = 0;
+        }
+    }
+    return data;
 }
 
-function updateHeatAvgValue(chart, series, nrows, p) {
+function updateHeatValue(chart, series, nrows, group) {
     setInterval(function() {
         var url = 'http://127.0.0.1:5000';
         var path = '/bms-hv/heat';
@@ -119,11 +146,11 @@ function updateHeatAvgValue(chart, series, nrows, p) {
                     let value = 0;
                     let cells = json["data"];
 
-                    for(let i = k * p; i < ((k * p) + p); i++) {
+                    for(let i = k * group; i < ((k * group) + group); i++) {
                         value += cells[i]["temp"];
                     }
 
-                    value /= p;
+                    value /= group;
 
                     item.value = value;
 
@@ -136,57 +163,3 @@ function updateHeatAvgValue(chart, series, nrows, p) {
     }, 2000);
 }
 //-END-HEAT-CHART---------------------------------------------------------------
-//-TEMP-CHART-------------------------------------------------------------------
-function updateTempValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/temp/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                timestamp = json["timestamp"]
-                temp = json["temp"]
-                element = {
-                    date: new Date(timestamp),
-                    value: temp
-                }
-                chart.addData(element, 1);
-                document.getElementById("temp").innerHTML = temp + "°";
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
-}
-//-END-TEMP-CHART---------------------------------------------------------------
-//-VOLT-CHART-------------------------------------------------------------------
-function updateVoltValue(chart, series) {
-    setInterval(function () {
-        var url = 'http://127.0.0.1:5000';
-        var path = '/bms-hv/volt/last';
-
-        request = getRequest(url, path);
-
-        fetch(request)
-            .then(response => response.json())
-            .then(json => {
-                timestamp = json["timestamp"]
-                volt = json["volts"]
-                element = {
-                    date: new Date(timestamp),
-                    value: volt
-                }
-                chart.addData(element, 1);
-                document.getElementById("volt").innerHTML = volt + "V"; // insert the value in the top bar
-
-                /*let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
-                let value = parseInt(100*volt/coVolt);
-                document.getElementById("charge").innerHTML = value + "%";*/ // calculate the value of the charge
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
-}
-//-END-VOLT-CHART---------------------------------------------------------------

@@ -22,6 +22,41 @@
         <script src="{{url_for('static', filename='js/active.js')}}"></script>
 
         <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Charts</span>
+        </h6>
+        <ul class="nav flex-column mb-2">
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=volt">
+                    <span data-feather="file-text" class="ico"></span> Volt
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=charge">
+                    <span data-feather="file-text" class="ico"></span> Charge
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=ampere">
+                    <span data-feather="file-text" class="ico"></span> Ampere
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=temp">
+                    <span data-feather="file-text" class="ico"></span> Temperature
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=cell">
+                    <span data-feather="file-text" class="ico"></span> Cells
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="charts?chart=heat">
+                    <span data-feather="file-text" class="ico"></span> Cells' temperature
+                </a>
+            </li>
+        </ul>
+        <!--<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
             <span>Saved reports</span>
             <a class="d-flex align-items-center text-muted" href="#" aria-label="Add a new report">
                 <span data-feather="plus-circle"></span>
@@ -48,7 +83,7 @@
                     <span data-feather="file-text" class="ico"></span> Year-end sale
                 </a>
             </li>
-        </ul>
+        </ul>-->
     </div>
 </nav>
 

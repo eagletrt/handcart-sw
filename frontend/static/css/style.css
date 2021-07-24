@@ -82,6 +82,10 @@ main {
     height: 300px;
 }
 
+.bigChart {
+    height: 750px !important;
+}
+
 .col-sm > .row {
     margin-top: 40px;
 }

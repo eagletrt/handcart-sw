@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    {% include 'include/head.html' %}
+</head>
+
+<body onload="onLoadStartStop();">
+    {% include 'include/header.html' %}
+
+    <div class="container-fluid">
+        <div class="row">
+            {% include 'include/sidebar.html' %}
+
+            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    {% set cTitle = "temperature" if c == "temp" else (c + "map" if c == "heat" else c) %}
+                    <h1 class="h2">{{ cTitle[0]|upper + cTitle[1:] }} chart</h1>
+                </div>
+
+                <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
+                    <div class="row">
+                        <div class="col-sm">
+                            <div id="{{c}}Chart" class="bigChart"></div>
+                            {% if c|string() == "cell" %}
+                            <div id="singlecellChart" class="bigChart" style="display: none;"></div>
+                            <select id="cell">
+                                {% set ncells = 108 %}
+                                {% for i in range(ncells) %}
+                                <option>{{ i + 1 }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn" onclick="getCell('cell')">Filtra</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </main>
+            <script>
+                // all charts are needed due to the top bar values referesh
+                // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
+                createLineChart("/bms-hv/volt", "volt", "volts", "volt", "V");
+                createChargeChart();
+                createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
+                createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
+                createCellChart();
+                createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a col), the grouping parameter
+
+                function getCell(cell) {
+                    var xhttp = new XMLHttpRequest();
+                    xhttp.onreadystatechange = function() {
+                        if (this.readyState == 4 && this.status == 200) {
+                            json = JSON.parse(this.responseText);
+                            console.log(json);
+                        }
+                    };
+                    let c = document.getElementById(cell).value;
+                    console.log(c);
+                    xhttp.open("GET", "bms-hv/cells/", true);
+                    xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+                    xhttp.send("cell=" + c);
+                }
+            </script>
+        </div>
+    </div>
+    {% include 'include/foot.html' %}
+</body>
+
+</html>
