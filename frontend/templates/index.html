@@ -57,11 +57,11 @@
         </div>
     </div>
     <script>
-        // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-        createLineChart("/bms-hv/volt", "volt", "volts", "volt", "V");
+        // lineCharts parameters: path, chart's div, json's parameter, the zoom level, the header label's id, the unit of measure of the value
+        createLineChart("/bms-hv/volt", "volt", "volts", 1.25, "volt", "V");
         createChargeChart();
-        createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
-        createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
+        createLineChart("/bms-hv/ampere", "ampere", "amperes", 1.25, "amp", "A", 1.25);
+        createLineChart("/bms-hv/temp", "temp", "temp", 1.25, "temp", "°", 1.25);
         createCellChart();
         createHeatChart(6, 1, 3); // params: nrows, subcells (how many cells in a col), the grouping parameter
     </script>

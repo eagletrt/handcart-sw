@@ -2,7 +2,6 @@
 function updateLineChartValue(chart, series, path, param, label, u) {
     var url = 'http://127.0.0.1:5000';
 
-    path += "/last";
     setInterval(function () {
         request = getRequest(url, path);
 
@@ -12,12 +11,27 @@ function updateLineChartValue(chart, series, path, param, label, u) {
                 timestamp = json["timestamp"];
                 d = json[param];
 
+                prevItem = chart.data[chart.data.length-1];
+
                 element = {
                     date: new Date(timestamp),
                     value: d
                 };
-                chart.addData(element, 1);
-                document.getElementById(label).innerHTML = d + u;
+
+                if(element.value > prevItem.value) {
+                    prevItem.color = am4core.color("green");
+                } else {
+                    prevItem.color = am4core.color("red");
+                }
+
+                chart.addData(element);
+                chart.invalidateRawData();
+
+                let lbl = document.getElementById(label);
+
+                if(lbl != null) {
+                    lbl.innerHTML = d + u;
+                }
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);

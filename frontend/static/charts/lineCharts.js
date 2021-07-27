@@ -1,4 +1,4 @@
-function createLineChart(path, name, param, label, u) {
+function createLineChart(path, name, param, zoom, label, u) {
     var url = 'http://127.0.0.1:5000';
 
     request = getRequest(url, path);
@@ -49,6 +49,7 @@ function createLineChart(path, name, param, label, u) {
                 var dateAxis = chart.xAxes.push(new am4charts.DateAxis());
                 dateAxis.renderer.grid.template.location = 0;
                 dateAxis.renderer.minGridDistance = 30;
+                dateAxis.tooltip.disabled = true;
                 //*
                 dateAxis.dateFormats.setKey("second", "ss");
                 dateAxis.periodChangeDateFormats.setKey("second", "[bold]h:mm a");
@@ -60,7 +61,7 @@ function createLineChart(path, name, param, label, u) {
                 dateAxis.renderer.ticks.template.disabled = true;
 
                 chart.events.on("datavalidated", function () {
-                    dateAxis.zoom({ start: 1/1.25, end: 1.1 }, false, true);
+                    dateAxis.zoom({ start: 1/zoom, end: 1.1 }, false, true);
                 });
 
                 var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
@@ -106,9 +107,14 @@ function createLineChart(path, name, param, label, u) {
                 dateAxis.start = 0;
                 dateAxis.keepSelection = true;
 
-                updateLineChartValue(chart, series, path, param, label, u);
+                let lastPath = path + "/last";
+                if(path.includes("?")) { // check if there are parameters
+                    let matches = path.match(/(.*)(\?.*)/); // create a new string to ask latest data
+                    lastPath = matches[1] + "/last" + matches[2];
+                }
+                updateLineChartValue(chart, series, lastPath, param, label, u);
 
-                //******************************************************************
+                //**************************************************************
 
                 // this makes date axis labels which are at equal minutes to be rotated
                 dateAxis.renderer.labels.template.adapter.add("rotation", function (rotation, target) {

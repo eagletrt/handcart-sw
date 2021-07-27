@@ -141,12 +141,27 @@ def get_bms_cells():
             element["cells"].append(cell)
         data["data"].append(element)
 
-    c = request.args.get("c")
+    c = request.args.get("cell")
     # get all data, if there's a parameter in the request, then it will return
     # a json with only the specified cell values
-    if c != null and c != "":
-        # TO-DO
-        resp = jsonify(data)
+    if c != None and c != "":
+        filtered = {
+            "timestamp": "2020-12-01:ora",
+            "data": []
+        }
+
+        for i in data["data"]:
+            for j in i["cells"]:
+                if j["id"] == int(c):
+                    element = {
+                        "timestamp": i["timestamp"],
+                        "voltage": j["voltage"]
+                    }
+
+                    filtered["data"].append(element)
+                    break # no need to cycle over the whole array
+
+        resp = jsonify(filtered)
     else:
         resp = jsonify(data)
 
@@ -156,8 +171,9 @@ def get_bms_cells():
 
 @app.route('/bms-hv/cells/last', methods=['GET'])
 def get_last_bms_cells():
+    timestamp = datetime.datetime.now(tz)
     data = {
-        "timestamp": "2020-12-01:ora",
+        "timestamp": timestamp,
         "cells": []
     }
 
@@ -174,7 +190,24 @@ def get_last_bms_cells():
         }
         data["cells"].append(cell)
 
-    resp = jsonify(data)
+    c = request.args.get("cell")
+    # get all data, if there's a parameter in the request, then it will return
+    # a json with only the specified cell values
+    if c != None and c != "":
+        filtered = {}
+        for i in data["cells"]:
+            if i["id"] == int(c):
+                filtered = {
+                    "timestamp": timestamp,
+                    "voltage": i["voltage"]
+                }
+
+                break # no need to cycle over the whole array
+
+        resp = jsonify(filtered)
+    else:
+        resp = jsonify(data)
+
     resp.status_code = 200
     return resp
 

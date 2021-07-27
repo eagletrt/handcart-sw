@@ -23,14 +23,17 @@
                         <div class="col-sm">
                             <div id="{{c}}Chart" class="bigChart"></div>
                             {% if c|string() == "cell" %}
-                            <div id="singlecellChart" class="bigChart" style="display: none;"></div>
                             <select id="cell">
                                 {% set ncells = 108 %}
                                 {% for i in range(ncells) %}
                                 <option>{{ i + 1 }}</option>
                                 {% endfor %}
                             </select>
-                            <button class="btn" onclick="getCell('cell')">Filtra</button>
+                            <button class="btn" onclick="getCell()">Filtra</button>
+                            <div id="chart" style="display: none;">
+                                <button id="reset" onclick="reset()" name="">x</button>
+                                <div id="singlecellChart" class="bigChart"></div>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -44,22 +47,29 @@
                 createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
                 createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
                 createCellChart();
-                createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a col), the grouping parameter
+                createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
 
-                function getCell(cell) {
-                    var xhttp = new XMLHttpRequest();
-                    xhttp.onreadystatechange = function() {
-                        if (this.readyState == 4 && this.status == 200) {
-                            json = JSON.parse(this.responseText);
-                            console.log(json);
-                        }
-                    };
-                    let c = document.getElementById(cell).value;
-                    console.log(c);
-                    xhttp.open("GET", "bms-hv/cells/", true);
-                    xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                function getCell() {
+                    document.getElementById("chart").style.display = "block";   // show the chart's div
+                    let cell = document.getElementById("cell");
+                    let c = cell.value;                                         // get the cell id
+                    cell.remove(cell.selectedIndex);                            // remove it from the list
+                    document.getElementById("reset").name = c;                  // set the name for the button, so, clicking it, it will close the right div
+                    createLineChart("/bms-hv/cells?cell=" + c, "singlecell", "voltage", 15);
+                }
 
-                    xhttp.send("cell=" + c);
+                function reset() {
+                    let button = document.getElementById("reset")
+                    let cell = button.name;                                     // get the name of the button
+                    button.name = "";                                            // and delete it
+                    let select = document.getElementById("cell");
+
+                    let option = document.createElement("option");              // create a new option
+                    option.text = cell;                                         // and set the value as the button name
+
+                    select.add(option, parseInt(cell)-1);                       // and add it to the select at the right position
+
+                    document.getElementById("chart").style.display = "none";    // then hide the chart's div
                 }
             </script>
         </div>
