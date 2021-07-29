@@ -2,6 +2,7 @@
 
 /*
     url: -- the url from which you want to request data
+    
     path: - the missing part of the url
 */
 
@@ -90,7 +91,11 @@ function createTable(json, table, container) {
 }
 
 /*
+    path: - the path for the requested fetch
 
+    id: --- the element's id in which write the value
+
+    msg: -- standard message to write if there are no items
 */
 
 function errorTable(path, id, msg) {
@@ -113,6 +118,20 @@ function errorTable(path, id, msg) {
             }
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
+}
+
+/*
+    path: - is the path (no url) of the assigned timer
+*/
+
+function deleteTimer(path) {
+    for(let i = 0; i < timer.length; i++) {
+        if(timer[i]["chart"] == path) {
+            clearInterval(timer[i]["timer"]);
+            timer.splice(i, 1);
+            break;
+        }
+    }
 }
 
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------

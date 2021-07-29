@@ -30,46 +30,117 @@
                                 {% endfor %}
                             </select>
                             <button class="btn" onclick="getCell()">Filtra</button>
-                            <div id="chart" style="display: none;">
-                                <button id="reset" onclick="reset()" name="">x</button>
-                                <div id="singlecellChart" class="bigChart"></div>
-                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm" id="chart">
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </main>
             <script>
+                var divs = 0;
+                var timers = [];
+                let actualChart = {{c}};
                 // all charts are needed due to the top bar values referesh
                 // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-                createLineChart("/bms-hv/volt", "volt", "volts", "volt", "V");
-                createChargeChart();
-                createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
-                createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
-                createCellChart();
-                createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
+                console.log(actualChart);
+                if(true) createLineChart("/bms-hv/volt", "volt", "volts", "volt", "V");
+                if(true) createChargeChart();
+                if(true) createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
+                if(true) createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
+                if(true) createCellChart();
+                if(true) createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
 
                 function getCell() {
-                    document.getElementById("chart").style.display = "block";   // show the chart's div
-                    let cell = document.getElementById("cell");
-                    let c = cell.value;                                         // get the cell id
-                    cell.remove(cell.selectedIndex);                            // remove it from the list
-                    document.getElementById("reset").name = c;                  // set the name for the button, so, clicking it, it will close the right div
-                    createLineChart("/bms-hv/cells?cell=" + c, "singlecell", "voltage", 15);
+                    if(divs < 2) {                                              // compare max 2 charts
+                        divs++;                                                 // save how many charts there are
+
+                        let container = document.getElementById("chart");       // get the column container
+
+                        let mainRow = container.firstElementChild;
+                        if(mainRow == null) {                                   // check if a row has been already created
+                            mainRow = document.createElement("div");            // if not, it will create it
+                            mainRow.className = "row";
+                        }
+
+                        let cell = document.getElementById("cell");
+                        let c = cell.value;                                     // get the cell id
+                        cell.remove(cell.selectedIndex);                        // remove it from the list
+
+                        let mainCol = document.createElement("div");            // create the column that will contain the chart
+                        mainCol.className = "col-sm";
+                        mainCol.setAttribute("id", c);
+
+                        let buttonRow = document.createElement("div");          // create the close-button's row
+                        buttonRow.className = "row";
+
+                        let voidCol = document.createElement("div");
+                        voidCol.className = "col-sm-10";
+                        buttonRow.appendChild(voidCol);
+
+                        let buttonCol = document.createElement("div");          // create the colse-button's col
+                        buttonCol.className = "col-sm";
+
+                        let button = document.createElement("button");          // create the button
+                        button.className = "btn";                               // set the close function with
+                        button.setAttribute("onclick", "reset(" + c + ")");     // the parameter to close it
+                        button.innerHTML = "X";
+
+                        buttonCol.appendChild(button);
+
+                        buttonRow.appendChild(buttonCol);
+
+                        mainCol.appendChild(buttonRow);
+
+                        let chartRow = document.createElement("div");           // create the chart's row
+                        chartRow.className = "row";
+
+                        let chart = document.createElement("div");              // create the chart
+                        let id = "single" + c + "cell";                         // setup an id
+                        chart.setAttribute("id", id + "Chart");
+                        chart.className = "bigChart";
+
+                        chartRow.appendChild(chart);
+
+                        mainCol.appendChild(chartRow);
+
+                        mainRow.appendChild(mainCol);
+
+                        container.appendChild(mainRow);
+
+                        // call the chart creation
+                        createLineChart("/bms-hv/cells?cell=" + c, id, "voltage", 15);
+                        console.log(timer);
+                    } else {
+                        alert("You can compare max 2 charts at time!\nClose one of the opened or refresh the page to clean them all.");
+                    }
                 }
 
-                function reset() {
-                    let button = document.getElementById("reset")
-                    let cell = button.name;                                     // get the name of the button
-                    button.name = "";                                            // and delete it
-                    let select = document.getElementById("cell");
+                function reset(id) {
+                    if(divs > 0) {
+                        divs--;
 
-                    let option = document.createElement("option");              // create a new option
-                    option.text = cell;                                         // and set the value as the button name
+                        if(divs == 0) {                                         // if there are no more charts then remove also the row (graphical "issue")
+                            document.getElementById("chart").firstElementChild.remove();
+                        } else {
+                            let chartCol = document.getElementById(id);
+                            chartCol.remove();                                  // remove the whole column that contain the chart
+                        }
 
-                    select.add(option, parseInt(cell)-1);                       // and add it to the select at the right position
+                        let select = document.getElementById("cell");
 
-                    document.getElementById("chart").style.display = "none";    // then hide the chart's div
+                        let option = document.createElement("option");          // create a new option
+                        option.text = id;                                       // and set the value as the button name
+
+                        select.add(option, parseInt(id)-1);                     // and add it to the select at the right position
+
+                        let path = "/bms-hv/cells/last?cell=" + id;
+                        deleteTimer(path);
+                    } else {
+                        alert("You shouldn't see the button...\nReport it!")
+                    }
                 }
             </script>
         </div>

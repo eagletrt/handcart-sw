@@ -2,7 +2,7 @@
 function updateLineChartValue(chart, series, path, param, label, u) {
     var url = 'http://127.0.0.1:5000';
 
-    setInterval(function () {
+    let t = setInterval(function () {
         request = getRequest(url, path);
 
         fetch(request)
@@ -35,6 +35,12 @@ function updateLineChartValue(chart, series, path, param, label, u) {
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
+
+    element = {
+        "timer": t,
+        "chart": path
+    }
+    timer.push(element);
 }
 //-END-AMPERE-CHART-------------------------------------------------------------
 //-CELL-CHART-------------------------------------------------------------------
