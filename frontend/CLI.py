@@ -53,6 +53,23 @@ class Tab(Enum):
     MAIN = 0
     ERRORS = 1
 
+def intro():
+    begin_x = 0
+    begin_y = 0
+    height = DEFAULT_HEIGHT
+    width = DEFAULT_WIDTH
+    intro = curses.newwin(height, width, begin_y, begin_x)
+
+    intro.addstr(1, int(DEFAULT_WIDTH / 2) - 22, "███████╗███████╗███╗   ██╗██╗ ██████╗███████╗")
+    intro.addstr(2, int(DEFAULT_WIDTH / 2) - 22, "██╔════╝██╔════╝████╗  ██║██║██╔════╝██╔════╝")
+    intro.addstr(3, int(DEFAULT_WIDTH / 2) - 22, "█████╗  █████╗  ██╔██╗ ██║██║██║     █████╗")
+    intro.addstr(4, int(DEFAULT_WIDTH / 2) - 22, "██╔══╝  ██╔══╝  ██║╚██╗██║██║██║     ██╔══╝")
+    intro.addstr(5, int(DEFAULT_WIDTH / 2) - 22, "██║     ███████╗██║ ╚████║██║╚██████╗███████╗")
+    intro.addstr(6, int(DEFAULT_WIDTH / 2) - 22, "╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝")
+    intro.addstr(7, int(DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
+    intro.addstr(10, int(DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
+
+    intro.refresh()
 
 def header():
     begin_x = 0
@@ -235,8 +252,13 @@ def doRequests():
 
 input_cutoff = False
 awaiting_input = False
-key = 0
+key = -1
 selected_tab = Tab.MAIN.value
+
+while key == -1:
+    intro()
+    key = stdscr.getch()
+
 while (key != ord('q')):
     header()
     bottom()
@@ -264,7 +286,7 @@ while (key != ord('q')):
             j = {"com-type": "fast-charge", "value": fast_charge}
             requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
         elif key == ord('c'):
-            if handcart_status == 'PRECHARGE':
+            if handcart_status == 'IDLE':
                 j = {"com-type": "precharge", "value":True}
                 requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
             elif handcart_status == 'READY':
