@@ -24,8 +24,13 @@ from can_cicd.includes_generator.Primary.ids import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
-FAST_CHARGE_AMPERE = 16
-STANDARD_CHARGE_AMPERE = 6
+FAST_CHARGE_MAINS_AMPERE = 16
+STANDARD_CHARGE_MAINS_AMPERE = 6
+
+MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
+STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
+MAX_TARGET_V_ACC = 450  # Maximum charging voltage of accumulator
+
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
 #BMS_HV_BYPASS = False # Use at your own risk
@@ -278,7 +283,9 @@ class CanListener:
     FSM_entered_stat = "" # The moment in time the FSM has entered that state
     fast_charge = False
 
+    generic_error = False
     can_err = False
+    target_v = MAX_TARGET_V_ACC
 
     brusa = BRUSA()
     bms_hv = BMS_HV()
@@ -437,7 +444,7 @@ def doPreCharge():
 
     if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
         ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
-                                data=[SetTsStatus.serialize(Ts_Status_Set.ON)],
+                                data=SetTsStatus.serialize(Ts_Status_Set.ON),
                                 is_extended_id=False)
 
         tx_can_queue.put(ts_on_msg)
@@ -450,6 +457,8 @@ def doPreCharge():
 
     if precharge_done:
         return STATE.READY
+    else:
+        return STATE.PRECHARGE
 
 
 def doReady():
@@ -677,21 +686,26 @@ def thread_2_CAN():
                 NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
-                        if 0 < shared_data.bms_hv.req_chg_voltage <= 500 and shared_data.bms_hv.req_chg_current != 0:
+                        if 0 < shared_data.target_v <= 500:
                             if shared_data.fast_charge:
-                                ampere = FAST_CHARGE_AMPERE
+                                mains_ampere = FAST_CHARGE_MAINS_AMPERE
+                                out_ampere = MAX_ACC_CHG_AMPERE
                             else:
-                                ampere = STANDARD_CHARGE_AMPERE
+                                mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
+                                out_ampere = STANDARD_ACC_CHG_AMPERE
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
                                 'NLG5_C_C_EL': 0,
                                 'NLG5_C_CP_V': 0,
                                 'NLG5_C_MR': 0,
-                                'NLG5_MC_MAX': ampere,
-                                'NLG5_OV_COM': shared_data.bms_hv.req_chg_voltage,
-                                'NLG5_OC_COM': shared_data.bms_hv.req_chg_current
+                                'NLG5_MC_MAX': mains_ampere,
+                                'NLG5_OV_COM': shared_data.target_v,
+                                'NLG5_OC_COM': out_ampere
                             })
+                        else:
+                            shared_data.generic_error = True
                 else:
+                    # Brusa need to constantly keep to receive this msg, otherwise it will go in error
                     data = NLG5_CTL.encode({
                         'NLG5_C_C_EN': 0,
                         'NLG5_C_C_EL': 0,
@@ -701,7 +715,9 @@ def thread_2_CAN():
                         'NLG5_OV_COM': 0,
                         'NLG5_OC_COM': 0
                     })
-                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id, data=data, is_extended_id=False)
+                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id,
+                                               data=data,
+                                               is_extended_id=False)
                 tx_can_queue.put(NLG5_CTL_message)
                 last_brusa_ctl_sent = time.time()
 
@@ -724,7 +740,7 @@ def thread_3_WEB():
         with lock:
             data = {
                 "timestamp": datetime.datetime.now().isoformat(),
-                "state": str(shared_data.FSM_stat),
+                "state": str(shared_data.FSM_stat).split('.')[1],
                 "entered": shared_data.FSM_entered_stat
             }
             resp = jsonify(data)

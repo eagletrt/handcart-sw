@@ -102,7 +102,7 @@ def bottom():
 
     bottom_str = ""
 
-    if handcart_status == 'PRECHARGE':
+    if handcart_status == 'IDLE':
         bottom_str += "[c] precharge | "
     elif handcart_status == 'READY':
         bottom_str += "[c] charge | "
