@@ -12,8 +12,8 @@ function getRequest(url, path) {
     headers.append('Content-Type', 'application/json');
     headers.append('Accept', 'application/json');
 
-    headers.append('Access-Control-Allow-Origin', url);
-    headers.append('Access-Control-Allow-Credentials', 'true');
+    //headers.append('Access-Control-Allow-Origin', url);
+    //headers.append('Access-Control-Allow-Credentials', 'true');
 
     headers.append('GET', 'POST', 'OPTIONS');
 
@@ -32,6 +32,10 @@ function getRequest(url, path) {
 function postRequest(url, data) {
     fetch(url, {
         method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+            // 'Content-Type': 'application/x-www-form-urlencoded',
+        },
         body: data
     });
 }
@@ -78,8 +82,9 @@ function createTable(json, table, container) {
             let tabCell = tr.insertCell(-1);
             let elem = json[col[j]];
 
+            console.log(elem);
             if (!Array.isArray(elem)) {
-                tabCell.innerHTML = elem;
+                tabCell.innerHTML = Date(elem);
             } else {
                 tabCell.innerHTML = elem[i]["desc"];
             }
@@ -99,7 +104,7 @@ function createTable(json, table, container) {
 */
 
 function errorTable(path, id, msg) {
-    let url = 'http://127.0.0.1:5000';
+    //let url = 'http://127.0.0.1:5000';
 
     request = getRequest(url, path);
 
@@ -137,8 +142,8 @@ function deleteTimer(path) {
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------
 function onLoadEnableDisable() {
     (async () => { // syncronization is necessary
-        var url = 'http://127.0.0.1:5000';
-        var path = '/command/settings';
+        //var url = 'http://127.0.0.1:5000';
+        var path = '/command/setting';
 
         request = getRequest(url, path);
 
@@ -190,9 +195,17 @@ function enableDisable(enabled) {
 function formListener(form) {
     form.addEventListener('submit', function (event) {
         event.preventDefault();                 // prevent page from refreshing
-        const formData = new FormData(form);    // grab the data inside the form fields
-        let url = '/command/settings';
-        postRequest(url, formData);
+        //const formData = new FormData(form);    // grab the data inside the form fields
+        let url = '/command/setting/';
+
+        j = {
+            "com-type": form.elements["comType"].value,
+            "value": form.elements["value"].value
+        }
+
+        console.log(JSON.stringify(j));
+
+        postRequest(url, JSON.stringify(j));
     });
 }
 

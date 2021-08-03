@@ -1,5 +1,5 @@
 function createCellChart() {
-    var url = 'http://127.0.0.1:5000';
+    //var url = 'http://127.0.0.1:5000';
     var path = '/bms-hv/cells/last';
 
     request = getRequest(url, path);

@@ -1,18 +1,18 @@
 # Can send test
 # Before use, pls run the script "start-can.sh"
 
-import can
-import time
-import re
 import os
+import re
+import time
+
+import can
 
 bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
-                       0, 0x00, 0x0A, 0x10, 0x68, 0, 0x0A], is_extended_id=False)
+    0, 0x00, 0x0A, 0x10, 0x68, 0, 0x0A], is_extended_id=False)
 
 CHG_V = int(450 / 0.1)
 CHG_A = int(9 / 0.1)
@@ -21,7 +21,7 @@ MAX_C_O = int(16 / 0.1)
 os.system('clear')
 r_CHG_V = input("Charging voltage: ")
 if r_CHG_V != "":
-    if re.match('^[0-9]*$', r_CHG_V) and 0 < int(r_CHG_V) < 400: # just numbers allowed
+    if re.match('^[0-9]*$', r_CHG_V) and 0 < int(r_CHG_V) < 400:  # just numbers allowed
         CHG_V = int(int(r_CHG_V) / 0.1)
     else:
         print("[ERROR] invalid input")
@@ -47,7 +47,7 @@ b_MAX_C_O = MAX_C_O.to_bytes(2, 'big', signed=False)
 b_CHG_ENABLED = 0x80
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
-                       0, b_MAX_C_O[0], b_MAX_C_O[1], b_CHG_V[0], b_CHG_V[1], b_CHG_A[0], b_CHG_A[1]],
+    0, b_MAX_C_O[0], b_MAX_C_O[1], b_CHG_V[0], b_CHG_V[1], b_CHG_A[0], b_CHG_A[1]],
                        is_extended_id=False)
 
 os.system('clear')

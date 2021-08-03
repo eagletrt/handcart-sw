@@ -53,6 +53,7 @@ class Tab(Enum):
     MAIN = 0
     ERRORS = 1
 
+
 def intro():
     begin_x = 0
     begin_y = 0
@@ -70,6 +71,7 @@ def intro():
     intro.addstr(10, int(DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
 
     intro.refresh()
+
 
 def header():
     begin_x = 0
@@ -198,8 +200,9 @@ def doRequests():
             brusa_connected = True
             brusa_status = "online"
             json = r.json()
-            #print(json)
-            if "Indicates if hardware enabled, i.e. a hi or lo signal is fed to the 'Power On' pin (pin3 of control connector)" in json['status']:
+            # print(json)
+            if "Indicates if hardware enabled, i.e. a hi or lo signal is fed to the 'Power On' pin (pin3 of control connector)" in \
+                    json['status']:
                 brusa_status = "enabled"
             if "An error has been detected, red LED is ON, no power is output" in json['status']:
                 brusa_status = "error"
@@ -258,6 +261,7 @@ def doRequests():
     if not handcart_connected:
         handcart_status = "offline"
 
+
 input_cutoff = False
 awaiting_input = False
 key = -1
@@ -295,7 +299,7 @@ while (key != ord('q')):
             requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
         elif key == ord('c'):
             if handcart_status == 'IDLE':
-                j = {"com-type": "precharge", "value":True}
+                j = {"com-type": "precharge", "value": True}
                 requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
             elif handcart_status == 'READY':
                 j = {"com-type": "charge", "value": True}

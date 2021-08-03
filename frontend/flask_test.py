@@ -1,5 +1,8 @@
-from flask import Flask, render_template, url_for, request, jsonify
-import random, datetime, pytz
+import datetime
+import pytz
+import random
+
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -7,7 +10,7 @@ app.config["DEBUG"] = True
 tz = pytz.timezone('Europe/Rome')
 
 
-#=PAGES=========================================================================
+# =PAGES=========================================================================
 
 @app.route('/', methods=['GET'])
 def home():
@@ -28,13 +31,15 @@ def error():
 def settings():
     return render_template("settings.html")
 
+
 @app.route('/charts')
 def charts():
     chart = request.args.get("chart")
 
-    return render_template("charts.html", c = chart)
+    return render_template("charts.html", c=chart)
 
-#=UTILITIES=====================================================================
+
+# =UTILITIES=====================================================================
 
 def getLastNSeconds(n):
     now = datetime.datetime.now(tz)
@@ -43,9 +48,10 @@ def getLastNSeconds(n):
 
     return a
 
-#=GETS==========================================================================
 
-#-HANDCART-(backend)------------------------------------------------------------
+# =GETS==========================================================================
+
+# -HANDCART-(backend)------------------------------------------------------------
 
 @app.route('/handcart/status/', methods=['GET'])
 def get_hc_status():
@@ -60,8 +66,8 @@ def get_hc_status():
     return resp
 
 
-#-END-HANDCART-(backend)--------------------------------------------------------
-#-BMS-HV------------------------------------------------------------------------
+# -END-HANDCART-(backend)--------------------------------------------------------
+# -BMS-HV------------------------------------------------------------------------
 
 @app.route('/bms-hv/status/', methods=['GET'])
 def get_bms_status():
@@ -83,10 +89,10 @@ def get_bms_warnings():
             "id": "0",
             "desc": "Sto esplodendo"
         },
-        {
-            "id": "5",
-            "desc": "cell 5 overvoltage"
-        }]
+            {
+                "id": "5",
+                "desc": "cell 5 overvoltage"
+            }]
     }
 
     resp = jsonify(data)
@@ -101,9 +107,9 @@ def get_bms_errors():
         "errors": [{
             "desc": "Sto esplodendo"
         },
-        {
-            "desc": "cell 5 overvoltage"
-        }]
+            {
+                "desc": "cell 5 overvoltage"
+            }]
     }
 
     resp = jsonify(data)
@@ -111,7 +117,7 @@ def get_bms_errors():
     return resp
 
 
-#-BMS-CELLS-DATA
+# -BMS-CELLS-DATA
 @app.route('/bms-hv/cells/', methods=['GET'])
 def get_bms_cells():
     data = {
@@ -159,7 +165,7 @@ def get_bms_cells():
                     }
 
                     filtered["data"].append(element)
-                    break # no need to cycle over the whole array
+                    break  # no need to cycle over the whole array
 
         resp = jsonify(filtered)
     else:
@@ -202,7 +208,7 @@ def get_last_bms_cells():
                     "voltage": i["voltage"]
                 }
 
-                break # no need to cycle over the whole array
+                break  # no need to cycle over the whole array
 
         resp = jsonify(filtered)
     else:
@@ -212,7 +218,7 @@ def get_last_bms_cells():
     return resp
 
 
-#-BMS-VOLTAGE-DATA
+# -BMS-VOLTAGE-DATA
 @app.route('/bms-hv/volt/', methods=['GET'])
 def get_bms_volt():
     data = {
@@ -257,7 +263,7 @@ def get_last_bms_volt():
     return resp
 
 
-#-BMS-AMPERE-DATA
+# -BMS-AMPERE-DATA
 @app.route('/bms-hv/ampere/', methods=['GET'])
 def get_bms_ampere():
     data = {
@@ -301,7 +307,8 @@ def get_last_bms_ampere():
     resp.status_code = 200
     return resp
 
-#-BMS-TEMPERATURE-DATA
+
+# -BMS-TEMPERATURE-DATA
 @app.route('/bms-hv/temp/', methods=['GET'])
 def get_bms_temp():
     data = {
@@ -371,8 +378,9 @@ def get_bms_heat():
     resp.status_code = 200
     return resp
 
-#-END-BMS-HV--------------------------------------------------------------------
-#-BRUSA-------------------------------------------------------------------------
+
+# -END-BMS-HV--------------------------------------------------------------------
+# -BRUSA-------------------------------------------------------------------------
 
 @app.route('/brusa/status/', methods=['GET'])  # 8-23 WARNINGS
 def get_brusa_status():
@@ -382,10 +390,10 @@ def get_brusa_status():
             "desc": "brusa on bla bla",
             "pos": 0
         },
-        {
-            "desc": "brusa current limited",
-            "pos": 2
-        }]
+            {
+                "desc": "brusa current limited",
+                "pos": 2
+            }]
     }
 
     resp = jsonify(data)
@@ -393,7 +401,7 @@ def get_brusa_status():
     return resp
 
 
-@app.route('/brusa/errors/', methods=['GET']) # 32-39 WARNINGS
+@app.route('/brusa/errors/', methods=['GET'])
 def get_brusa_errors():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -401,10 +409,10 @@ def get_brusa_errors():
             "desc": "brusa is on fire",
             "pos": 3
         },
-        {
-            "desc": "brusa current limited",
-            "pos": 5
-        }]
+            {
+                "desc": "brusa current limited",
+                "pos": 5
+            }]
     }
 
     resp = jsonify(data)
@@ -412,10 +420,10 @@ def get_brusa_errors():
     return resp
 
 
-#-END-BRUSA---------------------------------------------------------------------
-#=COMMANDS======================================================================
+# -END-BRUSA---------------------------------------------------------------------
+# =COMMANDS======================================================================
 
-@app.route('/command/settings', methods=['POST'])
+@app.route('/command/setting', methods=['POST'])
 def recv_command():
     comType = request.form.get("comType")
     value = request.form.get("value")
@@ -425,25 +433,26 @@ def recv_command():
         "value": value
     }
 
-    #print(command["com-type"], " - ", command["value"])
+    # print(command["com-type"], " - ", command["value"])
     command = jsonify(command)
 
     return command
 
-@app.route('/command/settings', methods=['GET'])
+
+@app.route('/command/setting', methods=['GET'])
 def get_settings_command():
     data = [{
         "com-type": "cutoff",
         "value": 150
     },
-    {
-        "com-type": "max-c-o",
-        "value": 5
-    },
-    {
-        "com-type": "fast-charge",
-        "value": False
-    }]
+        {
+            "com-type": "max-c-o",
+            "value": 5
+        },
+        {
+            "com-type": "fast-charge",
+            "value": False
+        }]
 
     resp = jsonify(data)
     resp.status_code = 200

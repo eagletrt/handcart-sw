@@ -1,5 +1,5 @@
 function createLineChart(path, name, param, zoom, label, u) {
-    var url = 'http://127.0.0.1:5000';
+    //var url = 'http://127.0.0.1:5000';
 
     request = getRequest(url, path);
 
@@ -43,6 +43,16 @@ function createLineChart(path, name, param, zoom, label, u) {
                     data.push(element);
                     previousValue = d;
                 }
+
+                /*if(data.length == 0) {
+                    element = {
+                        date: new Date(),
+                        value: 0
+                    };
+                    for(let i = 0; i < 30; i++) {
+                        data.push(element);
+                    }
+                }*/
 
                 chart.data = data;
 

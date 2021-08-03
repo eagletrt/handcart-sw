@@ -8,19 +8,22 @@ Notes:
 """
 
 import datetime
-import can
-from can.listener import Listener
-import time
-import threading
-import queue
-import flask
-from flask import request, jsonify
-import cantools
-from enum import Enum
 import json
+import pytz
+import queue
+import threading
+import time
+from enum import Enum
 
-from can_cicd.naked_generator.Primary.py.Primary import *
+import can
+import cantools
+import flask
+from can.listener import Listener
+from flask import render_template
+from flask import request, jsonify
+
 from can_cicd.includes_generator.Primary.ids import *
+from can_cicd.naked_generator.Primary.py.Primary import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
@@ -33,7 +36,8 @@ MAX_TARGET_V_ACC = 450  # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
-#BMS_HV_BYPASS = False # Use at your own risk
+
+# BMS_HV_BYPASS = False # Use at your own risk
 
 
 class STATE(Enum):
@@ -242,7 +246,6 @@ class BMS_HV:
         if self.errors != 0:
             self.error = True
 
-
     def doHV_STATUS(self, msg):
         """
         Processes the HV_STATUS CAN message from BMS_HV
@@ -280,7 +283,7 @@ class CanListener:
     This class also stores all the data recived from the devices
     """
     FSM_stat = -1  # The actual state of the FSM (mirror the main variable)
-    FSM_entered_stat = "" # The moment in time the FSM has entered that state
+    FSM_entered_stat = ""  # The moment in time the FSM has entered that state
     fast_charge = False
 
     generic_error = False
@@ -338,9 +341,9 @@ class Can_rx_listener(Listener):
 
 # FSM vars
 canread = CanListener()  # Access it ONLY with the FSM
-precharge_asked = False # True if precharge asked to bms
+precharge_asked = False  # True if precharge asked to bms
 precharge_done = False
-precharge_command = False # True if received precharge command
+precharge_command = False  # True if received precharge command
 start_charge_command = False  # True if received start charge command
 stop_charge_command = False  # True if received stop charge command
 
@@ -611,6 +614,7 @@ def checkCommands():
         if act_com['com-type'] == "charge" and act_com['value'] is False:
             stop_charge_command = True
 
+
 # Maps state to it's function
 doState = {
     STATE.CHECK: doCheck,
@@ -664,7 +668,7 @@ def thread_1_FSM():
         canread.FSM_stat = act_stat
         if act_stat != next_stat:
             canread.FSM_entered_stat = datetime.datetime.now().isoformat()
-            #print(canread.FSM_entered_stat)
+            # print(canread.FSM_entered_stat)
             print("STATE: " + str(next_stat))
 
         act_stat = next_stat
@@ -736,12 +740,29 @@ def thread_3_WEB():
     :return:
     """
     app = flask.Flask(__name__)
-
     app.config["DEBUG"] = True
 
     @app.route('/', methods=['GET'])
     def home():
-        return "Hello World"  # flask.render_template("index.html")
+        return render_template("index.html")
+
+    @app.route('/warning')
+    def warning():
+        return render_template("warning.html")
+
+    @app.route('/error')
+    def error():
+        return render_template("error.html")
+
+    @app.route('/settings')
+    def settings():
+        return render_template("settings.html")
+
+    @app.route('/charts')
+    def charts():
+        chart = request.args.get("chart")
+
+        return render_template("charts.html", c=chart)
 
     @app.route('/handcart/status/', methods=['GET'])
     def get_hc_status():
@@ -763,7 +784,9 @@ def thread_3_WEB():
                        "status": shared_data.bms_hv.status.name}
                 res = jsonify(res)
             else:
-                res = jsonify("not connected")
+                res = {"timestamp": shared_data.bms_hv.lastupdated,
+                       "status": "OFFLINE"}
+                res = jsonify(res)
                 res.status_code = 400
         return res
 
@@ -785,6 +808,58 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
+    @app.route('/bms-hv/volt/', methods=['GET'])
+    def get_bms_volt():
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "data": []
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/volt/last/', methods=['GET'])
+    def get_last_bms_volt():
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "volts": shared_data.bms_hv.act_bus_voltage
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/ampere/', methods=['GET'])
+    def get_bms_ampere():
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "data": []
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/ampere/last/', methods=['GET'])
+    def get_last_bms_ampere():
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "volts": shared_data.bms_hv.act_current
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
     @app.route('/brusa/status/', methods=['GET'])
     def get_brusa_status():
         with lock:
@@ -792,10 +867,20 @@ def thread_3_WEB():
                 status_list = shared_data.brusa.act_NLG5_ST_srt
 
                 res = {"timestamp": shared_data.brusa.lastupdated,
-                       "status": status_list}
+                       "status": [
+                           {
+                               "pos": 1,
+                               "desc": "qualcosa"}
+                       ]
+                       }
                 res = jsonify(res)
             else:
-                res = jsonify("not connected")
+                res = jsonify(
+                    {
+                        "timestamp": shared_data.brusa.lastupdated,
+                        "status": []
+                    }
+                )
                 res.status_code = 400
         return res
 
@@ -811,15 +896,30 @@ def thread_3_WEB():
             res = {"timestamp": time.time(), "errors": errorList}
             return jsonify(res)
 
+    @app.route('/command/setting/', methods=['GET'])
+    def send_settings_command():
+        # print(request.get_json())
+        data = [{
+            "com-type": "cutoff",
+            "value": shared_data.target_v
+        },
+            {
+                "com-type": "fast-charge",
+                "value": shared_data.fast_charge
+            }]
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
     @app.route('/command/setting/', methods=['POST'])
     def recv_command_setting():
-        #print(request.get_json())
+        # print(request.get_json())
         command = request.get_json()
-        com_queue.put(json.loads(command))
+        com_queue.put(command)
 
         resp = jsonify(success=True)
         return resp
-
 
     @app.route('/command/action/', methods=['POST'])
     def recv_command_action():
@@ -831,7 +931,8 @@ def thread_3_WEB():
         resp = jsonify(success=True)
         return resp
 
-    app.run(use_reloader=False)
+    # app.run(use_reloader=False)
+    app.run(use_reloader=False, host="0.0.0.0", port=8080)  # to run on the pc ip
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
@@ -844,5 +945,3 @@ t3 = threading.Thread(target=thread_3_WEB, args=())
 t1.start()
 t2.start()
 t3.start()
-
-

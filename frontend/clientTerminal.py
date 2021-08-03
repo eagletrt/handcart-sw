@@ -1,11 +1,11 @@
-import requests
-import time
 import os
-import fileinput
-import sys
 import select
-import tty
+import sys
 import termios
+import time
+import tty
+
+import requests
 
 SERVER_ADDRESS = 'http://127.0.0.1:5000/'
 server_connected = False
@@ -109,7 +109,7 @@ try:
     refresh = True
     while 1:
 
-        #time = time.time()
+        # time = time.time()
         # Main loop
         os.system("clear")
         main()

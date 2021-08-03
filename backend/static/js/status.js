@@ -1,4 +1,4 @@
-var url = 'http://127.0.0.1:5000';
+//var url = 'http://10.196.172.17:8080';
 //-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 var path = '/bms-hv/status';
 
@@ -11,18 +11,19 @@ fetch(request)
 
         // if there's only one status message to read
         let key = "status";
-        let str = json[key].substr(6);  // to take STATE.[status]
+        str = json[key];
+        //let str = json[key].substr(6);  // to take STATE.[status]
         state.innerHTML = str;          // i.e. STATE.TS_OFF = TS_OFF
 
         switch (str) {
-            case "TS_ON":
+            case "ON":
                 state.className = "green";
                 break;
             case "PRECHARGE":
                 state.className = "orange";
                 break;
             case "FATAL":
-            case "TS_OFF":
+            case "OFF":
                 state.className = "red";
                 break;
         }
@@ -263,7 +264,7 @@ async function brusaWarnings() {
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
 setInterval(function () { // every 2 seconds or every time it has been changed
-        path = '/command/settings';
+        path = '/command/setting';
 
         request = getRequest(url, path);
 
