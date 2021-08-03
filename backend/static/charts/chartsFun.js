@@ -18,7 +18,7 @@ function updateLineChartValue(chart, series, path, param, label, u) {
                     value: d
                 };
 
-                if (element.value > prevItem.value) {
+                if (element.value >= prevItem.value) {
                     prevItem.color = am4core.color("green");
                 } else {
                     prevItem.color = am4core.color("red");

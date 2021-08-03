@@ -12,8 +12,8 @@ function getRequest(url, path) {
     headers.append('Content-Type', 'application/json');
     headers.append('Accept', 'application/json');
 
-    //headers.append('Access-Control-Allow-Origin', url);
-    //headers.append('Access-Control-Allow-Credentials', 'true');
+    /*headers.append('Access-Control-Allow-Origin', url);
+    headers.append('Access-Control-Allow-Credentials', 'true');*/
 
     headers.append('GET', 'POST', 'OPTIONS');
 
@@ -82,7 +82,6 @@ function createTable(json, table, container) {
             let tabCell = tr.insertCell(-1);
             let elem = json[col[j]];
 
-            console.log(elem);
             if (!Array.isArray(elem)) {
                 tabCell.innerHTML = Date(elem);
             } else {

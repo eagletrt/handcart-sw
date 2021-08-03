@@ -1,36 +1,46 @@
 //var url = 'http://10.196.172.17:8080';
 //-GET-THE-BMS-HV-STATUS--------------------------------------------------------
-var path = '/bms-hv/status';
 
-request = getRequest(url, path);
+async function bmsStatus() {
+    let path = '/bms-hv/status';
 
-fetch(request)
-    .then(response => response.json())
-    .then(json => {
-        let state = document.getElementById("bmsState");
+    request = getRequest(url, path);
 
-        // if there's only one status message to read
-        let key = "status";
-        str = json[key];
-        //let str = json[key].substr(6);  // to take STATE.[status]
-        state.innerHTML = str;          // i.e. STATE.TS_OFF = TS_OFF
+    var str = "";
 
-        switch (str) {
-            case "ON":
-                state.className = "green";
-                break;
-            case "PRECHARGE":
-                state.className = "orange";
-                break;
-            case "FATAL":
-            case "OFF":
-                state.className = "red";
-                break;
-        }
-    })
-    .catch(error => console.log('Authorization failed : ' + error.message))
+    await fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            let state = document.getElementById("bmsState");
 
-async function bmsStatus(path, field) {
+            // if there's only one status message to read
+            let key = "status";
+            str = json[key];
+            state.innerHTML = str;
+
+            switch (str) {
+                case "ON":
+                    state.className = "green";
+                    break;
+                case "PRECHARGE":
+                    state.className = "orange";
+                    break;
+                case "FATAL":
+                case "OFF":
+                case "OFFLINE":
+                    state.className = "red";
+                    break;
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+    return str;
+}
+
+((async () => {
+    bmsState = await bmsStatus();
+})());
+
+async function bmsEW(path, field) { // function to setup the number of error(s)/warning(s)
     let bms = 0;
 
     let request = getRequest(url, path);
@@ -50,8 +60,8 @@ async function bmsStatus(path, field) {
 }
 
 ((async () => {
-    let errors = await bmsStatus("/bms-hv/errors", "errors");
-    let warnings = await bmsStatus("/bms-hv/warnings", "warnings");
+    let errors = await bmsEW("/bms-hv/errors", "errors");
+    let warnings = await bmsEW("/bms-hv/warnings", "warnings");
 
     if (errors > 0) {
         let nErr = document.getElementById("nErrors");
@@ -83,8 +93,8 @@ fetch(request)
 
         // if there's only one status message to read
         let key = "status";
-        let str = json[key].substr(6);   // to take STATE.[status]
-        state.innerHTML = str;           // i.e. STATE.TS_OFF = TS_OFF
+        let str = json[key];
+        state.innerHTML = str;
 
         // get the actual path to check if there sould be buttons or not
         let href = window.location.href;
@@ -93,7 +103,7 @@ fetch(request)
 
         var buttons = false;
 
-        if (page == "") {                       // check if I am in the home page
+        if (page == "") { // check if I am in the home page
             buttons = true;
         }
 
@@ -280,6 +290,5 @@ setInterval(function () { // every 2 seconds or every time it has been changed
                 }
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
-    }
-    , 2000);
+    }, 2000);
 //-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

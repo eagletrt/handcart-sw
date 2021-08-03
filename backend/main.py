@@ -13,6 +13,7 @@ import pytz
 import queue
 import threading
 import time
+import random
 from enum import Enum
 
 import can
@@ -742,6 +743,7 @@ def thread_3_WEB():
     app = flask.Flask(__name__)
     app.config["DEBUG"] = True
 
+# PAGES=========================================================================
     @app.route('/', methods=['GET'])
     def home():
         return render_template("index.html")
@@ -764,7 +766,20 @@ def thread_3_WEB():
 
         return render_template("charts.html", c=chart)
 
-    @app.route('/handcart/status/', methods=['GET'])
+# UTILITIES======================================================================
+
+    def getLastNSeconds(n):
+        now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        a = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
+        a.reverse()  # an array with the last n seconds form the older date to the now date
+
+        return a
+
+# GETS==========================================================================
+
+# HANDCART-(backend)------------------------------------------------------------
+
+    @app.route('/handcart/status', methods=['GET'])
     def get_hc_status():
         with lock:
             data = {
@@ -776,21 +791,28 @@ def thread_3_WEB():
             resp.status_code = 200
             return resp
 
-    @app.route('/bms-hv/status/', methods=['GET'])
+# END-HANDCART-(backend)--------------------------------------------------------
+# BMS-HV------------------------------------------------------------------------
+
+    @app.route('/bms-hv/status', methods=['GET'])
     def get_bms_hv_status():
         with lock:
             if shared_data.bms_hv.isConnected():
-                res = {"timestamp": shared_data.bms_hv.lastupdated,
-                       "status": shared_data.bms_hv.status.name}
+                res = {
+                    "timestamp": shared_data.bms_hv.lastupdated,
+                    "status": shared_data.bms_hv.status.name
+                }
                 res = jsonify(res)
             else:
-                res = {"timestamp": shared_data.bms_hv.lastupdated,
-                       "status": "OFFLINE"}
+                res = {
+                    "timestamp": shared_data.bms_hv.lastupdated,
+                    "status": "OFFLINE"
+                }
                 res = jsonify(res)
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/errors/', methods=['GET'])
+    @app.route('/bms-hv/errors', methods=['GET'])
     def get_bms_hv_errors():
         with lock:
             if shared_data.bms_hv.isConnected():
@@ -800,16 +822,37 @@ def thread_3_WEB():
                     if Hv_Errors(i) in Hv_Errors(shared_data.bms_hv.errors):
                         error_list.append(Hv_Errors(i).name)
 
-                res = {"timestamp": shared_data.brusa.lastupdated,
-                       "errors": error_list}
+                res = {
+                    "timestamp": shared_data.brusa.lastupdated,
+                    "errors": error_list
+                }
                 res = jsonify(res)
             else:
                 res = jsonify("not connected")
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/volt/', methods=['GET'])
-    def get_bms_volt():
+    @app.route('/bms-hv/warnings', methods=['GET']) ## AGGIUNTA
+    def get_bms_hv_warnings():
+        data = {
+            "timestamp": "2020-12-01:ora",
+            "warnings": [{
+                "id": "0",
+                "desc": "Sto esplodendo"
+            },
+            {
+                "id": "5",
+                "desc": "cell 5 overvoltage"
+            }]
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    # BMS-VOLTAGE-DATA
+    @app.route('/bms-hv/volt', methods=['GET'])
+    def get_bms_hv_volt():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
@@ -821,8 +864,8 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/volt/last/', methods=['GET'])
-    def get_last_bms_volt():
+    @app.route('/bms-hv/volt/last', methods=['GET'])
+    def get_last_bms_hv_volt():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
@@ -834,8 +877,9 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/ampere/', methods=['GET'])
-    def get_bms_ampere():
+    # BMS-AMPERE-DATA
+    @app.route('/bms-hv/ampere', methods=['GET'])
+    def get_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
@@ -847,8 +891,8 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/ampere/last/', methods=['GET'])
-    def get_last_bms_ampere():
+    @app.route('/bms-hv/ampere/last', methods=['GET'])
+    def get_last_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
@@ -860,7 +904,177 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/brusa/status/', methods=['GET'])
+    # BMS-TEMPERATURE-DATA
+    @app.route('/bms-hv/temp', methods=['GET']) ## AGGIUNTA
+    def get_bms_temp():
+        data = {
+            "timestamp": "2020-12-01:ora",
+            "data": []
+        }
+
+        n = 100
+        min = 0
+        max = 10
+
+        last_100_seconds = getLastNSeconds(n)
+
+        for timestamp in last_100_seconds:
+            value = random.randrange(min, max)
+
+            temperature = {
+                "timestamp": timestamp,
+                "temp": value
+            }
+            data["data"].append(temperature)
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/temp/last', methods=['GET']) ## AGGIUNTA
+    def get_last_bms_temp():
+        min = 0
+        max = 10
+        value = random.randrange(min, max)
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "temp": value
+        }
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    # BMS-CELLS-DATA
+    @app.route('/bms-hv/cells', methods=['GET']) ## AGGIUNTA
+    def get_bms_cells():
+        data = {
+            "timestamp": "2020-12-01:ora",
+            "data": []
+        }
+
+        ncells = 108
+        digits = 3
+        min = 0
+        max = 100
+        n = 30
+
+        last_n_seconds = getLastNSeconds(n)
+
+        for timestamp in last_n_seconds:
+            element = {
+                "timestamp": timestamp,
+                "cells": []
+            }
+            for i in range(1, ncells + 1):
+                value = round(random.uniform(min, max), digits)
+                cell = {
+                    "id": i,
+                    "voltage": value
+                }
+                element["cells"].append(cell)
+            data["data"].append(element)
+
+        c = request.args.get("cell")
+        # get all data, if there's a parameter in the request, then it will return
+        # a json with only the specified cell values
+        if c != None and c != "":
+            filtered = {
+                "timestamp": "2020-12-01:ora",
+                "data": []
+            }
+
+            for i in data["data"]:
+                for j in i["cells"]:
+                    if j["id"] == int(c):
+                        element = {
+                            "timestamp": i["timestamp"],
+                            "voltage": j["voltage"]
+                        }
+
+                        filtered["data"].append(element)
+                        break  # no need to cycle over the whole array
+
+            resp = jsonify(filtered)
+        else:
+            resp = jsonify(data)
+
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/cells/last', methods=['GET']) ## AGGIUNTA
+    def get_last_bms_cells():
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        data = {
+            "timestamp": timestamp,
+            "cells": []
+        }
+
+        ncells = 108
+        digits = 3
+        min = 0
+        max = 100
+
+        for i in range(1, ncells + 1):
+            value = round(random.uniform(min, max), digits)
+            cell = {
+                "id": i,
+                "voltage": value
+            }
+            data["cells"].append(cell)
+
+        c = request.args.get("cell")
+        # get all data, if there's a parameter in the request, then it will return
+        # a json with only the specified cell values
+        if c != None and c != "":
+            filtered = {}
+            for i in data["cells"]:
+                if i["id"] == int(c):
+                    filtered = {
+                        "timestamp": timestamp,
+                        "voltage": i["voltage"]
+                    }
+
+                    break  # no need to cycle over the whole array
+
+            resp = jsonify(filtered)
+        else:
+            resp = jsonify(data)
+
+        resp.status_code = 200
+        return resp
+
+    @app.route('/bms-hv/heat', methods=['GET']) ## AGGIUNTA
+    def get_bms_heat():
+        min = 20
+        max = 250
+        ncells = 108
+
+        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+
+        data = {
+            "timestamp": timestamp,
+            "data": []
+        }
+
+        for i in range(1, ncells + 1):
+            value = random.randrange(min, max)
+            element = {
+                "cell": i,
+                "temp": value
+            }
+            data["data"].append(element)
+
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+# END-BMS-HV--------------------------------------------------------------------
+# BRUSA-------------------------------------------------------------------------
+
+    @app.route('/brusa/status', methods=['GET'])
     def get_brusa_status():
         with lock:
             if shared_data.brusa.isConnected():
@@ -884,7 +1098,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/brusa/errors/', methods=['GET'])
+    @app.route('/brusa/errors', methods=['GET'])
     def get_brusa_errors():
         with lock:
             if not shared_data.brusa.isConnected():
@@ -896,7 +1110,7 @@ def thread_3_WEB():
             res = {"timestamp": time.time(), "errors": errorList}
             return jsonify(res)
 
-    @app.route('/command/setting/', methods=['GET'])
+    @app.route('/command/setting', methods=['GET'])
     def send_settings_command():
         # print(request.get_json())
         data = [{
@@ -912,7 +1126,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/command/setting/', methods=['POST'])
+    @app.route('/command/setting', methods=['POST'])
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
@@ -921,7 +1135,7 @@ def thread_3_WEB():
         resp = jsonify(success=True)
         return resp
 
-    @app.route('/command/action/', methods=['POST'])
+    @app.route('/command/action', methods=['POST'])
     def recv_command_action():
         print(request.get_json())
         action = request.get_json()

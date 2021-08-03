@@ -53,7 +53,7 @@ def getLastNSeconds(n):
 
 # -HANDCART-(backend)------------------------------------------------------------
 
-@app.route('/handcart/status/', methods=['GET'])
+@app.route('/handcart/status', methods=['GET'])
 def get_hc_status():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -69,7 +69,7 @@ def get_hc_status():
 # -END-HANDCART-(backend)--------------------------------------------------------
 # -BMS-HV------------------------------------------------------------------------
 
-@app.route('/bms-hv/status/', methods=['GET'])
+@app.route('/bms-hv/status', methods=['GET'])
 def get_bms_status():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -81,7 +81,7 @@ def get_bms_status():
     return resp
 
 
-@app.route('/bms-hv/warnings/', methods=['GET'])
+@app.route('/bms-hv/warnings', methods=['GET'])
 def get_bms_warnings():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -100,7 +100,7 @@ def get_bms_warnings():
     return resp
 
 
-@app.route('/bms-hv/errors/', methods=['GET'])
+@app.route('/bms-hv/errors', methods=['GET'])
 def get_bms_errors():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -118,7 +118,7 @@ def get_bms_errors():
 
 
 # -BMS-CELLS-DATA
-@app.route('/bms-hv/cells/', methods=['GET'])
+@app.route('/bms-hv/cells', methods=['GET'])
 def get_bms_cells():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -219,7 +219,7 @@ def get_last_bms_cells():
 
 
 # -BMS-VOLTAGE-DATA
-@app.route('/bms-hv/volt/', methods=['GET'])
+@app.route('/bms-hv/volt', methods=['GET'])
 def get_bms_volt():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -264,7 +264,7 @@ def get_last_bms_volt():
 
 
 # -BMS-AMPERE-DATA
-@app.route('/bms-hv/ampere/', methods=['GET'])
+@app.route('/bms-hv/ampere', methods=['GET'])
 def get_bms_ampere():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -309,7 +309,7 @@ def get_last_bms_ampere():
 
 
 # -BMS-TEMPERATURE-DATA
-@app.route('/bms-hv/temp/', methods=['GET'])
+@app.route('/bms-hv/temp', methods=['GET'])
 def get_bms_temp():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -382,7 +382,7 @@ def get_bms_heat():
 # -END-BMS-HV--------------------------------------------------------------------
 # -BRUSA-------------------------------------------------------------------------
 
-@app.route('/brusa/status/', methods=['GET'])  # 8-23 WARNINGS
+@app.route('/brusa/status', methods=['GET'])  # 8-23 WARNINGS
 def get_brusa_status():
     data = {
         "timestamp": "2020-12-01:ora",
@@ -401,7 +401,7 @@ def get_brusa_status():
     return resp
 
 
-@app.route('/brusa/errors/', methods=['GET'])
+@app.route('/brusa/errors', methods=['GET'])
 def get_brusa_errors():
     data = {
         "timestamp": "2020-12-01:ora",

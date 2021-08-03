@@ -44,15 +44,17 @@ function createLineChart(path, name, param, zoom, label, u) {
                     previousValue = d;
                 }
 
-                /*if(data.length == 0) {
-                    element = {
-                        date: new Date(),
-                        value: 0
-                    };
-                    for(let i = 0; i < 30; i++) {
+                if(data.length == 0) {
+                    for (i = 0; i <= 30; i++) {
+                        element = {
+                            date: new Date().setSeconds(i - 30),
+                            value: 0
+                        }
+                        element.color = am4core.color("green");
+
                         data.push(element);
                     }
-                }*/
+                }
 
                 chart.data = data;
 
