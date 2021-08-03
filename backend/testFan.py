@@ -1,6 +1,8 @@
 #  MBTechWorks.com 2016
 #  Pulse Width Modulation (PWM) demo to cycle brightness of an LED
 
+# http://abyz.me.uk/rpi/pigpio/python.html HARDWARE PWM
+
 import RPi.GPIO as GPIO   # Import the GPIO library.
 import time               # Import time library
 

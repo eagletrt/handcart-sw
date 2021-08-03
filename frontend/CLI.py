@@ -197,6 +197,12 @@ def doRequests():
         if r.status_code == 200:
             brusa_connected = True
             brusa_status = "online"
+            json = r.json()
+            #print(json)
+            if "Indicates if hardware enabled, i.e. a hi or lo signal is fed to the 'Power On' pin (pin3 of control connector)" in json['status']:
+                brusa_status = "enabled"
+            if "An error has been detected, red LED is ON, no power is output" in json['status']:
+                brusa_status = "error"
         elif r.status_code == 400:
             brusa_connected = False
             brusa_status = "offline"
@@ -237,6 +243,8 @@ def doRequests():
             brusa_err_str = ""
             for err in json['errors']:
                 brusa_err_str = brusa_err_str + err + "\n"
+            if brusa_err_str != "":
+                brusa_status = "error"
         elif r.status_code == 400:
             brusa_connected = False
 

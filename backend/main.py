@@ -341,6 +341,8 @@ canread = CanListener()  # Access it ONLY with the FSM
 precharge_asked = False # True if precharge asked to bms
 precharge_done = False
 precharge_command = False # True if received precharge command
+start_charge_command = False  # True if received start charge command
+stop_charge_command = False  # True if received stop charge command
 
 # IPC (shared between threads)
 shared_data = canread  # Variable that holds a copy of canread, to get the information from web thread
@@ -465,20 +467,17 @@ def doReady():
     """
     Function that do the ready state of the state machine
     """
+    global start_charge_command
+
     if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
+        staccastacca()
         return STATE.IDLE
 
-    act_com = {"com-type": "", "value": False}  # Init
-    if not com_queue.empty():
-        act_com = com_queue.get()
-
-        if act_com['com-type'] == "charge" and act_com['value'] == True:
-            return STATE.CHARGE
-        else:
-            com_queue.put(act_com)
-
+    if start_charge_command:
+        start_charge_command = False
+        return STATE.CHARGE
     else:
         return STATE.READY
 
@@ -494,18 +493,21 @@ def doCharge():
     # Set Brusa's PON to 12v (relay)
 
     with forward_lock:
+        if stop_charge_command:
+            can_forward_enabled = False
+            return STATE.READY
+
+        if canread.bms_hv.chg_status == Status.CHG_OFF \
+                or (canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v
+                    and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1):
+            can_forward_enabled = False
+            return STATE.C_DONE
+
         can_forward_enabled = True
 
-    CHARGE_COMPLETE = False
-
-    if canread.bms_hv.chg_status == Status.CHG_OFF:
-        CHARGE_COMPLETE = True
     # Check if voltage is cutoff voltage
 
-    if CHARGE_COMPLETE:
-        return STATE.C_DONE
-    else:
-        return STATE.CHARGE
+    return STATE.CHARGE
 
 
 def doC_done():
@@ -532,7 +534,6 @@ def doError():
 
     with forward_lock:
         can_forward_enabled = False
-
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
@@ -591,7 +592,7 @@ def checkCommands():
     This function checks for commands in the queue shared between the FSM and the server,
     i.e. if an "fast charge" command is found, the value of that command is set in the fsm
     """
-    global precharge_command
+    global precharge_command, start_charge_command, stop_charge_command
 
     if not com_queue.empty():
         act_com = com_queue.get()
@@ -600,8 +601,15 @@ def checkCommands():
                 canread.fast_charge = False
             if act_com['value'] == 'true':
                 canread.fast_charge = True
+
         if act_com['com-type'] == "precharge" and act_com['value'] is True:
             precharge_command = True
+
+        if act_com['com-type'] == "charge" and act_com['value'] is True:
+            start_charge_command = True
+
+        if act_com['com-type'] == "charge" and act_com['value'] is False:
+            stop_charge_command = True
 
 # Maps state to it's function
 doState = {
