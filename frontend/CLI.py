@@ -53,6 +53,23 @@ class Tab(Enum):
     MAIN = 0
     ERRORS = 1
 
+def intro():
+    begin_x = 0
+    begin_y = 0
+    height = DEFAULT_HEIGHT
+    width = DEFAULT_WIDTH
+    intro = curses.newwin(height, width, begin_y, begin_x)
+
+    intro.addstr(1, int(DEFAULT_WIDTH / 2) - 22, "███████╗███████╗███╗   ██╗██╗ ██████╗███████╗")
+    intro.addstr(2, int(DEFAULT_WIDTH / 2) - 22, "██╔════╝██╔════╝████╗  ██║██║██╔════╝██╔════╝")
+    intro.addstr(3, int(DEFAULT_WIDTH / 2) - 22, "█████╗  █████╗  ██╔██╗ ██║██║██║     █████╗")
+    intro.addstr(4, int(DEFAULT_WIDTH / 2) - 22, "██╔══╝  ██╔══╝  ██║╚██╗██║██║██║     ██╔══╝")
+    intro.addstr(5, int(DEFAULT_WIDTH / 2) - 22, "██║     ███████╗██║ ╚████║██║╚██████╗███████╗")
+    intro.addstr(6, int(DEFAULT_WIDTH / 2) - 22, "╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝")
+    intro.addstr(7, int(DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
+    intro.addstr(10, int(DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
+
+    intro.refresh()
 
 def header():
     begin_x = 0
@@ -85,7 +102,7 @@ def bottom():
 
     bottom_str = ""
 
-    if handcart_status == 'PRECHARGE':
+    if handcart_status == 'IDLE':
         bottom_str += "[c] precharge | "
     elif handcart_status == 'READY':
         bottom_str += "[c] charge | "
@@ -180,6 +197,12 @@ def doRequests():
         if r.status_code == 200:
             brusa_connected = True
             brusa_status = "online"
+            json = r.json()
+            #print(json)
+            if "Indicates if hardware enabled, i.e. a hi or lo signal is fed to the 'Power On' pin (pin3 of control connector)" in json['status']:
+                brusa_status = "enabled"
+            if "An error has been detected, red LED is ON, no power is output" in json['status']:
+                brusa_status = "error"
         elif r.status_code == 400:
             brusa_connected = False
             brusa_status = "offline"
@@ -220,6 +243,8 @@ def doRequests():
             brusa_err_str = ""
             for err in json['errors']:
                 brusa_err_str = brusa_err_str + err + "\n"
+            if brusa_err_str != "":
+                brusa_status = "error"
         elif r.status_code == 400:
             brusa_connected = False
 
@@ -235,8 +260,13 @@ def doRequests():
 
 input_cutoff = False
 awaiting_input = False
-key = 0
+key = -1
 selected_tab = Tab.MAIN.value
+
+while key == -1:
+    intro()
+    key = stdscr.getch()
+
 while (key != ord('q')):
     header()
     bottom()
@@ -264,7 +294,7 @@ while (key != ord('q')):
             j = {"com-type": "fast-charge", "value": fast_charge}
             requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
         elif key == ord('c'):
-            if handcart_status == 'PRECHARGE':
+            if handcart_status == 'IDLE':
                 j = {"com-type": "precharge", "value":True}
                 requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
             elif handcart_status == 'READY':

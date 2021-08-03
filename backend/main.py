@@ -16,15 +16,24 @@ import queue
 import flask
 from flask import request, jsonify
 import cantools
+from enum import Enum
+import json
 
 from can_cicd.naked_generator.Primary.py.Primary import *
 from can_cicd.includes_generator.Primary.ids import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
-FAST_CHARGE_AMPERE = 16
-STANDARD_CHARGE_AMPERE = 6
+FAST_CHARGE_MAINS_AMPERE = 16
+STANDARD_CHARGE_MAINS_AMPERE = 6
 
+MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
+STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
+MAX_TARGET_V_ACC = 450  # Maximum charging voltage of accumulator
+
+CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
+
+#BMS_HV_BYPASS = False # Use at your own risk
 
 
 class STATE(Enum):
@@ -139,18 +148,24 @@ class BMS_HV:
     """
     Class that stores and processes all the data of the BMS_HV
     """
-    lastupdated = ""
 
-    all_voltage = {}
-    all_current = {}
-    all_temp = {}
+    isChimeraAcc = False  # Set to true if the connected accumulator is chimera's one
+
+    lastupdated = 0.0
+
+    hv_voltage_history = {}
+    hv_current_history = {}
+    hv_temp_history = {}
 
     act_pack_voltage = -1
     act_bus_voltage = -1
     act_current = -1
+    act_power = -1
     max_cell_voltage = -1
     min_cell_voltage = -1
-    error = 0
+    error = False
+    errors = 0
+    warnings = None
     error_str = ""
     status = -1
     chg_status = -1
@@ -165,7 +180,7 @@ class BMS_HV:
         Check if BMS_HV is connected
         :return: True if BMS_HV is connected
         """
-        return not self.lastupdated == ""
+        return not self.lastupdated == 0.0
 
     def doHV_VOLTAGE(self, msg):
         """
@@ -175,34 +190,41 @@ class BMS_HV:
         # someway somehow you have to extract:
         self.lastupdated = msg.timestamp
 
-        self.act_pack_voltage = msg.data[0]
-        self.all_voltage[self.lastupdated](msg.data[0])
+        deserialized = HvVoltage.deserialize(msg.data)
 
-        self.act_bus_voltage = msg.data[1]
-        self.max_cell_voltage = msg.data[2]
-        self.min_cell_voltage = msg.data[3]
+        self.hv_voltage_history[self.lastupdated](deserialized.bus_voltage)
+
+        self.act_bus_voltage = deserialized.bus_voltage
+        self.max_cell_voltage = deserialized.max_cell_voltage
+        self.min_cell_voltage = deserialized.min_cell_voltage
 
     def doHV_CURRENT(self, msg):
         """
         Processes the HV_CURRENT CAN message from BMS_HV
         :param msg: the HV_CURRENT CAN message
         """
+
+        deserialized = HvCurrent.deserialize(msg.data)
         self.lastupdated = msg.timestamp
 
-        self.act_current = msg.data[0]
-        self.all_current[self.lastupdated](msg.data[0])
+        self.act_current = deserialized.current
+        self.act_power = deserialized.power
+        self.hv_current_history[self.lastupdated](deserialized.current)
 
     def doHV_TEMP(self, msg):
         """
         Processes the HV_TEMP CAN message from BMS_HV
         :param msg: the HV_TEMP CAN message
         """
-        self.lastupdated = msg.timestamp
-        self.act_average_temp = msg.data[0]
-        self.all_temp[self.lastupdated](msg.data[0])
 
-        self.min_temp = msg.data[1]
-        self.max_temp = msg.data[2]
+        deserialized = HvTemp.deserialize(msg.data)
+        self.lastupdated = msg.timestamp
+
+        self.act_average_temp = deserialized.average_temp
+        self.hv_temp_history[self.lastupdated](deserialized.average_temp)
+
+        self.min_temp = deserialized.min_temp
+        self.max_temp = deserialized.max_temp
 
     def doHV_ERRORS(self, msg):
         """
@@ -210,7 +232,16 @@ class BMS_HV:
         :param msg: the HV_ERRORS CAN message
         """
         self.lastupdated = msg.timestamp
-        pass
+
+        deserialized = HvErrors.deserialize(msg.data)
+
+        # TODO: ask BMS_HV status
+        self.errors = Hv_Errors(deserialized.errors)
+        self.warnings = deserialized.warnings
+
+        if self.errors != 0:
+            self.error = True
+
 
     def doHV_STATUS(self, msg):
         """
@@ -218,7 +249,7 @@ class BMS_HV:
         :param msg: the HV_STATUS CAN message
         """
         self.lastupdated = msg.timestamp
-        self.status = TsStatus.deserialize(msg.data)
+        self.status = Ts_Status(TsStatus.deserialize(msg.data).ts_status)
 
     def do_CHG_SET_POWER(self, msg):
         """
@@ -252,7 +283,9 @@ class CanListener:
     FSM_entered_stat = "" # The moment in time the FSM has entered that state
     fast_charge = False
 
+    generic_error = False
     can_err = False
+    target_v = MAX_TARGET_V_ACC
 
     brusa = BRUSA()
     bms_hv = BMS_HV()
@@ -305,8 +338,11 @@ class Can_rx_listener(Listener):
 
 # FSM vars
 canread = CanListener()  # Access it ONLY with the FSM
-precharge_asked = False
+precharge_asked = False # True if precharge asked to bms
 precharge_done = False
+precharge_command = False # True if received precharge command
+start_charge_command = False  # True if received start charge command
+stop_charge_command = False  # True if received stop charge command
 
 # IPC (shared between threads)
 shared_data = canread  # Variable that holds a copy of canread, to get the information from web thread
@@ -364,7 +400,7 @@ def canSend(bus, msg_id, data):
     :param data: the msg content
     """
     # doesn't check the msg before sending it
-    msg = can.Message(arbitration_id=msg_id, data=data)
+    msg = can.Message(arbitration_id=msg_id, data=data, is_extended_id=False)
     try:
         bus.send(msg)
         # print("Message sent on {}".format(canbus.channel_info))
@@ -391,11 +427,10 @@ def doIdle():
     Do Idle status of the state machine
     :return:
     """
-    act_com = {"com-type": "", "value": False}  # Init
-    if not com_queue.empty():
-        act_com = com_queue.get()
+    global precharge_command
 
-    if act_com['com-type'] == "precharge" and act_com['value'] == True:
+    if precharge_command:
+        precharge_command = False
         return STATE.PRECHARGE
 
     return STATE.IDLE
@@ -410,7 +445,9 @@ def doPreCharge():
     global precharge_asked, precharge_done
 
     if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
-        ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=[SetTsStatus.serialize(Ts_Status_Set.ON)])
+        ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
+                                data=SetTsStatus.serialize(Ts_Status_Set.ON),
+                                is_extended_id=False)
 
         tx_can_queue.put(ts_on_msg)
         precharge_asked = True
@@ -422,26 +459,25 @@ def doPreCharge():
 
     if precharge_done:
         return STATE.READY
+    else:
+        return STATE.PRECHARGE
 
 
 def doReady():
     """
     Function that do the ready state of the state machine
     """
+    global start_charge_command
+
     if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
+        staccastacca()
         return STATE.IDLE
 
-    act_com = {"com-type": "", "value": False}  # Init
-    if not com_queue.empty():
-        act_com = com_queue.get()
-
-        if act_com['com-type'] == "charge" and act_com['value'] == True:
-            return STATE.CHARGE
-        else:
-            com_queue.put(act_com)
-
+    if start_charge_command:
+        start_charge_command = False
+        return STATE.CHARGE
     else:
         return STATE.READY
 
@@ -457,18 +493,21 @@ def doCharge():
     # Set Brusa's PON to 12v (relay)
 
     with forward_lock:
+        if stop_charge_command:
+            can_forward_enabled = False
+            return STATE.READY
+
+        if canread.bms_hv.chg_status == Status.CHG_OFF \
+                or (canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v
+                    and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1):
+            can_forward_enabled = False
+            return STATE.C_DONE
+
         can_forward_enabled = True
 
-    CHARGE_COMPLETE = False
-
-    if canread.bms_hv.chg_status == Status.CHG_OFF:
-        CHARGE_COMPLETE = True
     # Check if voltage is cutoff voltage
 
-    if CHARGE_COMPLETE:
-        return STATE.C_DONE
-    else:
-        return STATE.CHARGE
+    return STATE.CHARGE
 
 
 def doC_done():
@@ -481,7 +520,7 @@ def doC_done():
     if not canread.bms_hv.chg_status == Status.CHG_OFF:
         # Req "CHG_OFF" to bms
         data = SetChgStatus.serialize(Status.CHG_OFF)
-        msg = can.Message(arbitration_id=ID_SET_CHG_STATUS, data=data)
+        msg = can.Message(arbitration_id=ID_SET_CHG_STATUS, data=data, is_extended_id=False)
         tx_can_queue.put(msg)
 
     return STATE.C_DONE
@@ -495,7 +534,6 @@ def doError():
 
     with forward_lock:
         can_forward_enabled = False
-
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
@@ -539,7 +577,7 @@ def staccastacca():
     global precharge_asked, precharge_done, can_forward_enabled
     sts = SetTsStatus()
     data = sts.serialize(Ts_Status_Set.OFF.value)
-    msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data)
+    msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data, is_extended_id=False)
     tx_can_queue.put(msg)
 
     # Set PON to off
@@ -554,11 +592,24 @@ def checkCommands():
     This function checks for commands in the queue shared between the FSM and the server,
     i.e. if an "fast charge" command is found, the value of that command is set in the fsm
     """
+    global precharge_command, start_charge_command, stop_charge_command
+
     if not com_queue.empty():
         act_com = com_queue.get()
-        if act_com['com_type'] == 'fast-charge':
-            canread.fast_charge = act_com['value']
+        if act_com['com-type'] == 'fast-charge':
+            if act_com['value'] == 'false':
+                canread.fast_charge = False
+            if act_com['value'] == 'true':
+                canread.fast_charge = True
 
+        if act_com['com-type'] == "precharge" and act_com['value'] is True:
+            precharge_command = True
+
+        if act_com['com-type'] == "charge" and act_com['value'] is True:
+            start_charge_command = True
+
+        if act_com['com-type'] == "charge" and act_com['value'] is False:
+            stop_charge_command = True
 
 # Maps state to it's function
 doState = {
@@ -613,6 +664,7 @@ def thread_1_FSM():
         canread.FSM_stat = act_stat
         if act_stat != next_stat:
             canread.FSM_entered_stat = datetime.datetime.now().isoformat()
+            #print(canread.FSM_entered_stat)
             print("STATE: " + str(next_stat))
 
         act_stat = next_stat
@@ -642,21 +694,26 @@ def thread_2_CAN():
                 NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
-                        if 0 < shared_data.bms_hv.req_chg_voltage <= 500 and shared_data.bms_hv.req_chg_current != 0:
+                        if 0 < shared_data.target_v <= 500:
                             if shared_data.fast_charge:
-                                ampere = FAST_CHARGE_AMPERE
+                                mains_ampere = FAST_CHARGE_MAINS_AMPERE
+                                out_ampere = MAX_ACC_CHG_AMPERE
                             else:
-                                ampere = STANDARD_CHARGE_AMPERE
+                                mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
+                                out_ampere = STANDARD_ACC_CHG_AMPERE
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
                                 'NLG5_C_C_EL': 0,
                                 'NLG5_C_CP_V': 0,
                                 'NLG5_C_MR': 0,
-                                'NLG5_MC_MAX': ampere,
-                                'NLG5_OV_COM': shared_data.bms_hv.req_chg_voltage,
-                                'NLG5_OC_COM': shared_data.bms_hv.req_chg_current
+                                'NLG5_MC_MAX': mains_ampere,
+                                'NLG5_OV_COM': shared_data.target_v,
+                                'NLG5_OC_COM': out_ampere
                             })
+                        else:
+                            shared_data.generic_error = True
                 else:
+                    # Brusa need to constantly keep to receive this msg, otherwise it will go in error
                     data = NLG5_CTL.encode({
                         'NLG5_C_C_EN': 0,
                         'NLG5_C_C_EL': 0,
@@ -666,7 +723,9 @@ def thread_2_CAN():
                         'NLG5_OV_COM': 0,
                         'NLG5_OC_COM': 0
                     })
-                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id, data=data)
+                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id,
+                                               data=data,
+                                               is_extended_id=False)
                 tx_can_queue.put(NLG5_CTL_message)
                 last_brusa_ctl_sent = time.time()
 
@@ -689,7 +748,7 @@ def thread_3_WEB():
         with lock:
             data = {
                 "timestamp": datetime.datetime.now().isoformat(),
-                "state": str(shared_data.FSM_stat),
+                "state": str(shared_data.FSM_stat).split('.')[1],
                 "entered": shared_data.FSM_entered_stat
             }
             resp = jsonify(data)
@@ -701,7 +760,7 @@ def thread_3_WEB():
         with lock:
             if shared_data.bms_hv.isConnected():
                 res = {"timestamp": shared_data.bms_hv.lastupdated,
-                       "status": shared_data.bms_hv.status}
+                       "status": shared_data.bms_hv.status.name}
                 res = jsonify(res)
             else:
                 res = jsonify("not connected")
@@ -712,10 +771,14 @@ def thread_3_WEB():
     def get_bms_hv_errors():
         with lock:
             if shared_data.bms_hv.isConnected():
-                error_list = shared_data.bms_hv.error_str
+                error_list = []
+
+                for i in Hv_Errors:
+                    if Hv_Errors(i) in Hv_Errors(shared_data.bms_hv.errors):
+                        error_list.append(Hv_Errors(i).name)
 
                 res = {"timestamp": shared_data.brusa.lastupdated,
-                       "status": error_list}
+                       "errors": error_list}
                 res = jsonify(res)
             else:
                 res = jsonify("not connected")
@@ -748,26 +811,22 @@ def thread_3_WEB():
             res = {"timestamp": time.time(), "errors": errorList}
             return jsonify(res)
 
-
-
     @app.route('/command/setting/', methods=['POST'])
     def recv_command_setting():
-        print(request.get_json())
-        j = request.get_json()
-
-        command = jsonify(j)
-        com_queue.put(command)
+        #print(request.get_json())
+        command = request.get_json()
+        com_queue.put(json.loads(command))
 
         resp = jsonify(success=True)
         return resp
 
+
     @app.route('/command/action/', methods=['POST'])
     def recv_command_action():
         print(request.get_json())
-        j = request.get_json()
+        action = request.get_json()
 
-        command = jsonify(j)
-        com_queue.put(command)
+        com_queue.put(json.loads(action))
 
         resp = jsonify(success=True)
         return resp
@@ -778,9 +837,9 @@ def thread_3_WEB():
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
 
-t1 = threading.Thread(target=thread_1_FSM, args=(lock,))
-t2 = threading.Thread(target=thread_2_CAN, args=(lock,))
-t3 = threading.Thread(target=thread_3_WEB, args=(lock,))
+t1 = threading.Thread(target=thread_1_FSM, args=())
+t2 = threading.Thread(target=thread_2_CAN, args=())
+t3 = threading.Thread(target=thread_3_WEB, args=())
 
 t1.start()
 t2.start()

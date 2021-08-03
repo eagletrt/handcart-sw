@@ -8,35 +8,38 @@ bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-msg = can.Message(arbitration_id=0xAA, data=[
-                  3, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
-msg2 = can.Message(arbitration_id=0x610, data=[
+TS_ON = can.Message(arbitration_id=0x03, data=[
+                  0, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
+NLG5_ST = can.Message(arbitration_id=0x610, data=[
                    0, 0, 0, 0])  # BRUSA STATUS
-msg3 = can.Message(arbitration_id=0x614, data=[
+NLG5_ERR = can.Message(arbitration_id=0x614, data=[
                    0, 0, 0x44, 0, 0x08])  # BRUSA ERR
-
 msg4 = can.Message(arbitration_id=0x611, data=[
                    0, 0, 0x08, 0xF6, 0, 0x07, 0, 0])
 
 try:
-    bus.send(msg)
+    bus.send(TS_ON)
     print("Message sent on {}".format(bus.channel_info))
 except can.CanError:
     print("Message NOT sent")
 
-time.sleep(1)
-try:
-    bus.send(msg2)
-    print("Message sent on {}".format(bus.channel_info))
-except can.CanError:
-    print("Message NOT sent")
-time.sleep(1)
+input("")
 
 try:
-    bus.send(msg3)
+    bus.send(NLG5_ST)
     print("Message sent on {}".format(bus.channel_info))
 except can.CanError:
     print("Message NOT sent")
+
+input("")
+
+try:
+    bus.send(NLG5_ERR)
+    print("Message sent on {}".format(bus.channel_info))
+except can.CanError:
+    print("Message NOT sent")
+
+input("")
 
 try:
     bus.send(msg4)
