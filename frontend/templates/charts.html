@@ -22,19 +22,10 @@
                     <div class="row">
                         <div class="col-sm">
                             <div id="{{c}}Chart" class="bigChart"></div>
-                            {% if c|string() == "cell" %}
-                            <select id="cell">
-                                {% set ncells = 108 %}
-                                {% for i in range(ncells) %}
-                                <option>{{ i + 1 }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="btn" onclick="getCell()">Filtra</button>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-sm" id="chart">
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -42,18 +33,18 @@
             <script>
                 var divs = 0;
                 var timers = [];
-                let actualChart = {{c}};
+                let actualChart = "{{c}}";
                 // all charts are needed due to the top bar values referesh
                 // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-                console.log(actualChart);
-                if(true) createLineChart("/bms-hv/volt", "volt", "volts", "volt", "V");
-                if(true) createChargeChart();
-                if(true) createLineChart("/bms-hv/ampere", "ampere", "amperes", "amp", "A");
-                if(true) createLineChart("/bms-hv/temp", "temp", "temp", "temp", "°");
-                if(true) createCellChart();
-                if(true) createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
+                createLineChart("/bms-hv/volt", "volt", "volts", "nozoom", "volt", "V");
+                createChargeChart();
+                createLineChart("/bms-hv/ampere", "ampere", "amperes", "nozoom", "amp", "A");
+                createLineChart("/bms-hv/temp", "temp", "temp", "nozoom", "temp", "°");
+                // these 2 charts are not mandatory for the header
+                if(actualChart == "cell") createCellChart();
+                if(actualChart == "heat") createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
 
-                function getCell() {
+                function getCell(c) {
                     if(divs < 2) {                                              // compare max 2 charts
                         divs++;                                                 // save how many charts there are
 
@@ -64,10 +55,6 @@
                             mainRow = document.createElement("div");            // if not, it will create it
                             mainRow.className = "row";
                         }
-
-                        let cell = document.getElementById("cell");
-                        let c = cell.value;                                     // get the cell id
-                        cell.remove(cell.selectedIndex);                        // remove it from the list
 
                         let mainCol = document.createElement("div");            // create the column that will contain the chart
                         mainCol.className = "col-sm";
@@ -112,7 +99,6 @@
 
                         // call the chart creation
                         createLineChart("/bms-hv/cells?cell=" + c, id, "voltage", 15);
-                        console.log(timer);
                     } else {
                         alert("You can compare max 2 charts at time!\nClose one of the opened or refresh the page to clean them all.");
                     }
@@ -128,13 +114,6 @@
                             let chartCol = document.getElementById(id);
                             chartCol.remove();                                  // remove the whole column that contain the chart
                         }
-
-                        let select = document.getElementById("cell");
-
-                        let option = document.createElement("option");          // create a new option
-                        option.text = id;                                       // and set the value as the button name
-
-                        select.add(option, parseInt(id)-1);                     // and add it to the select at the right position
 
                         let path = "/bms-hv/cells/last?cell=" + id;
                         deleteTimer(path);

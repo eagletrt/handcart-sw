@@ -73,6 +73,19 @@ function createCellChart() {
 
                 updateCellValue(chart, series);
 
+                // check if it has been called from the home page
+                // if not, than set an event listener to check every single cell
+                let href = window.location.href;
+                let re = /.*\/(.*)/;
+                let page = href.match(re)[1];
+
+                if (page != "") {
+                    series.columns.template.events.on("hit", function(ev) {
+                        let index = parseInt(ev.target.dataItem.index) + 1;
+                        getCell(index);
+                    }, this);
+                }
+
             }); // end am4core.ready()
         })
         .catch(error => console.log('Authorization failed : ' + error.message))

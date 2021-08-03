@@ -2,7 +2,7 @@
 
 /*
     url: -- the url from which you want to request data
-    
+
     path: - the missing part of the url
 */
 
@@ -174,7 +174,7 @@ function enableDisable(enabled) {
     let disableButton = document.getElementById("disable");
 
     // modify are sent by the formListener
-    if (enabled) {                             // if fast charge isn't enabled
+    if (enabled) {                              // if fast charge isn't enabled
         enableButton.style.display = "none";    // hide the enable button
         disableButton.style.display = "inline"; // and show the disable button
     } else {                                    // if the fast charge has been enabled
@@ -195,7 +195,6 @@ function formListener(form) {
         postRequest(url, formData);
     });
 }
-
 
 /*
     sliderName: the id of the slider
