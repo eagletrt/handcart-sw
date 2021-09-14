@@ -9,6 +9,8 @@ Notes:
 
 import datetime
 import json
+import struct
+
 import pytz
 import queue
 import threading
@@ -36,10 +38,29 @@ STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
 MAX_TARGET_V_ACC = 450  # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
+CAN_ID_BMS_HV_CHIMERA = 0xAA
 
 
 # BMS_HV_BYPASS = False # Use at your own risk
 
+class ACCUMULATOR(Enum):
+    CHIMERA = 1
+    FENICE = 2
+
+class CAN_CHIMERA_MSG_ID(Enum):
+    PACK_VOLTS = 0x01
+    PACK_TEMPS = 0x0A
+    TS_ON = 0x03
+    TS_OFF = 0x04
+    CURRENT = 0x05
+    AVG_TEMP = 0x06
+    MAX_TEMP = 0x07
+    ERROR = 0x08
+    WARNING = 0x09
+
+class CAN_REQ_CHIMERA(Enum):
+    REQ_TS_ON = 0x0A # Remember to ask charge state with byte 1 set to 0x01
+    REQ_TS_OFF = 0x0B
 
 class STATE(Enum):
     """Enum containing the states of the backend's state-machine
@@ -154,7 +175,7 @@ class BMS_HV:
     Class that stores and processes all the data of the BMS_HV
     """
 
-    isChimeraAcc = False  # Set to true if the connected accumulator is chimera's one
+    ACC_CONNECTED = ACCUMULATOR.FENICE # Default fenice, if msgs from chimera received will be changed
 
     lastupdated = 0.0
 
@@ -276,6 +297,37 @@ class BMS_HV:
         self.lastupdated = msg.timestamp
         self.status = ChgStatus.deserialize(msg.data).status
 
+    def do_CHIMERA(self, msg):
+        """
+        Processes a BMS HV message from CHIMERA accumulator
+        """
+        self.ACC_CONNECTED = ACCUMULATOR.CHIMERA
+
+        self.lastupdated = msg.timestamp
+
+        if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
+            self.status = Ts_Status.ON
+        elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
+            self.status = Ts_Status.OFF
+        elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
+            self.error = True
+        elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
+            self.act_bus_voltage = (msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000
+            self.max_cell_voltage = (msg.data[4] << 8 | msg.data[5])/10000
+            self.min_cell_voltage = (msg.data[7] << 8 | msg.data[6]) / 10000
+            self.hv_voltage_history[msg.timestamp] = {"bus_voltage": self.act_bus_voltage,
+                                                      "max_cell_voltage": self.max_cell_voltage,
+                                                      "min_cell_voltage": self.max_cell_voltage}
+
+        elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_TEMPS.value:
+            a = "<hhhx"
+            self.act_average_temp, self.max_temp, self.min_temp = struct.unpack(a, msg.data)
+            self.act_average_temp /= 100
+            self.max_temp /= 100
+            self.min_temp /= 100
+            self.hv_temp_history[msg.timestamp] = {"average_temp": self.act_average_temp,
+                                                   "max_temp": self.max_temp,
+                                                   "min_temp": self.min_temp}
 
 class CanListener:
     """
@@ -302,14 +354,18 @@ class CanListener:
         CAN_BRUSA_MSG_ID.NLG5_ACT_II.value: brusa.doNLG5_ACT_II,
         CAN_BRUSA_MSG_ID.NLG5_ERR.value: brusa.doNLG5_ERR,
         CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
-        # BMS_HV
+
+        # BMS_HV Fenice
         ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
         ID_HV_CURRENT: bms_hv.doHV_CURRENT,
         ID_HV_ERRORS: bms_hv.doHV_ERRORS,
         ID_HV_TEMP: bms_hv.doHV_TEMP,
         ID_TS_STATUS: bms_hv.doHV_STATUS,
         ID_SET_CHG_POWER: bms_hv.do_CHG_SET_POWER,
-        ID_CHG_STATUS: bms_hv.doCHG_STATUS
+        ID_CHG_STATUS: bms_hv.doCHG_STATUS,
+
+        # BMS_HV Chimera
+        CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
     }
 
     # Function called when a new message arrive, maps it to
@@ -320,7 +376,7 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        print(msg)
+        #print(msg)
         if self.doMsg.get(msg.arbitration_id) is not None:
             self.doMsg.get(msg.arbitration_id)(msg)
 
@@ -337,7 +393,10 @@ class Can_rx_listener(Listener):
         it then put the message in the rx queue
         :param msg: the incoming message
         """
-        rx_can_queue.put(msg)
+        #print(msg)
+       # print(msg)
+        if msg.arbitration_id==0xAA:
+            rx_can_queue.put(msg)
 
 
 # FSM vars
@@ -643,7 +702,8 @@ def thread_1_FSM():
     print("STATE: " + str(act_stat))
 
     while 1:
-        time.sleep(1)
+        time.sleep(0.05)
+        #print("main")
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
             new_msg = rx_can_queue.get()
@@ -687,8 +747,8 @@ def thread_2_CAN():
     last_brusa_ctl_sent = 0
 
     while 1:
-        # time.sleep(1)
-
+        time.sleep(0.05)
+        #print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
             canSend(canbus, act.arbitration_id, act.data)
@@ -857,7 +917,7 @@ def thread_3_WEB():
 
         data = {
             "timestamp": timestamp,
-            "data": []
+            "data": shared_data.bms_hv.hv_voltage_history
         }
 
         resp = jsonify(data)
@@ -933,14 +993,13 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/temp/last', methods=['GET']) ## AGGIUNTA
     def get_last_bms_temp():
-        min = 0
-        max = 10
-        value = random.randrange(min, max)
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
             "timestamp": timestamp,
-            "temp": value
+            "average_temp": shared_data.bms_hv.act_average_temp,
+            "max_temp": shared_data.bms_hv.max_temp,
+            "min_temp": shared_data.bms_hv.min_temp
         }
 
         resp = jsonify(data)
@@ -1112,19 +1171,20 @@ def thread_3_WEB():
 
     @app.route('/command/setting', methods=['GET'])
     def send_settings_command():
-        # print(request.get_json())
-        data = [{
-            "com-type": "cutoff",
-            "value": shared_data.target_v
-        },
-            {
-                "com-type": "fast-charge",
-                "value": shared_data.fast_charge
-            }]
+        with lock:
+            # print(request.get_json())
+            data = [{
+                "com-type": "cutoff",
+                "value": shared_data.target_v
+            },
+                {
+                    "com-type": "fast-charge",
+                    "value": shared_data.fast_charge
+                }]
 
-        resp = jsonify(data)
-        resp.status_code = 200
-        return resp
+            resp = jsonify(data)
+            resp.status_code = 200
+            return resp
 
     @app.route('/command/setting', methods=['POST'])
     def recv_command_setting():
