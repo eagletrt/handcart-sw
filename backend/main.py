@@ -193,7 +193,7 @@ class BMS_HV:
     errors = 0
     warnings = None
     error_str = ""
-    status = -1
+    status = Ts_Status.OFF
     chg_status = -1
     req_chg_current = 0
     req_chg_voltage = 0
@@ -335,7 +335,7 @@ class CanListener:
     based on the msg ID, processes it, and save on itself the msg info.
     This class also stores all the data recived from the devices
     """
-    FSM_stat = -1  # The actual state of the FSM (mirror the main variable)
+    FSM_stat = STATE.IDLE  # The actual state of the FSM (mirror the main variable)
     FSM_entered_stat = ""  # The moment in time the FSM has entered that state
     fast_charge = False
 
@@ -376,7 +376,7 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        #print(msg)
+        print(msg)
         if self.doMsg.get(msg.arbitration_id) is not None:
             self.doMsg.get(msg.arbitration_id)(msg)
 
@@ -395,8 +395,7 @@ class Can_rx_listener(Listener):
         """
         #print(msg)
        # print(msg)
-        if msg.arbitration_id==0xAA:
-            rx_can_queue.put(msg)
+        rx_can_queue.put(msg)
 
 
 # FSM vars
@@ -508,9 +507,14 @@ def doPreCharge():
     global precharge_asked, precharge_done
 
     if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
-        ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
+        if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+            ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
                                 data=SetTsStatus.serialize(Ts_Status_Set.ON),
                                 is_extended_id=False)
+        else:
+            ts_on_msg = can.Message(arbitration_id=0x55,
+                                    data=[CAN_REQ_CHIMERA.REQ_TS_ON.value, 0x01, 0x00, 0x00],
+                                    is_extended_id=False)
 
         tx_can_queue.put(ts_on_msg)
         precharge_asked = True
@@ -535,7 +539,7 @@ def doReady():
     if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
-        staccastacca()
+        # staccastacca()
         return STATE.IDLE
 
     if start_charge_command:
@@ -551,24 +555,21 @@ def doCharge():
     :return:
     """
     # canread has to forward charging msgs from bms to brusa
-    global can_forward_enabled
+    global can_forward_enabled, stop_charge_command
 
     # Set Brusa's PON to 12v (relay)
 
     with forward_lock:
+        can_forward_enabled = True
+
         if stop_charge_command:
             can_forward_enabled = False
             return STATE.READY
 
-        if canread.bms_hv.chg_status == Status.CHG_OFF \
-                or (canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v
-                    and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1):
+        if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
+                and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
             can_forward_enabled = False
             return STATE.C_DONE
-
-        can_forward_enabled = True
-
-    # Check if voltage is cutoff voltage
 
     return STATE.CHARGE
 
@@ -579,12 +580,6 @@ def doC_done():
     :return:
     """
     # User decide wether charge again or going idle
-
-    if not canread.bms_hv.chg_status == Status.CHG_OFF:
-        # Req "CHG_OFF" to bms
-        data = SetChgStatus.serialize(Status.CHG_OFF)
-        msg = can.Message(arbitration_id=ID_SET_CHG_STATUS, data=data, is_extended_id=False)
-        tx_can_queue.put(msg)
 
     return STATE.C_DONE
 
@@ -659,11 +654,19 @@ def checkCommands():
 
     if not com_queue.empty():
         act_com = com_queue.get()
+        print(type(act_com))
         if act_com['com-type'] == 'fast-charge':
-            if act_com['value'] == 'false':
+            if act_com['value'] is False:
                 canread.fast_charge = False
-            if act_com['value'] == 'true':
+            if act_com['value'] is True:
+                print("true")
                 canread.fast_charge = True
+
+        if act_com['com-type'] == 'cutoff':
+            if int(act_com['value']) > 200 and int(act_com['value'] < 470):
+                canread.target_v = int(act_com['value'])
+            else:
+                print("cutoff command exceeds limits")
 
         if act_com['com-type'] == "precharge" and act_com['value'] is True:
             precharge_command = True
@@ -703,7 +706,7 @@ def thread_1_FSM():
 
     while 1:
         time.sleep(0.05)
-        #print("main")
+        # print("main")
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
             new_msg = rx_can_queue.get()
@@ -712,7 +715,6 @@ def thread_1_FSM():
         if act_stat != STATE.CHECK and (not canread.bms_hv.isConnected() or not canread.brusa.isConnected()):
             staccastacca()
             next_stat = doState.get(STATE.CHECK)
-            continue
 
         # Checks errors
         if canread.brusa.error or canread.bms_hv.error or canread.can_err:
@@ -766,6 +768,7 @@ def thread_2_CAN():
                             else:
                                 mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
                                 out_ampere = STANDARD_ACC_CHG_AMPERE
+
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
                                 'NLG5_C_C_EL': 0,
@@ -801,32 +804,28 @@ def thread_3_WEB():
     :return:
     """
     app = flask.Flask(__name__)
-    app.config["DEBUG"] = True
+    app.config["DEBUG"] = False
 
-# PAGES=========================================================================
     @app.route('/', methods=['GET'])
     def home():
         return render_template("index.html")
 
-    @app.route('/warning')
+    @app.route('/warning/')
     def warning():
         return render_template("warning.html")
 
-    @app.route('/error')
+    @app.route('/error/')
     def error():
         return render_template("error.html")
 
-    @app.route('/settings')
+    @app.route('/settings/')
     def settings():
         return render_template("settings.html")
 
-    @app.route('/charts')
+    @app.route('/charts/')
     def charts():
         chart = request.args.get("chart")
-
         return render_template("charts.html", c=chart)
-
-# UTILITIES======================================================================
 
     def getLastNSeconds(n):
         now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
@@ -835,11 +834,9 @@ def thread_3_WEB():
 
         return a
 
-# GETS==========================================================================
-
 # HANDCART-(backend)------------------------------------------------------------
 
-    @app.route('/handcart/status', methods=['GET'])
+    @app.route('/handcart/status/', methods=['GET'])
     def get_hc_status():
         with lock:
             data = {
@@ -854,13 +851,13 @@ def thread_3_WEB():
 # END-HANDCART-(backend)--------------------------------------------------------
 # BMS-HV------------------------------------------------------------------------
 
-    @app.route('/bms-hv/status', methods=['GET'])
+    @app.route('/bms-hv/status/', methods=['GET'])
     def get_bms_hv_status():
         with lock:
             if shared_data.bms_hv.isConnected():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
-                    "status": shared_data.bms_hv.status.name
+                    "status": shared_data.bms_hv.status
                 }
                 res = jsonify(res)
             else:
@@ -872,7 +869,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/errors', methods=['GET'])
+    @app.route('/bms-hv/errors/', methods=['GET'])
     def get_bms_hv_errors():
         with lock:
             if shared_data.bms_hv.isConnected():
@@ -892,7 +889,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/warnings', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/warnings/', methods=['GET'])
     def get_bms_hv_warnings():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -911,7 +908,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-VOLTAGE-DATA
-    @app.route('/bms-hv/volt', methods=['GET'])
+    @app.route('/bms-hv/volt/', methods=['GET'])
     def get_bms_hv_volt():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -924,7 +921,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/volt/last', methods=['GET'])
+    @app.route('/bms-hv/volt/last/', methods=['GET'])
     def get_last_bms_hv_volt():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -938,7 +935,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-AMPERE-DATA
-    @app.route('/bms-hv/ampere', methods=['GET'])
+    @app.route('/bms-hv/ampere/', methods=['GET'])
     def get_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -951,7 +948,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/ampere/last', methods=['GET'])
+    @app.route('/bms-hv/ampere/last/', methods=['GET'])
     def get_last_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -965,7 +962,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-TEMPERATURE-DATA
-    @app.route('/bms-hv/temp', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp/', methods=['GET']) ## AGGIUNTA
     def get_bms_temp():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -991,7 +988,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/temp/last', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp/last/', methods=['GET']) ## AGGIUNTA
     def get_last_bms_temp():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -1007,7 +1004,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-CELLS-DATA
-    @app.route('/bms-hv/cells', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells/', methods=['GET']) ## AGGIUNTA
     def get_bms_cells():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -1063,7 +1060,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/cells/last', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells/last/', methods=['GET']) ## AGGIUNTA
     def get_last_bms_cells():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
         data = {
@@ -1105,7 +1102,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/heat', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/heat/', methods=['GET']) ## AGGIUNTA
     def get_bms_heat():
         min = 20
         max = 250
@@ -1133,7 +1130,7 @@ def thread_3_WEB():
 # END-BMS-HV--------------------------------------------------------------------
 # BRUSA-------------------------------------------------------------------------
 
-    @app.route('/brusa/status', methods=['GET'])
+    @app.route('/brusa/status/', methods=['GET'])
     def get_brusa_status():
         with lock:
             if shared_data.brusa.isConnected():
@@ -1157,7 +1154,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/brusa/errors', methods=['GET'])
+    @app.route('/brusa/errors/', methods=['GET'])
     def get_brusa_errors():
         with lock:
             if not shared_data.brusa.isConnected():
@@ -1169,7 +1166,7 @@ def thread_3_WEB():
             res = {"timestamp": time.time(), "errors": errorList}
             return jsonify(res)
 
-    @app.route('/command/setting', methods=['GET'])
+    @app.route('/command/setting/', methods=['GET'])
     def send_settings_command():
         with lock:
             # print(request.get_json())
@@ -1186,16 +1183,17 @@ def thread_3_WEB():
             resp.status_code = 200
             return resp
 
-    @app.route('/command/setting', methods=['POST'])
+    @app.route('/command/setting/', methods=['POST'])
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
+        command = json.loads(command)
         com_queue.put(command)
 
         resp = jsonify(success=True)
         return resp
 
-    @app.route('/command/action', methods=['POST'])
+    @app.route('/command/action/', methods=['POST'])
     def recv_command_action():
         print(request.get_json())
         action = request.get_json()
@@ -1206,7 +1204,7 @@ def thread_3_WEB():
         return resp
 
     # app.run(use_reloader=False)
-    app.run(use_reloader=False, host="0.0.0.0", port=8080)  # to run on the pc ip
+    app.run(use_reloader=False, host="127.0.0.1", port=5000)  # to run on the pc ip
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
