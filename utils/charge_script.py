@@ -1,11 +1,9 @@
 # Can charge scritpt
-
 # Before use, pls run the script "start-can.sh"
 
 import os
 import re
 import time
-
 import can
 from can.listener import Listener
 

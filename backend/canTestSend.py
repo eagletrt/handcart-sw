@@ -7,8 +7,8 @@ bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-TS_ON = can.Message(arbitration_id=0x03, data=[
-    0, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
+TS_ON = can.Message(arbitration_id=0xAA, data=[
+    1, 0, 0, 0, 0, 0, 0, 0])  # BMS TS_ON
 NLG5_ST = can.Message(arbitration_id=0x610, data=[
     0, 0, 0, 0])  # BRUSA STATUS
 NLG5_ERR = can.Message(arbitration_id=0x614, data=[
@@ -33,7 +33,7 @@ except can.CanError:
 input("")
 
 try:
-    bus.send(NLG5_ERR)
+    #bus.send(NLG5_ERR)
     print("Message sent on {}".format(bus.channel_info))
 except can.CanError:
     print("Message NOT sent")

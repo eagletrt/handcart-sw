@@ -98,6 +98,10 @@ def bottom():
         curses.echo()
         bottom.refresh()
         cutoff_voltage = int(bottom.getstr(1, 22, 15))
+
+        j = {"com-type": "cutoff", "value": cutoff_voltage}
+        requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
+
         awaiting_input = False
         input_cutoff = False
         curses.halfdelay(5)
@@ -304,7 +308,7 @@ while (key != ord('q')):
             elif handcart_status == 'READY':
                 j = {"com-type": "charge", "value": True}
                 requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
-            elif handcart_status == 'CHARGING':
+            elif handcart_status == 'CHARGE':
                 j = {"com-type": "charge", "value": False}
                 requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
 
