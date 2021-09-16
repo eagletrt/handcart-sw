@@ -28,6 +28,8 @@ scroll = 0
 bms_status = "offline"
 bms_volt = 0.0
 bms_temp = 0.0
+bms_temp_max = 0.0
+bms_temp_min = 0.0
 bms_cell_max = 0.0
 bms_cell_min = 0.0
 bms_v_req = 0.0
@@ -38,8 +40,12 @@ bms_err_str = ""
 brusa_status = "offline"
 brusa_max_v_set = 0.0
 brusa_max_a_set = 0.0
-brusa_actual_out_v = 0.0
-brusa_actual_out_a = 0.0
+brusa_mains_current = 0
+brusa_mains_voltage = 0
+brusa_output_voltage = 0
+brusa_output_current = 0
+brusa_mains_current_limit = 0
+brusa_temp = 0
 brusa_warning = False
 brusa_err_str = ""
 
@@ -135,19 +141,21 @@ def actual_tab(tab):
         # BMS
         actual_tab.addstr(3, FIRST_COLUMN_INDEX, "status:\t\t" + str(bms_status))
         actual_tab.addstr(4, FIRST_COLUMN_INDEX, "Voltage:\t" + str(bms_volt))
-        actual_tab.addstr(5, FIRST_COLUMN_INDEX, "Temp:\t\t" + str(bms_temp))
-        actual_tab.addstr(6, FIRST_COLUMN_INDEX, "cell max v:\t" + str(bms_cell_max))
-        actual_tab.addstr(7, FIRST_COLUMN_INDEX, "cell min v:\t" + str(bms_cell_min))
-        actual_tab.addstr(8, FIRST_COLUMN_INDEX, "req V:\t\t" + str(bms_v_req))
-        actual_tab.addstr(9, FIRST_COLUMN_INDEX, "req A:\t\t" + str(bms_a_req))
+        actual_tab.addstr(5, FIRST_COLUMN_INDEX, "cell max v:\t" + str(bms_cell_max))
+        actual_tab.addstr(6, FIRST_COLUMN_INDEX, "cell min v:\t" + str(bms_cell_min))
+        actual_tab.addstr(7, FIRST_COLUMN_INDEX, "Temp:\t\t" + str(bms_temp))
+        actual_tab.addstr(8, FIRST_COLUMN_INDEX, "Temp max:\t" + str(bms_temp_max))
+        actual_tab.addstr(9, FIRST_COLUMN_INDEX, "Temp min:\t" + str(bms_temp_min))
 
         # BRUSA
         actual_tab.addstr(3, SECOND_COLUMN_INDEX, "status:\t" + str(brusa_status))
-        actual_tab.addstr(4, SECOND_COLUMN_INDEX, "max V:\t" + str(brusa_max_v_set))
-        actual_tab.addstr(5, SECOND_COLUMN_INDEX, "max A:\t" + str(brusa_max_a_set))
-        actual_tab.addstr(6, SECOND_COLUMN_INDEX, "actual V:\t" + str(brusa_actual_out_v))
-        actual_tab.addstr(7, SECOND_COLUMN_INDEX, "actual A:\t" + str(brusa_actual_out_a))
-        actual_tab.addstr(8, SECOND_COLUMN_INDEX, "Warning:\t" + str(brusa_warning))
+        actual_tab.addstr(4, SECOND_COLUMN_INDEX, "main in V:\t" + str(brusa_mains_voltage))
+        actual_tab.addstr(5, SECOND_COLUMN_INDEX, "main in A:\t" + str(brusa_mains_current))
+        actual_tab.addstr(6, SECOND_COLUMN_INDEX, "out V:\t" + str(brusa_output_voltage))
+        actual_tab.addstr(7, SECOND_COLUMN_INDEX, "out A:\t" + str(brusa_output_current))
+        actual_tab.addstr(8, SECOND_COLUMN_INDEX, "main in limit A:\t" + str(brusa_mains_current_limit))
+        actual_tab.addstr(9, SECOND_COLUMN_INDEX, "temperature:\t" + str(brusa_temp))
+        actual_tab.addstr(10, SECOND_COLUMN_INDEX, "Warning:\t" + str(brusa_warning))
 
         # HANDCART
         actual_tab.addstr(3, THIRD_COLUMN_INDEX, "Status:\t" + str(handcart_status))
@@ -186,7 +194,19 @@ def doRequests():
         bms_connected, \
         bms_status, \
         bms_err_str, \
-        brusa_err_str
+        brusa_err_str, \
+        bms_volt, \
+        bms_temp, \
+        bms_cell_max, \
+        bms_cell_min, \
+        bms_temp_max, \
+        bms_temp_min, \
+        brusa_mains_current, \
+        brusa_mains_voltage, \
+        brusa_output_voltage, \
+        brusa_output_current, \
+        brusa_mains_current_limit, \
+        brusa_temp
 
     try:
         if not handcart_connected:
@@ -255,6 +275,48 @@ def doRequests():
         elif r.status_code == 400:
             brusa_connected = False
 
+        r = requests.get(SERVER_ADDRESS + "bms-hv/volt/last/")
+        if r.status_code == 200:
+            json = r.json()
+            bms_volt = json['bus_voltage']
+            bms_cell_max = json['max_cell_voltage']
+            bms_cell_min = json['min_cell_voltage']
+        elif r.status_code == 400:
+            bms_connected = False
+            bms_volt = 0
+            bms_cell_max = 0
+            bms_cell_min = 0
+
+        r = requests.get(SERVER_ADDRESS + "bms-hv/temp/last/")
+        if r.status_code == 200:
+            json = r.json()
+            bms_temp = json['average_temp']
+            bms_temp_max = json['max_temp']
+            bms_temp_min = json['min_temp']
+        elif r.status_code == 400:
+            bms_connected = False
+            bms_temp = 0
+            bms_temp_max = 0
+            bms_temp_min = 0
+
+        r = requests.get(SERVER_ADDRESS + "brusa/info/")
+        if r.status_code == 200:
+            json = r.json()
+            brusa_mains_current = json['NLG5_MC_ACT']
+            brusa_mains_voltage = json['NLG5_MV_ACT']
+            brusa_output_voltage = json['NLG5_OV_ACT']
+            brusa_output_current = json['NLG5_OC_ACT']
+            brusa_mains_current_limit = json['NLG5_S_MC_M_CP']
+            brusa_temp = json['NLG5_P_TMP']
+        elif r.status_code == 400:
+            bms_connected = False
+            brusa_mains_current = 0
+            brusa_mains_voltage = 0
+            brusa_output_voltage = 0
+            brusa_output_current = 0
+            brusa_mains_current_limit = 0
+            brusa_temp = 0
+
     except requests.exceptions.ConnectionError:
         handcart_connected = False
 
@@ -314,3 +376,5 @@ while (key != ord('q')):
 
     else:
         curses.echo()
+
+curses.endwin()

@@ -24,6 +24,7 @@ import flask
 from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
+import logging
 
 from can_cicd.includes_generator.Primary.ids import *
 from can_cicd.naked_generator.Primary.py.Primary import *
@@ -376,7 +377,7 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        print(msg)
+        print(msg.arbitration_id)
         if self.doMsg.get(msg.arbitration_id) is not None:
             self.doMsg.get(msg.arbitration_id)(msg)
 
@@ -805,6 +806,8 @@ def thread_3_WEB():
     """
     app = flask.Flask(__name__)
     app.config["DEBUG"] = False
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
 
     @app.route('/', methods=['GET'])
     def home():
@@ -923,18 +926,21 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/volt/last/', methods=['GET'])
     def get_last_bms_hv_volt():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-
-        data = {
-            "timestamp": timestamp,
-            "volts": shared_data.bms_hv.act_bus_voltage
-        }
-
-        resp = jsonify(data)
-        resp.status_code = 200
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": shared_data.bms_hv.lastupdated,
+                "pack_voltage": shared_data.bms_hv.act_bus_voltage,
+                "bus_voltage": shared_data.bms_hv.act_bus_voltage,
+                "max_cell_voltage": shared_data.bms_hv.max_cell_voltage,
+                "min_cell_voltage": shared_data.bms_hv.min_cell_voltage
+            }
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("bms hv is offline")
+            resp.status_code = 400
         return resp
 
-    # BMS-AMPERE-DATA
     @app.route('/bms-hv/ampere/', methods=['GET'])
     def get_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
@@ -990,17 +996,19 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/temp/last/', methods=['GET']) ## AGGIUNTA
     def get_last_bms_temp():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": shared_data.bms_hv.lastupdated,
+                "average_temp": shared_data.bms_hv.act_average_temp,
+                "max_temp": shared_data.bms_hv.max_temp,
+                "min_temp": shared_data.bms_hv.min_temp
+            }
 
-        data = {
-            "timestamp": timestamp,
-            "average_temp": shared_data.bms_hv.act_average_temp,
-            "max_temp": shared_data.bms_hv.max_temp,
-            "min_temp": shared_data.bms_hv.min_temp
-        }
-
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("bms hv is not connected")
+            resp.status_code = 400
         return resp
 
     # BMS-CELLS-DATA
@@ -1164,6 +1172,25 @@ def thread_3_WEB():
 
             errorList = shared_data.brusa.act_NLG5_ERR_str
             res = {"timestamp": time.time(), "errors": errorList}
+            return jsonify(res)
+
+    @app.route('/brusa/info/', methods=['GET'])
+    def get_brusa_info():
+        with lock:
+            if not shared_data.brusa.isConnected():
+                res = jsonify("not connected")
+                res.status_code = 400
+                return res
+
+            res = {
+                "timestamp": shared_data.brusa.lastupdated,
+                "NLG5_MC_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],
+                "NLG5_MV_ACT": "230",
+                "NLG5_OV_ACT": "400",
+                "NLG5_OC_ACT": "6",
+                "NLG5_S_MC_M_CP": "16",
+                "NLG5_P_TMP": "30"
+            }
             return jsonify(res)
 
     @app.route('/command/setting/', methods=['GET'])
