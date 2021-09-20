@@ -813,19 +813,19 @@ def thread_3_WEB():
     def home():
         return render_template("index.html")
 
-    @app.route('/warning/')
+    @app.route('/warning')
     def warning():
         return render_template("warning.html")
 
-    @app.route('/error/')
+    @app.route('/error')
     def error():
         return render_template("error.html")
 
-    @app.route('/settings/')
+    @app.route('/settings')
     def settings():
         return render_template("settings.html")
 
-    @app.route('/charts/')
+    @app.route('/charts')
     def charts():
         chart = request.args.get("chart")
         return render_template("charts.html", c=chart)
