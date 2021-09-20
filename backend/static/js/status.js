@@ -50,7 +50,7 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
         .then(json => {
             let s = json[field];
 
-            if (s.length > 0) {
+            if (s != undefined && s.length > 0) {
                 bms = s.length;
             }
         })
@@ -210,7 +210,7 @@ async function brusaErrors() {
         .then(json => {
             let err = json["errors"];
 
-            if (err.length > 0) {
+            if (err != undefined && err.length > 0) {
                 errors = err.length;
             }
         })

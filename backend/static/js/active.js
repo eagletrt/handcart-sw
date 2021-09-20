@@ -1,17 +1,20 @@
 var href = window.location;
 
-var page = href.pathname;
+var page = href.pathname.substring(1); // to remove the "/" before the page's name
 
 switch(page) {
-    case "/":
+    case "":
     default:
         document.getElementById("home").classList.add("active");
         break;
-    case "/settings":
+    case "settings":
         document.getElementById("settings").classList.add("active");
         break;
-    case "/charts":
+    case "charts":
         let chart = href.search.split("=")[1];
         document.getElementById("side" + chart).classList.add("active");
+        break;
+    case "warning":
+    case "error":
         break;
 }

@@ -12,6 +12,7 @@ function getRequest(url, path) {
     headers.append('Content-Type', 'application/json');
     headers.append('Accept', 'application/json');
 
+    // must comment these two lines
     /*headers.append('Access-Control-Allow-Origin', url);
     headers.append('Access-Control-Allow-Credentials', 'true');*/
 
@@ -111,8 +112,9 @@ function errorTable(path, id, msg) {
         .then(response => response.json())
         .then(json => {
             var container = document.getElementById("table-responsive-" + id);
+            let errors = json["errors"];
 
-            if (json["errors"].length > 0) {
+            if (errors != undefined && errors.length > 0) {
                 var table = document.createElement("table");
                 table.className += "table table-striped table-sm";
 
