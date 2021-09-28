@@ -21,18 +21,61 @@
                     <div class="col-sm">
                         <div class="row">
                             <div class="col-sm">
-                                <!-- check if pre-charge is enabled -->
-                                <button type="button" onclick="startStop(false)" id="start"
-                                        class="btn btn-success btn-lg">Start
-                                </button>
-                                <button type="button" onclick="startStop(true)" id="stop" class="btn btn-danger btn-lg">
+                                <form method="POST" id="startForm"> <!-- Start Button Form -->
+                                    <input type="hidden" name="action" value="start">
+                                    <input type="submit" value="Start" id="start" class="btn btn-success btn-lg">
+                                </form>
+                                <!--<button type="button" onclick="buttons(false)" id="start" class="btn btn-success btn-lg">
+                                    Start
+                                </button>-->
+
+                                <form method="POST" id="stopForm"> <!-- Stop Button Form -->
+                                    <input type="hidden" name="action" value="stop">
+                                    <input type="submit" value="Stop" id="stop" class="btn btn-danger btn-lg">
+                                </form>
+                                <!--<button type="button" onclick="buttons(true)" id="stop" class="btn btn-danger btn-lg">
                                     Stop
-                                </button>
-                                <button type="button" onclick="" id="cancel" class="btn btn-danger btn-lg">Cancel
-                                </button>
-                                <button type="button" onclick="" id="chargeBtn" class="btn btn-success btn-lg">Charge
-                                </button>
-                                <button type="button" onclick="" id="ok" class="btn btn-success btn-lg">OK</button>
+                                </button>-->
+
+                                <form method="POST" id="cancelForm"> <!-- Cancel Button Form -->
+                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="submit" value="Cancel" id="cancel" class="btn btn-danger btn-lg">
+                                </form>
+                                <!--<button type="button" onclick="" id="cancel" class="btn btn-danger btn-lg">
+                                    Cancel
+                                </button>-->
+
+                                <form method="POST" id="chargeForm"> <!-- Charge Button Form -->
+                                    <input type="hidden" name="action" value="charge">
+                                    <input type="submit" value="Charge" id="chargeBtn" class="btn btn-success btn-lg">
+                                </form>
+                                <!--<button type="button" onclick="" id="chargeBtn" class="btn btn-success btn-lg">
+                                    Charge
+                                </button>-->
+
+                                <form method="POST" id="okForm"> <!-- OK Button Form -->
+                                    <input type="hidden" name="action" value="ok">
+                                    <input type="submit" value="OK" id="ok" class="btn btn-success btn-lg">
+                                </form>
+                                <!--<button type="button" onclick="" id="ok" class="btn btn-success btn-lg">
+                                    OK
+                                </button>-->
+
+                                <script>
+                                    let startForm = document.getElementById("startForm");
+                                    let stopForm = document.getElementById("stopForm");
+                                    let cancelForm = document.getElementById("cancelForm");
+                                    let chargeForm = document.getElementById("chargeForm");
+                                    let okForm = document.getElementById("okForm");
+
+                                    let path = "action/";
+
+                                    formListener(startForm, path);
+                                    formListener(stopForm, path);
+                                    formListener(cancelForm, path);
+                                    formListener(chargeForm, path);
+                                    formListener(okForm, path);
+                                </script>
                             </div>
                         </div>
                         <div class="row">

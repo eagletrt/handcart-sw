@@ -11,10 +11,7 @@
                 aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-<script>
-    var getUrl = window.location;
-    var baseUrl = getUrl.protocol + "//" + getUrl.host;
-</script>
+
         <div class="nav-container">
             <div class="left">
                 <div class="status">BMS state: <b id="bmsState"></b></div>
@@ -24,7 +21,7 @@
             </div>
             <div class="left">
                 <button type="button" class="btn btn-light position-relative hbtn"
-                        onclick="window.location.href = './warning'">
+                        onclick="window.location.href = './warnings'">
                     <span data-feather="alert-triangle" class="ico orange"></span>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                           id="nWarnings">
@@ -34,7 +31,7 @@
             </div>
             <div class="left">
                 <button type="button" class="btn btn-light position-relative hbtn"
-                        onclick="window.location.href = './error'">
+                        onclick="window.location.href = './errors'">
                     <span data-feather="alert-triangle" class="ico red"></span>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                           id="nErrors">
@@ -42,8 +39,11 @@
                 </span>
                 </button>
             </div>
-            <div>
+            <div class="left">
                 <!-- fast-charge and precharge state -->
+                <span class="btn btn-success fc" id="fc">
+                    FC
+                </span>
             </div>
             <div class="right">
                 <div class="status" id="temp">56°</div>

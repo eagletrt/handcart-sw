@@ -14,7 +14,7 @@ switch(page) {
         let chart = href.search.split("=")[1];
         document.getElementById("side" + chart).classList.add("active");
         break;
-    case "warning":
-    case "error":
+    case "warnings":
+    case "errors":
         break;
 }

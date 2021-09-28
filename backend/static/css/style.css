@@ -102,6 +102,13 @@ main {
     width: auto;
 }
 
+.fc {
+    margin-top: -5px;
+    border-radius: 100%;
+    border: none;
+    width: auto;
+}
+
 #start, #stop, #cancel, #chargeBtn, #ok, #disable {
     display: none;
 }

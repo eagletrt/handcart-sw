@@ -190,21 +190,27 @@ function enableDisable(enabled) {
 }
 
 /*
-    form: - the form to be listened
+    form: the form to be listened
+
+    path: if the command would be an action or a setting change
 */
 
-function formListener(form) {
+function formListener(form, path) {
     form.addEventListener('submit', function (event) {
         event.preventDefault();                 // prevent page from refreshing
         //const formData = new FormData(form);    // grab the data inside the form fields
-        let url = '/command/setting/';
+        let url = '/command/' + path;
 
-        j = {
-            "com-type": form.elements["comType"].value,
-            "value": form.elements["value"].value
+        if(path == "settings/") { // if trying to change a setting
+            j = {
+                "com-type": form.elements["comType"].value,
+                "value": form.elements["value"].value
+            };
+        } else { // if trying to send an action
+            j = {
+                "action": form.elements["action"].value
+            };
         }
-
-        console.log(JSON.stringify(j));
 
         postRequest(url, JSON.stringify(j));
     });
@@ -260,6 +266,9 @@ function onLoadStartStop() {
 function startStop(started) {
     let startButton = document.getElementById("start");
     let stopButton = document.getElementById("stop");
+    let cancelButton = document.getElementById("cancel");
+    let chargeButton = document.getElementById("chargeBtn");
+    let okButton = document.getElementById("ok");
 
     if (!started) {                             // if the timer has started
         let href = window.location.href;
