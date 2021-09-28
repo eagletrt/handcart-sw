@@ -813,19 +813,19 @@ def thread_3_WEB():
     def home():
         return render_template("index.html")
 
-    @app.route('/warning/')
+    @app.route('/warning')
     def warning():
         return render_template("warning.html")
 
-    @app.route('/error/')
+    @app.route('/error')
     def error():
         return render_template("error.html")
 
-    @app.route('/settings/')
+    @app.route('/settings')
     def settings():
         return render_template("settings.html")
 
-    @app.route('/charts/')
+    @app.route('/charts')
     def charts():
         chart = request.args.get("chart")
         return render_template("charts.html", c=chart)
@@ -839,7 +839,7 @@ def thread_3_WEB():
 
 # HANDCART-(backend)------------------------------------------------------------
 
-    @app.route('/handcart/status/', methods=['GET'])
+    @app.route('/handcart/status', methods=['GET'])
     def get_hc_status():
         with lock:
             data = {
@@ -854,7 +854,7 @@ def thread_3_WEB():
 # END-HANDCART-(backend)--------------------------------------------------------
 # BMS-HV------------------------------------------------------------------------
 
-    @app.route('/bms-hv/status/', methods=['GET'])
+    @app.route('/bms-hv/status', methods=['GET'])
     def get_bms_hv_status():
         with lock:
             if shared_data.bms_hv.isConnected():
@@ -872,7 +872,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/errors/', methods=['GET'])
+    @app.route('/bms-hv/errors', methods=['GET'])
     def get_bms_hv_errors():
         with lock:
             if shared_data.bms_hv.isConnected():
@@ -892,7 +892,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/bms-hv/warnings/', methods=['GET'])
+    @app.route('/bms-hv/warnings', methods=['GET'])
     def get_bms_hv_warnings():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -911,7 +911,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-VOLTAGE-DATA
-    @app.route('/bms-hv/volt/', methods=['GET'])
+    @app.route('/bms-hv/volt', methods=['GET'])
     def get_bms_hv_volt():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -924,7 +924,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/volt/last/', methods=['GET'])
+    @app.route('/bms-hv/volt/last', methods=['GET'])
     def get_last_bms_hv_volt():
         if shared_data.bms_hv.isConnected():
             data = {
@@ -941,7 +941,7 @@ def thread_3_WEB():
             resp.status_code = 400
         return resp
 
-    @app.route('/bms-hv/ampere/', methods=['GET'])
+    @app.route('/bms-hv/ampere', methods=['GET'])
     def get_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -954,7 +954,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/ampere/last/', methods=['GET'])
+    @app.route('/bms-hv/ampere/last', methods=['GET'])
     def get_last_bms_hv_ampere():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
 
@@ -968,7 +968,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-TEMPERATURE-DATA
-    @app.route('/bms-hv/temp/', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp', methods=['GET']) ## AGGIUNTA
     def get_bms_temp():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -994,7 +994,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/temp/last/', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp/last', methods=['GET']) ## AGGIUNTA
     def get_last_bms_temp():
         if shared_data.bms_hv.isConnected():
             data = {
@@ -1012,7 +1012,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-CELLS-DATA
-    @app.route('/bms-hv/cells/', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells', methods=['GET']) ## AGGIUNTA
     def get_bms_cells():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -1068,7 +1068,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/cells/last/', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells/last', methods=['GET']) ## AGGIUNTA
     def get_last_bms_cells():
         timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
         data = {
@@ -1110,7 +1110,7 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/heat/', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/heat', methods=['GET']) ## AGGIUNTA
     def get_bms_heat():
         min = 20
         max = 250
@@ -1138,7 +1138,7 @@ def thread_3_WEB():
 # END-BMS-HV--------------------------------------------------------------------
 # BRUSA-------------------------------------------------------------------------
 
-    @app.route('/brusa/status/', methods=['GET'])
+    @app.route('/brusa/status', methods=['GET'])
     def get_brusa_status():
         with lock:
             if shared_data.brusa.isConnected():
@@ -1162,7 +1162,7 @@ def thread_3_WEB():
                 res.status_code = 400
         return res
 
-    @app.route('/brusa/errors/', methods=['GET'])
+    @app.route('/brusa/errors', methods=['GET'])
     def get_brusa_errors():
         with lock:
             if not shared_data.brusa.isConnected():
@@ -1174,7 +1174,7 @@ def thread_3_WEB():
             res = {"timestamp": time.time(), "errors": errorList}
             return jsonify(res)
 
-    @app.route('/brusa/info/', methods=['GET'])
+    @app.route('/brusa/info', methods=['GET'])
     def get_brusa_info():
         with lock:
             if not shared_data.brusa.isConnected():
@@ -1193,7 +1193,7 @@ def thread_3_WEB():
             }
             return jsonify(res)
 
-    @app.route('/command/setting/', methods=['GET'])
+    @app.route('/command/setting', methods=['GET'])
     def send_settings_command():
         with lock:
             # print(request.get_json())
@@ -1210,7 +1210,7 @@ def thread_3_WEB():
             resp.status_code = 200
             return resp
 
-    @app.route('/command/setting/', methods=['POST'])
+    @app.route('/command/setting', methods=['POST'])
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
@@ -1220,7 +1220,7 @@ def thread_3_WEB():
         resp = jsonify(success=True)
         return resp
 
-    @app.route('/command/action/', methods=['POST'])
+    @app.route('/command/action', methods=['POST'])
     def recv_command_action():
         print(request.get_json())
         action = request.get_json()
@@ -1231,7 +1231,7 @@ def thread_3_WEB():
         return resp
 
     # app.run(use_reloader=False)
-    app.run(use_reloader=False, host="127.0.0.1", port=5000)  # to run on the pc ip
+    app.run(use_reloader=False, host="127.0.0.1", port=8080)  # to run on the pc ip
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
