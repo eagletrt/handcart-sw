@@ -813,12 +813,12 @@ def thread_3_WEB():
     def home():
         return render_template("index.html")
 
-    @app.route('/warning')
-    def warning():
+    @app.route('/warnings')
+    def warnings():
         return render_template("warning.html")
 
-    @app.route('/error')
-    def error():
+    @app.route('/errors')
+    def errors():
         return render_template("error.html")
 
     @app.route('/settings')
@@ -1201,10 +1201,10 @@ def thread_3_WEB():
                 "com-type": "cutoff",
                 "value": shared_data.target_v
             },
-                {
-                    "com-type": "fast-charge",
-                    "value": shared_data.fast_charge
-                }]
+            {
+                "com-type": "fast-charge",
+                "value": shared_data.fast_charge
+            }]
 
             resp = jsonify(data)
             resp.status_code = 200
@@ -1214,8 +1214,8 @@ def thread_3_WEB():
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
-        command = json.loads(command)
-        com_queue.put(command)
+        command = json.loads(command)   # in this method and the below one there's
+        com_queue.put(command)          # an error due to json is a dict not a string
 
         resp = jsonify(success=True)
         return resp
@@ -1225,7 +1225,7 @@ def thread_3_WEB():
         print(request.get_json())
         action = request.get_json()
 
-        com_queue.put(json.loads(action))
+        com_queue.put(json.loads(action))   # same error above
 
         resp = jsonify(success=True)
         return resp

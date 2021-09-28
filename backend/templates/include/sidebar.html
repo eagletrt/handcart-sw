@@ -19,43 +19,43 @@
                 </li>
             </ul>
 
-            <script src="{{ url_for('static', filename='js/active.js') }}"></script>
-
             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                 <span>Charts</span>
             </h6>
             <ul class="nav flex-column mb-2">
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=volt">
+                    <a class="nav-link" href="charts?chart=volt" id="sidevolt">
                         <span data-feather="file-text" class="ico"></span> Volt
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=charge">
+                    <a class="nav-link" href="charts?chart=charge" id="sidecharge">
                         <span data-feather="file-text" class="ico"></span> Charge
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=ampere">
+                    <a class="nav-link" href="charts?chart=ampere" id="sideampere">
                         <span data-feather="file-text" class="ico"></span> Ampere
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=temp">
+                    <a class="nav-link" href="charts?chart=temp" id="sidetemp">
                         <span data-feather="file-text" class="ico"></span> Temperature
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=cell">
+                    <a class="nav-link" href="charts?chart=cell" id="sidecell">
                         <span data-feather="file-text" class="ico"></span> Cells
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="charts?chart=heat">
+                    <a class="nav-link" href="charts?chart=heat" id="sideheat">
                         <span data-feather="file-text" class="ico"></span> Cells' temperature
                     </a>
                 </li>
             </ul>
+
+            <script src="{{ url_for('static', filename='js/active.js') }}"></script>
             <!--<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                 <span>Saved reports</span>
                 <a class="d-flex align-items-center text-muted" href="#" aria-label="Add a new report">

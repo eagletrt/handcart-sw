@@ -1,14 +1,20 @@
-var href = window.location.href;
+var href = window.location;
 
-var re = /.*\/(.*)/; // output anything after the last "/" in actual the URL
+var page = href.pathname.substring(1); // to remove the "/" before the page's name
 
-var page = href.match(re)[1]; // return the page name, without the whole link before
-
-switch (page) {
+switch(page) {
     case "":
+    default:
         document.getElementById("home").classList.add("active");
         break;
     case "settings":
         document.getElementById("settings").classList.add("active");
+        break;
+    case "charts":
+        let chart = href.search.split("=")[1];
+        document.getElementById("side" + chart).classList.add("active");
+        break;
+    case "warnings":
+    case "errors":
         break;
 }

@@ -84,10 +84,11 @@
                     var FCEForm = document.getElementById("FCEForm");
                     var FCDForm = document.getElementById("FCDForm");
 
-                    formListener(COForm);
-                    formListener(MCOForm);
-                    formListener(FCEForm);
-                    formListener(FCDForm);
+                    let path = "settings/";
+                    formListener(COForm, path);
+                    formListener(MCOForm, path);
+                    formListener(FCEForm, path);
+                    formListener(FCDForm, path);
 
                     changeValue('COSlider', 'COValue');
                     changeValue('MCOSlider', 'MCOValue');

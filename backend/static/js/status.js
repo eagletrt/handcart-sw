@@ -35,10 +35,11 @@ async function bmsStatus() {
         .catch(error => console.log('Authorization failed : ' + error.message))
     return str;
 }
-
-((async () => {
-    bmsState = await bmsStatus();
-})());
+setInterval(function () { // every 2 seconds
+    ((async () => {
+        bmsState = await bmsStatus();
+    })());
+}, 2000);
 
 async function bmsEW(path, field) { // function to setup the number of error(s)/warning(s)
     let bms = 0;
@@ -50,7 +51,7 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
         .then(json => {
             let s = json[field];
 
-            if (s.length > 0) {
+            if (s != undefined && s.length > 0) {
                 bms = s.length;
             }
         })
@@ -59,143 +60,147 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
     return bms;
 }
 
-((async () => {
-    let errors = await bmsEW("/bms-hv/errors", "errors");
-    let warnings = await bmsEW("/bms-hv/warnings", "warnings");
+setInterval(function () { // every 2 seconds
+    ((async () => {
+        let errors = await bmsEW("/bms-hv/errors", "errors");
+        let warnings = await bmsEW("/bms-hv/warnings", "warnings");
 
-    if (errors > 0) {
-        let nErr = document.getElementById("nErrors");
-        nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of warnings
-    }
+        if (errors > 0) {
+            let nErr = document.getElementById("nErrors");
+            nErr.innerHTML = /*parseInt(nErr.innerHTML) +*/ errors; // then set the number of warnings
+        }
 
-    if (warnings > 0) {
-        let nWarn = document.getElementById("nWarnings");
-        nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings;
-    }
-})());
+        if (warnings > 0) {
+            let nWarn = document.getElementById("nWarnings");
+            nWarn.innerHTML = /*parseInt(nWarn.innerHTML) +*/ warnings;
+        }
+    })());
+}, 2000);
 
 //-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
-path = '/handcart/status';
+setInterval(function () { // every 2 seconds
+    path = '/handcart/status';
 
-request = getRequest(url, path);
+    request = getRequest(url, path);
 
-fetch(request)
-    .then(response => response.json())
-    .then(json => {
-        let state = document.getElementById("hcState");
+    fetch(request)
+        .then(response => response.json())
+        .then(json => {
+            let state = document.getElementById("hcState");
 
-        let start = document.getElementById("start");
-        let stop = document.getElementById("stop");
-        let cancel = document.getElementById("cancel");
-        let charge = document.getElementById("chargeBtn");
-        let ok = document.getElementById("ok");
+            let start = document.getElementById("start");
+            let stop = document.getElementById("stop");
+            let cancel = document.getElementById("cancel");
+            let charge = document.getElementById("chargeBtn");
+            let ok = document.getElementById("ok");
 
-        // if there's only one status message to read
-        let key = "status";
-        let str = json[key];
-        state.innerHTML = str;
+            // if there's only one status message to read
+            let key = "state";
+            let str = json[key];
+            state.innerHTML = str;
 
-        // get the actual path to check if there sould be buttons or not
-        let href = window.location.href;
-        let re = /.*\/(.*)/;
-        let page = href.match(re)[1];
+            // get the actual path to check if there sould be buttons or not
+            var href = window.location;
 
-        var buttons = false;
+            var page = href.pathname.substring(1); // to remove the "/" before the page's name
 
-        if (page == "") { // check if I am in the home page
-            buttons = true;
-        }
+            var buttons = false;
 
-        /*
-        -CHECK: no start, no dati
-        -IDLE: si start, si dati
-        -PRECHARGE: bottone annulla
-        -READY: precharge completa, bottone diventa charge
-        -CHARGE: il bottone diventa stop (torna allo stato ready)
-        -C_DONE: carica completa, bottone OK
-        */
-        switch (str) {
-            case "CHECK":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "none";
-                    cancel.style.display = "none";
-                    charge.style.display = "none";
-                    ok.style.display = "none";
-                }
+            if (page == "") { // check if I am in the home page
+                buttons = true;
+            }
 
-                state.className = "orange";
-                break;
-            case "IDLE":
-                if (buttons) {
-                    start.style.display = "inline";
-                    stop.style.display = "none";
-                    cancel.style.display = "none";
-                    charge.style.display = "none";
-                    ok.style.display = "none";
-                }
+            /*
+            -CHECK: no start, no dati
+            -IDLE: si start, si dati
+            -PRECHARGE: bottone annulla
+            -READY: precharge completa, bottone diventa charge
+            -CHARGE: il bottone diventa stop (torna allo stato ready)
+            -C_DONE: carica completa, bottone OK
+            */
+            switch (str) {
+                case "CHECK":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                    }
 
-                state.className = "green";
-                break;
-            case "PRECHARGE":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "none";
-                    cancel.style.display = "inline";
-                    charge.style.display = "none";
-                    ok.style.display = "none";
-                }
+                    state.className = "orange";
+                    break;
+                case "IDLE":
+                    if (buttons) {
+                        start.style.display = "inline";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                    }
 
-                state.className = "orange";
-                break;
-            case "READY":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "none";
-                    cancel.style.display = "none";
-                    charge.style.display = "inline";
-                    ok.style.display = "none";
-                }
+                    state.className = "green";
+                    break;
+                case "PRECHARGE":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "inline";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                    }
 
-                state.className = "green";
-                break;
-            case "CHARGE":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "inline";
-                    cancel.style.display = "none";
-                    charge.style.display = "none";
-                    ok.style.display = "none";
-                }
+                    state.className = "orange";
+                    break;
+                case "READY":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "inline";
+                        ok.style.display = "none";
+                    }
 
-                state.className = "orange";
-                break;
-            case "C_DONE":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "none";
-                    cancel.style.display = "none";
-                    charge.style.display = "none";
-                    ok.style.display = "inline";
-                }
+                    state.className = "green";
+                    break;
+                case "CHARGE":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "inline";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                    }
 
-                state.className = "green";
-                break;
-            case "ERROR":
-                if (buttons) {
-                    start.style.display = "none";
-                    stop.style.display = "none";
-                    cancel.style.display = "none";
-                    charge.style.display = "none";
-                    ok.style.display = "none";
-                }
+                    state.className = "orange";
+                    break;
+                case "C_DONE":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "inline";
+                    }
 
-                state.className = "red";
-                break;
-        }
-    })
-    .catch(error => console.log('Authorization failed : ' + error.message))
+                    state.className = "green";
+                    break;
+                case "ERROR":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                    }
+
+                    state.className = "red";
+                    break;
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+}, 2000);
 //-END-GET-THE-HANDCART-STATUS--------------------------------------------------
 //-GET-THE-BRUSA-STATUS---------------------------------------------------------
 async function brusaErrors() {
@@ -210,7 +215,7 @@ async function brusaErrors() {
         .then(json => {
             let err = json["errors"];
 
-            if (err.length > 0) {
+            if (err != undefined && err.length > 0) {
                 errors = err.length;
             }
         })
@@ -244,36 +249,69 @@ async function brusaWarnings() {
 
 // these 2 function above can't be moved in the "script.js", else it won't work
 
-((async () => {
-    let errors = await brusaErrors();       // get the number of brusa's errors
-    let warnings = await brusaWarnings();   // get the number of brusa's warning
+setInterval(function () { // every 2 seconds
+    ((async () => {
+        let errors = await brusaErrors();       // get the number of brusa's errors
+        let warnings = await brusaWarnings();   // get the number of brusa's warning
 
-    let state = document.getElementById("brusaState");
+        let state = document.getElementById("brusaState");
 
-    if (errors > 0 || warnings > 0) {        // check if there are errors or warnings
-        if (warnings > 0) {                  // if there are warnings
-            state.innerHTML = "WARNING";    // change the text
-            state.className = "orange";     // and the color
+        if (errors > 0 || warnings > 0) {        // check if there are errors or warnings
+            if (warnings > 0) {                  // if there are warnings
+                state.innerHTML = "WARNING";    // change the text
+                state.className = "orange";     // and the color
 
-            let nWarn = document.getElementById("nWarnings");
-            nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings; // then set the number of warnings
+                let nWarn = document.getElementById("nWarnings");
+                nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings; // then set the number of warnings
+            }
+            // even if there are warnings
+            if (errors > 0) {                    // if there are errors
+                state.innerHTML = "ERROR";      // change the text
+                state.className = "red";        // and the color
+
+                let nErr = document.getElementById("nErrors");
+                nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of errors
+            }
+        } else {                                // if there's no errors and warnings
+            state.innerHTML = "IDLE";           // change the text
+            state.className = "green";          // and the color
         }
-        // even if there are warnings
-        if (errors > 0) {                    // if there are errors
-            state.innerHTML = "ERROR";      // change the text
-            state.className = "red";        // and the color
-
-            let nErr = document.getElementById("nErrors");
-            nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of errors
-        }
-    } else {                                // if there's no errors and warnings
-        state.innerHTML = "IDLE";           // change the text
-        state.className = "green";          // and the color
-    }
-})());
+    })());
+}, 2000);
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
+//-GET-FASTCHARGE-STATUS--------------------------------------------------------
+setInterval(function () { // every 2 seconds
+        path = '/command/setting';
+
+        request = getRequest(url, path);
+
+        fetch(request)
+            .then(response => response.json())
+            .then(json => {
+                var fc = document.getElementById("fc");
+
+                for (let i = 0; i < json.length; i++) {
+                    let com = json[i];
+                    if (com["com-type"] == "fast-charge") {
+                        if(com["value"] == true) {
+                            if(fc.classList.contains("btn-danger")) {
+                                fc.classList.remove("btn-danger");
+                                fc.className += " btn-success";
+                            }
+                        } else {
+                            if(fc.classList.contains("btn-success")) {
+                                fc.classList.remove("btn-success");
+                                fc.className += " btn-danger";
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(error => console.log('Authorization failed : ' + error.message))
+    }, 2000);
+//-END-GET-FASTCHARGE-STATUS----------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
-setInterval(function () { // every 2 seconds or every time it has been changed
+setInterval(function () { // every 2 seconds
         path = '/command/setting';
 
         request = getRequest(url, path);
