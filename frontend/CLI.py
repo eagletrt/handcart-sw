@@ -6,7 +6,8 @@ import requests
 
 DEFAULT_WIDTH = 80
 DEFAULT_HEIGHT = 24
-SERVER_ADDRESS = 'http://127.0.0.1:5000/'
+#SERVER_ADDRESS = 'http://127.0.0.1:5000/'
+SERVER_ADDRESS = 'http://192.168.1.51:8080/'
 handcart_connected = False
 brusa_connected = False
 bms_connected = False
@@ -106,7 +107,7 @@ def bottom():
         cutoff_voltage = int(bottom.getstr(1, 22, 15))
 
         j = {"com-type": "cutoff", "value": cutoff_voltage}
-        requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
+        requests.post(SERVER_ADDRESS + "command/setting", json=json.dumps(j))
 
         awaiting_input = False
         input_cutoff = False
@@ -215,11 +216,11 @@ def doRequests():
             if r.status_code == 200:
                 handcart_connected = True
 
-        r = requests.get(SERVER_ADDRESS + 'handcart/status/')
+        r = requests.get(SERVER_ADDRESS + 'handcart/status')
         if r.status_code == 200:
             handcart_status = r.json()['state']
 
-        r = requests.get(SERVER_ADDRESS + 'brusa/status/')
+        r = requests.get(SERVER_ADDRESS + 'brusa/status')
         if r.status_code == 200:
             brusa_connected = True
             brusa_status = "online"
@@ -234,7 +235,7 @@ def doRequests():
             brusa_connected = False
             brusa_status = "offline"
 
-        r = requests.get(SERVER_ADDRESS + 'bms-hv/status/')
+        r = requests.get(SERVER_ADDRESS + 'bms-hv/status')
         if r.status_code == 200:
             bms_connected = True
             bms_status = r.json()['status']
@@ -243,7 +244,7 @@ def doRequests():
 
         '''
         try:
-            r = requests.get(SERVER_ADDRESS + 'bms-hv/volt/last/')
+            r = requests.get(SERVER_ADDRESS + 'bms-hv/volt/last')
             if r.status_code == 200:
                 bms_connected = True
                 bms_volt = r.json()['volts']
@@ -253,7 +254,7 @@ def doRequests():
             handcart_connected = False
         '''
 
-        r = requests.get(SERVER_ADDRESS + 'bms-hv/errors/')
+        r = requests.get(SERVER_ADDRESS + 'bms-hv/errors')
         if r.status_code == 200:
             bms_connected = True
             json = r.json()
@@ -263,7 +264,7 @@ def doRequests():
         elif r.status_code == 400:
             bms_connected = False
 
-        r = requests.get(SERVER_ADDRESS + "brusa/errors/")
+        r = requests.get(SERVER_ADDRESS + "brusa/errors")
         if r.status_code == 200:
             brusa_connected = True
             json = r.json()
@@ -275,7 +276,7 @@ def doRequests():
         elif r.status_code == 400:
             brusa_connected = False
 
-        r = requests.get(SERVER_ADDRESS + "bms-hv/volt/last/")
+        r = requests.get(SERVER_ADDRESS + "bms-hv/volt/last")
         if r.status_code == 200:
             json = r.json()
             bms_volt = json['bus_voltage']
@@ -287,7 +288,7 @@ def doRequests():
             bms_cell_max = 0
             bms_cell_min = 0
 
-        r = requests.get(SERVER_ADDRESS + "bms-hv/temp/last/")
+        r = requests.get(SERVER_ADDRESS + "bms-hv/temp/last")
         if r.status_code == 200:
             json = r.json()
             bms_temp = json['average_temp']
@@ -299,7 +300,7 @@ def doRequests():
             bms_temp_max = 0
             bms_temp_min = 0
 
-        r = requests.get(SERVER_ADDRESS + "brusa/info/")
+        r = requests.get(SERVER_ADDRESS + "brusa/info")
         if r.status_code == 200:
             json = r.json()
             brusa_mains_current = json['NLG5_MC_ACT']
@@ -362,17 +363,17 @@ while (key != ord('q')):
         elif key == ord('f'):
             fast_charge = not fast_charge
             j = {"com-type": "fast-charge", "value": fast_charge}
-            requests.post(SERVER_ADDRESS + "command/setting/", json=json.dumps(j))
+            requests.post(SERVER_ADDRESS + "command/setting", json=json.dumps(j))
         elif key == ord('c'):
             if handcart_status == 'IDLE':
                 j = {"com-type": "precharge", "value": True}
-                requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
+                requests.post(SERVER_ADDRESS + "command/action", json=json.dumps(j))
             elif handcart_status == 'READY':
                 j = {"com-type": "charge", "value": True}
-                requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
+                requests.post(SERVER_ADDRESS + "command/action", json=json.dumps(j))
             elif handcart_status == 'CHARGE':
                 j = {"com-type": "charge", "value": False}
-                requests.post(SERVER_ADDRESS + "command/action/", json=json.dumps(j))
+                requests.post(SERVER_ADDRESS + "command/action", json=json.dumps(j))
 
     else:
         curses.echo()
