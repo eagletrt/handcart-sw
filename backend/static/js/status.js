@@ -35,6 +35,7 @@ async function bmsStatus() {
         .catch(error => console.log('Authorization failed : ' + error.message))
     return str;
 }
+
 setInterval(function () { // every 2 seconds
     ((async () => {
         bmsState = await bmsStatus();
@@ -114,7 +115,7 @@ setInterval(function () { // every 2 seconds
             /*
             -CHECK: no start, no dati
             -IDLE: si start, si dati
-            -PRECHARGE: bottone annulla
+            -PRECHARGE: bottone annulla - forse
             -READY: precharge completa, bottone diventa charge
             -CHARGE: il bottone diventa stop (torna allo stato ready)
             -C_DONE: carica completa, bottone OK

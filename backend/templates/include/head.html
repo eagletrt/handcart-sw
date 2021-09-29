@@ -32,11 +32,13 @@
 
     <script>
         timer = [];
-        url = "http://localhost:5000/";
+        url = "http://127.0.0.1:8080";
         OFFLINE_CODE = 450;
+        NZ = "nozoom";
     </script>
 
     <!-- charts -->
+    <script src="{{ url_for('static', filename='charts/multilineChart.js') }}"></script>
     <script src="{{ url_for('static', filename='charts/chartsFun.js') }}"></script>
     <script src="{{ url_for('static', filename='charts/lineCharts.js') }}"></script>
     <script src="{{ url_for('static', filename='charts/chargeChart.js') }}"></script>
