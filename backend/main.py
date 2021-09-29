@@ -1235,7 +1235,7 @@ def thread_3_WEB():
         return resp
 
     # app.run(use_reloader=False)
-    app.run(use_reloader=False, host="127.0.0.1", port=8080)  # to run on the pc ip
+    app.run(use_reloader=False, host="0.0.0.0", port=8080)  # to run on the pc ip
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
