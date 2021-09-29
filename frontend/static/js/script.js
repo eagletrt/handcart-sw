@@ -99,7 +99,7 @@ function createTable(json, table, container) {
 */
 
 function errorTable(path, id, msg) {
-    let url = 'http://127.0.0.1:5000';
+    let url = window.location.href //'http://127.0.0.1:5000';
 
     request = getRequest(url, path);
 
@@ -137,7 +137,7 @@ function deleteTimer(path) {
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------
 function onLoadEnableDisable() {
     (async () => { // syncronization is necessary
-        var url = 'http://127.0.0.1:5000';
+        var url = window.location.href //'http://127.0.0.1:5000';
         var path = '/command/settings';
 
         request = getRequest(url, path);

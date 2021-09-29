@@ -1,5 +1,5 @@
 function createLineChart(path, name, param, zoom, label, u) {
-    var url = 'http://127.0.0.1:5000';
+    var url = window.location.href //'http://127.0.0.1:5000';;
 
     request = getRequest(url, path);
 
