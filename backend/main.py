@@ -15,7 +15,7 @@ import random
 import struct
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 import can
@@ -849,7 +849,7 @@ def thread_3_WEB():
 
     def getLastNSeconds(n):
         now = datetime.now(pytz.timezone('Europe/Rome'))
-        a = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
+        a = [(now - timedelta(seconds=i)) for i in range(n)]
         a.reverse()  # an array with the last n seconds form the older date to the now date
 
         return a
@@ -946,7 +946,7 @@ def thread_3_WEB():
         if shared_data.bms_hv.isConnected():
             data = {
                 "timestamp": shared_data.bms_hv.lastupdated,
-                "pack_voltage": shared_data.bms_hv.act_bus_voltage,
+                "pack_voltage": shared_data.bms_hv.act_bus_voltage, # this doesn't exist when asking for whole precedent data
                 "bus_voltage": shared_data.bms_hv.act_bus_voltage,
                 "max_cell_voltage": shared_data.bms_hv.max_cell_voltage,
                 "min_cell_voltage": shared_data.bms_hv.min_cell_voltage
@@ -975,7 +975,7 @@ def thread_3_WEB():
     def get_last_bms_hv_ampere():
         data = {
             "timestamp": shared_data.bms_hv.lastupdated,
-            "ampere": shared_data.bms_hv.act_current,
+            "amperes": shared_data.bms_hv.act_current,
             "power": shared_data.bms_hv.act_power
         }
 
@@ -1228,7 +1228,9 @@ def thread_3_WEB():
     def recv_command_action():
         # print(request.get_json())
         action = request.get_json()
-
+        print(action)
+        print(json.loads(action))
+        print(type(json.loads(action)))
         com_queue.put(json.loads(action))  # same error above
 
         resp = jsonify(success=True)

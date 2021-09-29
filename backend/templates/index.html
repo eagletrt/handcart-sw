@@ -22,7 +22,8 @@
                         <div class="row">
                             <div class="col-sm">
                                 <form method="POST" id="startForm"> <!-- Start Button Form -->
-                                    <input type="hidden" name="action" value="start">
+                                    <input type="hidden" name="com-type" value="precharge">
+                                    <input type="hidden" name="value" value="true">
                                     <input type="submit" value="Start" id="start" class="btn btn-success btn-lg">
                                 </form>
                                 <!--<button type="button" onclick="buttons(false)" id="start" class="btn btn-success btn-lg">
@@ -30,15 +31,17 @@
                                 </button>-->
 
                                 <form method="POST" id="stopForm"> <!-- Stop Button Form -->
-                                    <input type="hidden" name="action" value="stop">
-                                    <input type="submit" value="Stop" id="stop" class="btn btn-danger btn-lg">
+                                    <!--<input type="hidden" name="com-type" value="charge">
+                                    <input type="hidden" name="value" value="false">-->
+                                    <input type="submit" value="Precharging" id="stop" class="btn btn-danger btn-lg" disabled>
                                 </form>
                                 <!--<button type="button" onclick="buttons(true)" id="stop" class="btn btn-danger btn-lg">
                                     Stop
                                 </button>-->
 
                                 <form method="POST" id="cancelForm"> <!-- Cancel Button Form -->
-                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="hidden" name="com-type" value="precharge">
+                                    <input type="hidden" name="value" value="false">
                                     <input type="submit" value="Cancel" id="cancel" class="btn btn-danger btn-lg">
                                 </form>
                                 <!--<button type="button" onclick="" id="cancel" class="btn btn-danger btn-lg">
@@ -46,7 +49,8 @@
                                 </button>-->
 
                                 <form method="POST" id="chargeForm"> <!-- Charge Button Form -->
-                                    <input type="hidden" name="action" value="charge">
+                                    <input type="hidden" name="com-type" value="charge">
+                                    <input type="hidden" name="value" value="true">
                                     <input type="submit" value="Charge" id="chargeBtn" class="btn btn-success btn-lg">
                                 </form>
                                 <!--<button type="button" onclick="" id="chargeBtn" class="btn btn-success btn-lg">
@@ -54,7 +58,8 @@
                                 </button>-->
 
                                 <form method="POST" id="okForm"> <!-- OK Button Form -->
-                                    <input type="hidden" name="action" value="ok">
+                                    <input type="hidden" name="com-type" value="charge">
+                                    <input type="hidden" name="value" value="false">
                                     <input type="submit" value="OK" id="ok" class="btn btn-success btn-lg">
                                 </form>
                                 <!--<button type="button" onclick="" id="ok" class="btn btn-success btn-lg">
@@ -68,7 +73,7 @@
                                     let chargeForm = document.getElementById("chargeForm");
                                     let okForm = document.getElementById("okForm");
 
-                                    let path = "action/";
+                                    let path = "action";
 
                                     formListener(startForm, path);
                                     formListener(stopForm, path);
@@ -106,10 +111,10 @@
     </div>
     <script>
         // lineCharts parameters: path, chart's div, json's parameter, the zoom level, the header label's id, the unit of measure of the value
-        createLineChart("/bms-hv/volt", "volt", "volts", 1.25, "volt", "V");
+        createLineChart("/bms-hv/volt", "volt", "bus_voltage", 1.25, "volt", "V");
         createChargeChart();
         createLineChart("/bms-hv/ampere", "ampere", "amperes", 1.25, "amp", "A");
-        createLineChart("/bms-hv/temp", "temp", "temp", 1.25, "temp", "°");
+        createLineChart("/bms-hv/temp", "temp", "average_temp", 1.25, "temp", "°");
         createCellChart();
         createHeatChart(6, 1, 3); // params: nrows, subcells (how many cells in a col), the grouping parameter
     </script>

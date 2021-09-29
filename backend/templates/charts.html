@@ -36,10 +36,10 @@
             let actualChart = "{{c}}";
             // all charts are needed due to the top bar values referesh
             // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-            createLineChart("/bms-hv/volt", "volt", "volts", "nozoom", "volt", "V");
+            createLineChart("/bms-hv/volt", "volt", "bus_voltage", NZ, "volt", "V");
             createChargeChart();
-            createLineChart("/bms-hv/ampere", "ampere", "amperes", "nozoom", "amp", "A");
-            createLineChart("/bms-hv/temp", "temp", "temp", "nozoom", "temp", "°");
+            createLineChart("/bms-hv/ampere", "ampere", "amperes", NZ, "amp", "A");
+            createMultilineChart("/bms-hv/temp", "temp", "average_temp", NZ, "temp", "°");
             // these 2 charts are not mandatory for the header
             if (actualChart == "cell") createCellChart();
             if (actualChart == "heat") createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter

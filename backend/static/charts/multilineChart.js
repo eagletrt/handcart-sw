@@ -1,4 +1,4 @@
-function createLineChart(path, name, param, zoom, label, u) {
+function createMultilineChart(path, name, param, zoom, label, u) {
     //var url = 'http://127.0.0.1:5000';
     let NZ = "nozoom";
 
@@ -17,31 +17,33 @@ function createLineChart(path, name, param, zoom, label, u) {
                 //chart.paddingRight = 20;
 
                 let data = [];
+                let keys = [];
                 let previousValue = -1;
 
                 let jdata = json["data"];
                 let n = jdata.length;
 
                 for(let i = 0; i < n; i++) {
-                    let d = jdata[i][param];
-                    let timestamp = new Date(jdata[i]["timestamp"]);
-
-                    if(i > 0) {
-                        // add color to previous data item depending on whether current value is less or more than previous value
-                        if(previousValue <= d) {
-                            data[i - 1].color = am4core.color("green");
+                    let element = {};
+                    for(let key in jdata[i]) {
+                        let d = jdata[i][key];
+                        if(key != "timestamp") {
+                            if(i == 0) {
+                                keys.push(key);
+                            } else if(key == param) {
+                                if(previousValue <= d) {
+                                    data[i - 1].color = am4core.color("green");
+                                } else {
+                                    data[i - 1].color = am4core.color("red");
+                                }
+                                previousValue = d;
+                            }
+                            element[key] = d;
                         } else {
-                            data[i - 1].color = am4core.color("red");
+                            element["date"] = new Date(d);
                         }
                     }
-
-                    let element = {
-                        date: timestamp,
-                        value: d
-                    };
-
                     data.push(element);
-                    previousValue = d;
                 }
 
                 if(data.length == 0) {
@@ -89,31 +91,30 @@ function createLineChart(path, name, param, zoom, label, u) {
                 valueAxis.renderer.axisFills.template.disabled = true;
                 valueAxis.renderer.ticks.template.disabled = true;
 
-                //------------------------------------------------------------------------------------------------------
-                var series = chart.series.push(new am4charts.LineSeries());
-                series.dataFields.dateX = "date";
-                series.dataFields.valueY = "value";
-                series.strokeWidth = 2;
-                series.fillOpacity = 0.25;
-                series.fill = am4core.color("green");
-                series.tooltipText = name[0].toUpperCase() + name.substring(1) + ": {valueY}\nChange: {valueY.previousChange}";
-                series.tooltip.getFillFromObject = false;
-                series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
-                //*
-                series.interpolationDuration = 500;
-                series.defaultState.transitionDuration = 0;
-                //series.tensionX = 0.8;
-                //------------------------------------------------------------------------------------------------------
-                //------------------------------------------------------------------------------------------------------
-                //------------------------------------------------------------------------------------------------------
+                for(let key in keys) {
+                    var series = chart.series.push(new am4charts.LineSeries());
+                    series.dataFields.dateX = "date";
+                    series.dataFields.valueY = keys[key];
+                    series.strokeWidth = 2;
+                    series.fillOpacity = 0.25;
+                    let tooltipName = keys[key].split("_");
+                    let str = ""
+                    for(let i in tooltipName) {
+                        str += tooltipName[i] + " ";
+                    }
+                    series.tooltipText = str[0].toUpperCase() + str.substring(1) + ": {valueY}\nChange: {valueY.previousChange}";
+                    series.tooltip.getFillFromObject = false;
+                    series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
+                    series.interpolationDuration = 500;
+                    series.defaultState.transitionDuration = 0;
+                    if(keys[key] == param) {
+                        series.propertyFields.stroke = "color";
+                    }
+                }
 
                 dateAxis.interpolationDuration = 500;
                 dateAxis.rangeChangeDuration = 500;
                 //*
-
-                // set stroke property field
-                series.propertyFields.stroke = "color";
-                //series.propertyFields.fill = "color";
 
                 chart.cursor = new am4charts.XYCursor();
 

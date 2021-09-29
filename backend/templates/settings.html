@@ -28,7 +28,7 @@
                         <div class="row">
                             <div class="col-sm">
                                 <form method="POST" id="COForm"> <!-- Cut-Off Form -->
-                                    <input type="hidden" name="comType" value="cutoff">
+                                    <input type="hidden" name="com-type" value="cutoff">
                                     <input type="range" oninput="changeValue('COSlider', 'COValue')"
                                            min="1" max="100" value="50" class="slider" id="COSlider"
                                            name="value"><br><br>
@@ -45,7 +45,7 @@
                         <div class="row">
                             <div class="col-sm">
                                 <form method="POST" id="MCOForm"> <!-- Max Current Outlet Form -->
-                                    <input type="hidden" name="comType" value="max-c-o">
+                                    <input type="hidden" name="com-type" value="max-c-o">
                                     <input type="range" oninput="changeValue('MCOSlider', 'MCOValue')"
                                            min="1" max="10" value="5" class="slider" id="MCOSlider"
                                            name="value"><br><br>
@@ -63,13 +63,13 @@
                         <div class="row">
                             <div class="col-sm">
                                 <form method="POST" id="FCEForm"> <!-- FastCharge Enabled Form -->
-                                    <input type="hidden" name="comType" value="fast-charge">
+                                    <input type="hidden" name="com-type" value="fast-charge">
                                     <input type="hidden" name="value" value="true">
                                     <input type="submit" onclick="enableDisable(true)" id="enable"
                                            class="btn btn-success btn-lg" value="Enable">
                                 </form>
                                 <form method="POST" id="FCDForm"> <!-- FastCharge Disabled Form -->
-                                    <input type="hidden" name="comType" value="fast-charge">
+                                    <input type="hidden" name="com-type" value="fast-charge">
                                     <input type="hidden" name="value" value="false">
                                     <input type="submit" onclick="enableDisable(false)" id="disable"
                                            class="btn btn-danger btn-lg" value="Disable">
@@ -84,7 +84,7 @@
                     var FCEForm = document.getElementById("FCEForm");
                     var FCDForm = document.getElementById("FCDForm");
 
-                    let path = "settings/";
+                    let path = "settings";
                     formListener(COForm, path);
                     formListener(MCOForm, path);
                     formListener(FCEForm, path);

@@ -201,16 +201,10 @@ function formListener(form, path) {
         //const formData = new FormData(form);    // grab the data inside the form fields
         let url = '/command/' + path;
 
-        if(path == "settings/") { // if trying to change a setting
-            j = {
-                "com-type": form.elements["comType"].value,
-                "value": form.elements["value"].value
-            };
-        } else { // if trying to send an action
-            j = {
-                "action": form.elements["action"].value
-            };
-        }
+        j = {
+            "com-type": form.elements["com-type"].value,
+            "value": form.elements["value"].value
+        };
 
         postRequest(url, JSON.stringify(j));
     });

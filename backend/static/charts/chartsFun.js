@@ -1,6 +1,7 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
-function updateLineChartValue(chart, series, path, param, label, u) {
+function updateLineChartValue(chart, series, path, param, zoom, label, u) {
     //var url = 'http://127.0.0.1:5000';
+    let NZ = "nozoom";
 
     let t = setInterval(function () {
         request = getRequest(url, path);
@@ -8,24 +9,26 @@ function updateLineChartValue(chart, series, path, param, label, u) {
         fetch(request)
             .then(response => response.json())
             .then(json => {
-                timestamp = json["timestamp"];
-                d = json[param];
+                let timestamp = json["timestamp"];
+                let d = json[param];
 
-                prevItem = chart.data[chart.data.length - 1];
+                if(zoom != NZ) {
+                    let prevItem = chart.data[chart.data.length - 1];
 
-                element = {
-                    date: new Date(timestamp),
-                    value: d
-                };
+                    let element = {
+                        date: new Date(timestamp),
+                        value: d
+                    };
 
-                if (element.value >= prevItem.value) {
-                    prevItem.color = am4core.color("green");
-                } else {
-                    prevItem.color = am4core.color("red");
+                    if (element.value >= prevItem.value) {
+                        prevItem.color = am4core.color("green");
+                    } else {
+                        prevItem.color = am4core.color("red");
+                    }
+
+                    chart.addData(element);
+                    chart.invalidateRawData();
                 }
-
-                chart.addData(element);
-                chart.invalidateRawData();
 
                 let lbl = document.getElementById(label);
 
@@ -36,7 +39,7 @@ function updateLineChartValue(chart, series, path, param, label, u) {
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 
-    element = {
+    let element = {
         "timer": t,
         "chart": path
     }
