@@ -9,22 +9,22 @@ Notes:
 
 import datetime
 import json
-import struct
-
-import pytz
+import logging
 import queue
+import random
+import struct
 import threading
 import time
-import random
+from datetime import datetime
 from enum import Enum
 
 import can
 import cantools
 import flask
+import pytz
 from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
-import logging
 
 from can_cicd.includes_generator.Primary.ids import *
 from can_cicd.naked_generator.Primary.py.Primary import *
@@ -48,6 +48,7 @@ class ACCUMULATOR(Enum):
     CHIMERA = 1
     FENICE = 2
 
+
 class CAN_CHIMERA_MSG_ID(Enum):
     PACK_VOLTS = 0x01
     PACK_TEMPS = 0x0A
@@ -59,9 +60,11 @@ class CAN_CHIMERA_MSG_ID(Enum):
     ERROR = 0x08
     WARNING = 0x09
 
+
 class CAN_REQ_CHIMERA(Enum):
-    REQ_TS_ON = 0x0A # Remember to ask charge state with byte 1 set to 0x01
+    REQ_TS_ON = 0x0A  # Remember to ask charge state with byte 1 set to 0x01
     REQ_TS_OFF = 0x0B
+
 
 class STATE(Enum):
     """Enum containing the states of the backend's state-machine
@@ -112,7 +115,7 @@ class BRUSA:
         Processes a CAN Status message from Brusa
         :param msg: the Can message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_NLG5_ST_values = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
         for key in self.act_NLG5_ST_values:
@@ -132,7 +135,7 @@ class BRUSA:
         Process a CAN ACT_I message from Brusa
         :param msg: the ACT_I can message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ACT_II(self, msg):
@@ -140,7 +143,7 @@ class BRUSA:
         Process a CAN ACT_II message from Brusa
         :param msg: the ACT_II can message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_ACT_II = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_TEMP(self, msg):
@@ -148,7 +151,7 @@ class BRUSA:
         Process a CAN TEMP message from Brusa
         :param msg: the TEMP can message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_TEMP = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ERR(self, msg):
@@ -156,7 +159,7 @@ class BRUSA:
         Process a CAN ERR message from Brusa
         :param msg: the ERR can message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_ERR = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
         self.act_NLG5_ERR_str = []
 
@@ -176,13 +179,13 @@ class BMS_HV:
     Class that stores and processes all the data of the BMS_HV
     """
 
-    ACC_CONNECTED = ACCUMULATOR.FENICE # Default fenice, if msgs from chimera received will be changed
+    ACC_CONNECTED = ACCUMULATOR.FENICE  # Default fenice, if msgs from chimera received will be changed
 
     lastupdated = 0.0
 
-    hv_voltage_history = {}
-    hv_current_history = {}
-    hv_temp_history = {}
+    hv_voltage_history = []
+    hv_current_history = []
+    hv_temp_history = []
 
     act_pack_voltage = -1
     act_bus_voltage = -1
@@ -215,15 +218,18 @@ class BMS_HV:
         :param msg: the HV_VOLTAGE CAN message
         """
         # someway somehow you have to extract:
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         deserialized = HvVoltage.deserialize(msg.data)
-
-        self.hv_voltage_history[self.lastupdated](deserialized.bus_voltage)
 
         self.act_bus_voltage = deserialized.bus_voltage
         self.max_cell_voltage = deserialized.max_cell_voltage
         self.min_cell_voltage = deserialized.min_cell_voltage
+
+        self.hv_voltage_history.append({"timestamp": self.lastupdated,
+                                        "bus_voltage": self.act_bus_voltage,
+                                        "max_cell_voltage": self.max_cell_voltage,
+                                        "min_cell_voltage": self.max_cell_voltage})
 
     def doHV_CURRENT(self, msg):
         """
@@ -232,11 +238,15 @@ class BMS_HV:
         """
 
         deserialized = HvCurrent.deserialize(msg.data)
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_current = deserialized.current
         self.act_power = deserialized.power
-        self.hv_current_history[self.lastupdated](deserialized.current)
+        self.hv_current_history.append({
+            "timestamp": self.lastupdated,
+            "ampere": deserialized.current,
+            "power": deserialized.power
+        })
 
     def doHV_TEMP(self, msg):
         """
@@ -245,10 +255,13 @@ class BMS_HV:
         """
 
         deserialized = HvTemp.deserialize(msg.data)
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_average_temp = deserialized.average_temp
-        self.hv_temp_history[self.lastupdated](deserialized.average_temp)
+        self.hv_temp_history.append({"timestamp": self.lastupdated,
+                                     "average_temp": deserialized.average_temp,
+                                     "max_temp": deserialized.max_temp,
+                                     "min_temp": deserialized.min_temp})
 
         self.min_temp = deserialized.min_temp
         self.max_temp = deserialized.max_temp
@@ -258,7 +271,7 @@ class BMS_HV:
         Processes the HV_ERRORS CAN message from BMS_HV
         :param msg: the HV_ERRORS CAN message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         deserialized = HvErrors.deserialize(msg.data)
 
@@ -274,7 +287,7 @@ class BMS_HV:
         Processes the HV_STATUS CAN message from BMS_HV
         :param msg: the HV_STATUS CAN message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = Ts_Status(TsStatus.deserialize(msg.data).ts_status)
 
     def do_CHG_SET_POWER(self, msg):
@@ -282,7 +295,7 @@ class BMS_HV:
         Processes the CHG_SET_POWER CAN message from BMS_HV
         :param msg: the CHG_SET_POWER CAN message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         power = SetChgPower.deserialize(msg.data)
         self.req_chg_current = power.current
         if power.voltage > 500:
@@ -295,7 +308,7 @@ class BMS_HV:
         Processes the CHG_STATUS CAN message from BMS_HV
         :param msg: the CHG_STATUS CAN message
         """
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = ChgStatus.deserialize(msg.data).status
 
     def do_CHIMERA(self, msg):
@@ -304,7 +317,7 @@ class BMS_HV:
         """
         self.ACC_CONNECTED = ACCUMULATOR.CHIMERA
 
-        self.lastupdated = msg.timestamp
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
             self.status = Ts_Status.ON
@@ -314,11 +327,12 @@ class BMS_HV:
             self.error = True
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
             self.act_bus_voltage = (msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000
-            self.max_cell_voltage = (msg.data[4] << 8 | msg.data[5])/10000
+            self.max_cell_voltage = (msg.data[4] << 8 | msg.data[5]) / 10000
             self.min_cell_voltage = (msg.data[7] << 8 | msg.data[6]) / 10000
-            self.hv_voltage_history[msg.timestamp] = {"bus_voltage": self.act_bus_voltage,
-                                                      "max_cell_voltage": self.max_cell_voltage,
-                                                      "min_cell_voltage": self.max_cell_voltage}
+            self.hv_voltage_history.append({"timestamp": self.lastupdated,
+                                            "bus_voltage": self.act_bus_voltage,
+                                            "max_cell_voltage": self.max_cell_voltage,
+                                            "min_cell_voltage": self.max_cell_voltage})
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_TEMPS.value:
             a = "<hhhx"
@@ -326,9 +340,11 @@ class BMS_HV:
             self.act_average_temp /= 100
             self.max_temp /= 100
             self.min_temp /= 100
-            self.hv_temp_history[msg.timestamp] = {"average_temp": self.act_average_temp,
-                                                   "max_temp": self.max_temp,
-                                                   "min_temp": self.min_temp}
+            self.hv_temp_history.append({"timestamp": self.lastupdated,
+                                         "average_temp": self.act_average_temp,
+                                         "max_temp": self.max_temp,
+                                         "min_temp": self.min_temp})
+
 
 class CanListener:
     """
@@ -377,7 +393,7 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        print(msg.arbitration_id)
+        # print(msg.arbitration_id)
         if self.doMsg.get(msg.arbitration_id) is not None:
             self.doMsg.get(msg.arbitration_id)(msg)
 
@@ -394,8 +410,8 @@ class Can_rx_listener(Listener):
         it then put the message in the rx queue
         :param msg: the incoming message
         """
-        #print(msg)
-       # print(msg)
+        # print(msg)
+        # print(msg)
         rx_can_queue.put(msg)
 
 
@@ -510,8 +526,8 @@ def doPreCharge():
     if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
             ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
-                                data=SetTsStatus.serialize(Ts_Status_Set.ON),
-                                is_extended_id=False)
+                                    data=SetTsStatus.serialize(Ts_Status_Set.ON),
+                                    is_extended_id=False)
         else:
             ts_on_msg = can.Message(arbitration_id=0x55,
                                     data=[CAN_REQ_CHIMERA.REQ_TS_ON.value, 0x01, 0x00, 0x00],
@@ -702,6 +718,7 @@ def thread_1_FSM():
     global shared_data
 
     act_stat = STATE.CHECK
+    canread.FSM_entered_stat = datetime.now().isoformat()
     print("Backend started")
     print("STATE: " + str(act_stat))
 
@@ -731,7 +748,7 @@ def thread_1_FSM():
 
         canread.FSM_stat = act_stat
         if act_stat != next_stat:
-            canread.FSM_entered_stat = datetime.datetime.now().isoformat()
+            canread.FSM_entered_stat = datetime.now().isoformat()
             # print(canread.FSM_entered_stat)
             print("STATE: " + str(next_stat))
 
@@ -751,7 +768,7 @@ def thread_2_CAN():
 
     while 1:
         time.sleep(0.05)
-        #print("can")
+        # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
             canSend(canbus, act.arbitration_id, act.data)
@@ -831,28 +848,28 @@ def thread_3_WEB():
         return render_template("charts.html", c=chart)
 
     def getLastNSeconds(n):
-        now = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        now = datetime.now(pytz.timezone('Europe/Rome'))
         a = [(now - datetime.timedelta(seconds=i)) for i in range(n)]
         a.reverse()  # an array with the last n seconds form the older date to the now date
 
         return a
 
-# HANDCART-(backend)------------------------------------------------------------
+    # HANDCART-(backend)------------------------------------------------------------
 
     @app.route('/handcart/status', methods=['GET'])
     def get_hc_status():
         with lock:
             data = {
-                "timestamp": datetime.datetime.now().isoformat(),
-                "state": str(shared_data.FSM_stat).split('.')[1],
+                "timestamp": datetime.now().isoformat(),
+                "state": str(shared_data.FSM_stat.name),
                 "entered": shared_data.FSM_entered_stat
             }
             resp = jsonify(data)
             resp.status_code = 200
             return resp
 
-# END-HANDCART-(backend)--------------------------------------------------------
-# BMS-HV------------------------------------------------------------------------
+    # END-HANDCART-(backend)--------------------------------------------------------
+    # BMS-HV------------------------------------------------------------------------
 
     @app.route('/bms-hv/status', methods=['GET'])
     def get_bms_hv_status():
@@ -860,7 +877,7 @@ def thread_3_WEB():
             if shared_data.bms_hv.isConnected():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
-                    "status": shared_data.bms_hv.status
+                    "status": shared_data.bms_hv.status.name
                 }
                 res = jsonify(res)
             else:
@@ -900,10 +917,10 @@ def thread_3_WEB():
                 "id": "0",
                 "desc": "Sto esplodendo"
             },
-            {
-                "id": "5",
-                "desc": "cell 5 overvoltage"
-            }]
+                {
+                    "id": "5",
+                    "desc": "cell 5 overvoltage"
+                }]
         }
 
         resp = jsonify(data)
@@ -913,10 +930,10 @@ def thread_3_WEB():
     # BMS-VOLTAGE-DATA
     @app.route('/bms-hv/volt', methods=['GET'])
     def get_bms_hv_volt():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
-            "timestamp": timestamp,
+            "timestamp": timestamp.isoformat(),
             "data": shared_data.bms_hv.hv_voltage_history
         }
 
@@ -943,11 +960,11 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/ampere', methods=['GET'])
     def get_bms_hv_ampere():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
             "timestamp": timestamp,
-            "data": []
+            "data": shared_data.bms_hv.hv_current_history
         }
 
         resp = jsonify(data)
@@ -956,11 +973,10 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/ampere/last', methods=['GET'])
     def get_last_bms_hv_ampere():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
-
         data = {
-            "timestamp": timestamp,
-            "volts": shared_data.bms_hv.act_current
+            "timestamp": shared_data.bms_hv.lastupdated,
+            "ampere": shared_data.bms_hv.act_current,
+            "power": shared_data.bms_hv.act_power
         }
 
         resp = jsonify(data)
@@ -968,33 +984,22 @@ def thread_3_WEB():
         return resp
 
     # BMS-TEMPERATURE-DATA
-    @app.route('/bms-hv/temp', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp', methods=['GET'])
     def get_bms_temp():
-        data = {
-            "timestamp": "2020-12-01:ora",
-            "data": []
-        }
-
-        n = 100
-        min = 0
-        max = 10
-
-        last_100_seconds = getLastNSeconds(n)
-
-        for timestamp in last_100_seconds:
-            value = random.randrange(min, max)
-
-            temperature = {
-                "timestamp": timestamp,
-                "temp": value
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": shared_data.bms_hv.lastupdated,
+                "data": shared_data.bms_hv.hv_temp_history
             }
-            data["data"].append(temperature)
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 400
 
-        resp = jsonify(data)
-        resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/temp/last', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/temp/last', methods=['GET'])
     def get_last_bms_temp():
         if shared_data.bms_hv.isConnected():
             data = {
@@ -1012,7 +1017,7 @@ def thread_3_WEB():
         return resp
 
     # BMS-CELLS-DATA
-    @app.route('/bms-hv/cells', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells', methods=['GET'])
     def get_bms_cells():
         data = {
             "timestamp": "2020-12-01:ora",
@@ -1068,9 +1073,9 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/cells/last', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/cells/last', methods=['GET'])
     def get_last_bms_cells():
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
         data = {
             "timestamp": timestamp,
             "cells": []
@@ -1110,13 +1115,13 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-    @app.route('/bms-hv/heat', methods=['GET']) ## AGGIUNTA
+    @app.route('/bms-hv/heat', methods=['GET'])
     def get_bms_heat():
         min = 20
         max = 250
         ncells = 108
 
-        timestamp = datetime.datetime.now(pytz.timezone('Europe/Rome'))
+        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
         data = {
             "timestamp": timestamp,
@@ -1135,8 +1140,8 @@ def thread_3_WEB():
         resp.status_code = 200
         return resp
 
-# END-BMS-HV--------------------------------------------------------------------
-# BRUSA-------------------------------------------------------------------------
+    # END-BMS-HV--------------------------------------------------------------------
+    # BRUSA-------------------------------------------------------------------------
 
     @app.route('/brusa/status', methods=['GET'])
     def get_brusa_status():
@@ -1171,7 +1176,7 @@ def thread_3_WEB():
                 return res
 
             errorList = shared_data.brusa.act_NLG5_ERR_str
-            res = {"timestamp": time.time(), "errors": errorList}
+            res = {"timestamp": shared_data.brusa.lastupdated, "errors": errorList}
             return jsonify(res)
 
     @app.route('/brusa/info', methods=['GET'])
@@ -1185,11 +1190,11 @@ def thread_3_WEB():
             res = {
                 "timestamp": shared_data.brusa.lastupdated,
                 "NLG5_MC_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],
-                "NLG5_MV_ACT": "230",
-                "NLG5_OV_ACT": "400",
-                "NLG5_OC_ACT": "6",
-                "NLG5_S_MC_M_CP": "16",
-                "NLG5_P_TMP": "30"
+                "NLG5_MV_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'],
+                "NLG5_OV_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'],
+                "NLG5_OC_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'],
+                "NLG5_S_MC_M_CP": shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'],
+                "NLG5_P_TMP": shared_data.brusa.act_NLG5_TEMP['NLG5_S_MC_M_CP']
             }
             return jsonify(res)
 
@@ -1200,8 +1205,7 @@ def thread_3_WEB():
             data = [{
                 "com-type": "cutoff",
                 "value": shared_data.target_v
-            },
-            {
+            }, {
                 "com-type": "fast-charge",
                 "value": shared_data.fast_charge
             }]
@@ -1214,18 +1218,18 @@ def thread_3_WEB():
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
-        command = json.loads(command)   # in this method and the below one there's
-        com_queue.put(command)          # an error due to json is a dict not a string
+        command = json.loads(command)  # in this method and the below one there's
+        com_queue.put(command)  # an error due to json is a dict not a string
 
         resp = jsonify(success=True)
         return resp
 
     @app.route('/command/action', methods=['POST'])
     def recv_command_action():
-        print(request.get_json())
+        # print(request.get_json())
         action = request.get_json()
 
-        com_queue.put(json.loads(action))   # same error above
+        com_queue.put(json.loads(action))  # same error above
 
         resp = jsonify(success=True)
         return resp
