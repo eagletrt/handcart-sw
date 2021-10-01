@@ -144,7 +144,7 @@ function deleteTimer(path) {
 function onLoadEnableDisable() {
     (async () => { // syncronization is necessary
         //var url = 'http://127.0.0.1:5000';
-        var path = '/command/setting';
+        var path = 'command/setting';
 
         request = getRequest(url, path);
 
@@ -199,7 +199,7 @@ function formListener(form, path) {
     form.addEventListener('submit', function (event) {
         event.preventDefault();                 // prevent page from refreshing
         //const formData = new FormData(form);    // grab the data inside the form fields
-        let url = '/command/' + path;
+        let url = 'command/' + path;
 
         j = {
             "com-type": form.elements["com-type"].value,

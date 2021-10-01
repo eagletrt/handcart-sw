@@ -2,7 +2,7 @@
 //-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 
 async function bmsStatus() {
-    let path = '/bms-hv/status';
+    let path = 'bms-hv/status';
 
     request = getRequest(url, path);
 
@@ -81,7 +81,7 @@ setInterval(function () { // every 2 seconds
 //-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
 setInterval(function () { // every 2 seconds
-    path = '/handcart/status';
+    path = 'handcart/status';
 
     request = getRequest(url, path);
 
@@ -207,7 +207,7 @@ setInterval(function () { // every 2 seconds
 async function brusaErrors() {
     let errors = 0;
 
-    let path = '/brusa/errors';
+    let path = 'brusa/errors';
 
     let request = getRequest(url, path);
 
@@ -228,7 +228,7 @@ async function brusaErrors() {
 async function brusaWarnings() {
     let warnings = 0;
 
-    let path = '/brusa/status';
+    let path = 'brusa/status';
 
     let request = getRequest(url, path);
 
@@ -282,7 +282,7 @@ setInterval(function () { // every 2 seconds
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 //-GET-FASTCHARGE-STATUS--------------------------------------------------------
 setInterval(function () { // every 2 seconds
-        path = '/command/setting';
+        path = 'command/setting';
 
         request = getRequest(url, path);
 
@@ -313,7 +313,7 @@ setInterval(function () { // every 2 seconds
 //-END-GET-FASTCHARGE-STATUS----------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
 setInterval(function () { // every 2 seconds
-        path = '/command/setting';
+        path = 'command/setting';
 
         request = getRequest(url, path);
 
