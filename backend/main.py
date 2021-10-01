@@ -181,7 +181,7 @@ class BMS_HV:
 
     ACC_CONNECTED = ACCUMULATOR.FENICE  # Default fenice, if msgs from chimera received will be changed
 
-    lastupdated = 0.0
+    lastupdated = 0
 
     hv_voltage_history = []
     hv_current_history = []
@@ -210,7 +210,7 @@ class BMS_HV:
         Check if BMS_HV is connected
         :return: True if BMS_HV is connected
         """
-        return not self.lastupdated == 0.0
+        return not self.lastupdated == 0
 
     def doHV_VOLTAGE(self, msg):
         """
