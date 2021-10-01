@@ -1,6 +1,6 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
 function updateLineChartValue(chart, series, path, param, label, u) {
-    var url = window.location.href //'http://127.0.0.1:5000';;
+    var url = window.location.protocol + "//" +window.location.host +"/" //'http://127.0.0.1:5000';;
 
     let t = setInterval(function () {
         request = getRequest(url, path);
@@ -66,7 +66,7 @@ function setColor(chart, series) {
 
 function updateCellValue(chart, series) {
     setInterval(function () {
-        var url = window.location.href //'http://127.0.0.1:5000';;
+        var url = window.location.protocol + "//" +window.location.host +"/" //'http://127.0.0.1:5000';;
         var path = '/bms-hv/cells/last';
 
         request = getRequest(url, path);
@@ -151,7 +151,7 @@ function getHeatData(cells, ncells, nrows, subcells, group) {
 
 function updateHeatValue(chart, series, nrows, group) {
     setInterval(function () {
-        var url = window.location.href //'http://127.0.0.1:5000';;
+        var url = window.location.protocol + "//" +window.location.host +"/" //'http://127.0.0.1:5000';;
         var path = '/bms-hv/heat';
 
         request = getRequest(url, path);

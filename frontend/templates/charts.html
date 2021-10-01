@@ -36,10 +36,10 @@
             let actualChart = "{{c}}";
             // all charts are needed due to the top bar values referesh
             // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-            createLineChart("/bms-hv/volt", "volt", "volts", "nozoom", "volt", "V");
+            createLineChart("bms-hv/volt", "volt", "volts", "nozoom", "volt", "V");
             createChargeChart();
-            createLineChart("/bms-hv/ampere", "ampere", "amperes", "nozoom", "amp", "A");
-            createLineChart("/bms-hv/temp", "temp", "temp", "nozoom", "temp", "°");
+            createLineChart("bms-hv/ampere", "ampere", "amperes", "nozoom", "amp", "A");
+            createLineChart("bms-hv/temp", "temp", "temp", "nozoom", "temp", "°");
             // these 2 charts are not mandatory for the header
             if (actualChart == "cell") createCellChart();
             if (actualChart == "heat") createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
@@ -98,7 +98,7 @@
                     container.appendChild(mainRow);
 
                     // call the chart creation
-                    createLineChart("/bms-hv/cells?cell=" + c, id, "voltage", 15);
+                    createLineChart("bms-hv/cells?cell=" + c, id, "voltage", 15);
                 } else {
                     alert("You can compare max 2 charts at time!\nClose one of the opened or refresh the page to clean them all.");
                 }
@@ -115,7 +115,7 @@
                         chartCol.remove();                                  // remove the whole column that contain the chart
                     }
 
-                    let path = "/bms-hv/cells/last?cell=" + id;
+                    let path = "bms-hv/cells/last?cell=" + id;
                     deleteTimer(path);
                 } else {
                     alert("You shouldn't see the button...\nReport it!")

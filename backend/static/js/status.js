@@ -63,8 +63,8 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
 
 setInterval(function () { // every 2 seconds
     ((async () => {
-        let errors = await bmsEW("/bms-hv/errors", "errors");
-        let warnings = await bmsEW("/bms-hv/warnings", "warnings");
+        let errors = await bmsEW("bms-hv/errors", "errors");
+        let warnings = await bmsEW("bms-hv/warnings", "warnings");
 
         if (errors > 0) {
             let nErr = document.getElementById("nErrors");

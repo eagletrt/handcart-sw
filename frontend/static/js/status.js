@@ -49,8 +49,8 @@ async function bmsStatus(path, field) {
 }
 
 ((async () => {
-    let errors = await bmsStatus("/bms-hv/errors", "errors");
-    let warnings = await bmsStatus("/bms-hv/warnings", "warnings");
+    let errors = await bmsStatus("bms-hv/errors", "errors");
+    let warnings = await bmsStatus("bms-hv/warnings", "warnings");
 
     if (errors > 0) {
         let nErr = document.getElementById("nErrors");
