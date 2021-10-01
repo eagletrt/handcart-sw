@@ -9,7 +9,12 @@ async function bmsStatus() {
     var str = "";
 
     await fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
+            }
+            return response.json();
+        })
         .then(json => {
             let state = document.getElementById("bmsState");
 
@@ -48,7 +53,12 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
     let request = getRequest(url, path);
 
     await fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
+            }
+            return response.json();
+        })
         .then(json => {
             let s = json[field];
 
@@ -86,7 +96,12 @@ setInterval(function () { // every 2 seconds
     request = getRequest(url, path);
 
     fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (HANDCART)");
+            }
+            return response.json();
+        })
         .then(json => {
             let state = document.getElementById("hcState");
 
@@ -212,7 +227,12 @@ async function brusaErrors() {
     let request = getRequest(url, path);
 
     await fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)");
+            }
+            return response.json();
+        })
         .then(json => {
             let err = json["errors"];
 
@@ -233,7 +253,12 @@ async function brusaWarnings() {
     let request = getRequest(url, path);
 
     await fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)");
+            }
+            return response.json();
+        })
         .then(json => {
             let status = json["status"];
 
@@ -287,7 +312,12 @@ setInterval(function () { // every 2 seconds
         request = getRequest(url, path);
 
         fetch(request)
-            .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+            }
+            return response.json();
+        })
             .then(json => {
                 var fc = document.getElementById("fc");
 
@@ -318,7 +348,12 @@ setInterval(function () { // every 2 seconds
         request = getRequest(url, path);
 
         fetch(request)
-            .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+            }
+            return response.json();
+        })
             .then(json => {
                 var cov = document.getElementById("COvolt");
 

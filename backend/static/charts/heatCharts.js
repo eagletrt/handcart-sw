@@ -5,7 +5,13 @@ function createHeatChart(nrows, subcells, group) {
     request = getRequest(url, path);
 
     fetch(request)
-        .then(response => response.json())
+        .then(response => {
+            if(!response.ok) {
+                document.getElementById(name + "Chart").innerHTML = "Device not connected!";
+                throw new Error("Error code " + response.status + ": Device not connected");
+            }
+            return response.json();
+        })
         .then(json => {
             am4core.ready(function () {
                 // Themes begin

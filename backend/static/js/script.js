@@ -199,9 +199,12 @@ function formListener(form, path) {
         //const formData = new FormData(form);    // grab the data inside the form fields
         let url = 'command/' + path;
 
+        let v = form.elements["value"].value.toLowerCase();
+        let value = v == "true"? true : v == "false"? false : parseInt(v);
+
         j = {
             "com-type": form.elements["com-type"].value,
-            "value": form.elements["value"].value
+            "value": value
         };
 
         postRequest(url, JSON.stringify(j));
