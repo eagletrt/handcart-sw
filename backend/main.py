@@ -1208,7 +1208,7 @@ def thread_3_WEB():
                 res["NLG5_S_MC_M_CP"] = 0
 
             if shared_data.brusa.act_NLG5_TEMP != {}:
-                res["NLG5_P_TMP"] = shared_data.brusa.act_NLG5_TEMP['NLG5_S_MC_M_CP']
+                res["NLG5_P_TMP"] = shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP']
             else:
                 res["NLG5_P_TMP"] = 0
 
