@@ -616,7 +616,8 @@ def doError():
 
     if canread.brusa.error:
         for i in canread.brusa.act_NLG5_ERR_str:
-            print("[ERR] " + i)
+            pass
+            # print("[ERR] " + i)
     if canread.bms_hv.error:
         print("Accumulator Error: ")
         print(canread.bms_hv.error_str)
@@ -946,7 +947,8 @@ def thread_3_WEB():
         if shared_data.bms_hv.isConnected():
             data = {
                 "timestamp": shared_data.bms_hv.lastupdated,
-                "pack_voltage": shared_data.bms_hv.act_bus_voltage, # this doesn't exist when asking for whole precedent data
+                "pack_voltage": shared_data.bms_hv.act_bus_voltage,
+                # this doesn't exist when asking for whole precedent data
                 "bus_voltage": shared_data.bms_hv.act_bus_voltage,
                 "max_cell_voltage": shared_data.bms_hv.max_cell_voltage,
                 "min_cell_voltage": shared_data.bms_hv.min_cell_voltage
@@ -1189,13 +1191,27 @@ def thread_3_WEB():
 
             res = {
                 "timestamp": shared_data.brusa.lastupdated,
-                "NLG5_MC_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],
-                "NLG5_MV_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'],
-                "NLG5_OV_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'],
-                "NLG5_OC_ACT": shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'],
-                "NLG5_S_MC_M_CP": shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'],
-                "NLG5_P_TMP": shared_data.brusa.act_NLG5_TEMP['NLG5_S_MC_M_CP']
             }
+            if shared_data.brusa.act_NLG5_ACT_I != {}:
+                res["NLG5_MC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT']
+                res["NLG5_MV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT']
+                res["NLG5_OV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT']
+                res["NLG5_OC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT']
+            else:
+                res["NLG5_MC_ACT"] = 0
+                res["NLG5_MV_ACT"] = 0
+                res["NLG5_OV_ACT"] = 0
+                res["NLG5_OC_ACT"] = 0
+            if shared_data.brusa.act_NLG5_ACT_II != {}:
+                res["NLG5_S_MC_M_CP"] = shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP']
+            else:
+                res["NLG5_S_MC_M_CP"] = 0
+
+            if shared_data.brusa.act_NLG5_TEMP != {}:
+                res["NLG5_P_TMP"] = shared_data.brusa.act_NLG5_TEMP['NLG5_S_MC_M_CP']
+            else:
+                res["NLG5_P_TMP"] = 0
+
             return jsonify(res)
 
     @app.route('/command/setting', methods=['GET'])
