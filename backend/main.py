@@ -92,7 +92,7 @@ class CAN_BRUSA_MSG_ID(Enum):
 class BRUSA:
     """Class to store and process all the Brusa data
     """
-    lastupdated = ""
+    lastupdated = 0
 
     act_NLG5_ST_values = {}
     act_NLG5_ACT_I = {}
@@ -108,7 +108,7 @@ class BRUSA:
         """Checks if Brusa is connected
         :return: True if Brusa is connected
         """
-        return not self.lastupdated == ""
+        return not self.lastupdated == 0
 
     def doNLG5_ST(self, msg):
         """
@@ -495,6 +495,9 @@ def doCheck():
     """
     Do check status of the state machine
     """
+    print("bms:" + str(canread.bms_hv.isConnected()))
+    print("brusa:" + str(canread.bms_hv.isConnected()))
+
     if canread.bms_hv.isConnected() and canread.brusa.isConnected():
         return STATE.IDLE
     else:
