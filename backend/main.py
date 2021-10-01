@@ -495,8 +495,6 @@ def doCheck():
     """
     Do check status of the state machine
     """
-    print("bms:" + str(canread.bms_hv.isConnected()))
-    print("brusa:" + str(canread.bms_hv.isConnected()))
 
     if canread.bms_hv.isConnected() and canread.brusa.isConnected():
         return STATE.IDLE
