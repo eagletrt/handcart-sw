@@ -326,9 +326,9 @@ class BMS_HV:
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
-            self.act_bus_voltage = (msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000
-            self.max_cell_voltage = (msg.data[4] << 8 | msg.data[5]) / 10000
-            self.min_cell_voltage = (msg.data[7] << 8 | msg.data[6]) / 10000
+            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 2)
+            self.max_cell_voltage = round((msg.data[4] << 8 | msg.data[5]) / 10000, 2)
+            self.min_cell_voltage = round((msg.data[6] << 8 | msg.data[7]) / 10000, 2)
             self.hv_voltage_history.append({"timestamp": self.lastupdated,
                                             "bus_voltage": self.act_bus_voltage,
                                             "max_cell_voltage": self.max_cell_voltage,
@@ -345,6 +345,12 @@ class BMS_HV:
                                          "max_temp": self.max_temp,
                                          "min_temp": self.min_temp})
 
+        elif msg.data[0] == CAN_CHIMERA_MSG_ID.CURRENT.value:
+            self.act_current = (msg.data[1] << 8 | msg.data[2])/10
+            self.act_power = (msg.data[3] << 8 | msg.data[4])
+            self.hv_current_history.append({"timestamp": self.lastupdated,
+                                            "current": self.act_current,
+                                            "power": self.act_power})
 
 class CanListener:
     """
@@ -888,7 +894,7 @@ def thread_3_WEB():
                     "status": "OFFLINE"
                 }
                 res = jsonify(res)
-                res.status_code = 400
+                res.status_code = 405
         return res
 
     @app.route('/bms-hv/errors', methods=['GET'])
@@ -908,7 +914,7 @@ def thread_3_WEB():
                 res = jsonify(res)
             else:
                 res = jsonify("not connected")
-                res.status_code = 400
+                res.status_code = 405
         return res
 
     @app.route('/bms-hv/warnings', methods=['GET'])
@@ -958,7 +964,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("bms hv is offline")
-            resp.status_code = 400
+            resp.status_code = 405
         return resp
 
     @app.route('/bms-hv/ampere', methods=['GET'])
@@ -978,7 +984,7 @@ def thread_3_WEB():
     def get_last_bms_hv_ampere():
         data = {
             "timestamp": shared_data.bms_hv.lastupdated,
-            "amperes": shared_data.bms_hv.act_current,
+            "current": shared_data.bms_hv.act_current,
             "power": shared_data.bms_hv.act_power
         }
 
@@ -998,7 +1004,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("not connected")
-            resp.status_code = 400
+            resp.status_code = 405
 
         return resp
 
@@ -1016,7 +1022,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("bms hv is not connected")
-            resp.status_code = 400
+            resp.status_code = 405
         return resp
 
     # BMS-CELLS-DATA
@@ -1167,7 +1173,7 @@ def thread_3_WEB():
                         "status": []
                     }
                 )
-                res.status_code = 400
+                res.status_code = 405
         return res
 
     @app.route('/brusa/errors', methods=['GET'])
@@ -1175,7 +1181,7 @@ def thread_3_WEB():
         with lock:
             if not shared_data.brusa.isConnected():
                 res = jsonify("not connected")
-                res.status_code = 400
+                res.status_code = 405
                 return res
 
             errorList = shared_data.brusa.act_NLG5_ERR_str
@@ -1187,7 +1193,7 @@ def thread_3_WEB():
         with lock:
             if not shared_data.brusa.isConnected():
                 res = jsonify("not connected")
-                res.status_code = 400
+                res.status_code = 405
                 return res
 
             res = {
