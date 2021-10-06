@@ -28,30 +28,32 @@ function createLineChart(path, name, param, zoom, label, u) {
                 let jdata = json["data"];
                 let n = jdata.length;
 
-                for(let i = 0; i < n; i++) {
-                    let d = jdata[i][param];
-                    let timestamp = new Date(jdata[i]["timestamp"]);
+                if(zoom == NZ) {
+                    for (let i = 0; i < n; i++) {
+                        let d = jdata[i][param];
+                        let timestamp = new Date(jdata[i]["timestamp"]);
 
-                    if(i > 0) {
-                        // add color to previous data item depending on whether current value is less or more than previous value
-                        if(previousValue <= d) {
-                            data[i - 1].color = am4core.color("green");
-                        } else {
-                            data[i - 1].color = am4core.color("red");
+                        if (i > 0) {
+                            // add color to previous data item depending on whether current value is less or more than previous value
+                            if (previousValue <= d) {
+                                data[i - 1].color = am4core.color("green");
+                            } else {
+                                data[i - 1].color = am4core.color("red");
+                            }
                         }
+
+                        let element = {
+                            date: timestamp,
+                            value: d
+                        };
+
+                        data.push(element);
+                        previousValue = d;
                     }
-
-                    let element = {
-                        date: timestamp,
-                        value: d
-                    };
-
-                    data.push(element);
-                    previousValue = d;
                 }
 
                 if(data.length == 0) {
-                    for (let i = 0; i <= 30; i++) {
+                    for (let i = 0; i <= 10; i++) {
                         let element = {
                             date: new Date().setSeconds(i - 30),
                             value: 0
@@ -109,8 +111,6 @@ function createLineChart(path, name, param, zoom, label, u) {
                 series.interpolationDuration = 500;
                 series.defaultState.transitionDuration = 0;
                 //series.tensionX = 0.8;
-                //------------------------------------------------------------------------------------------------------
-                //------------------------------------------------------------------------------------------------------
                 //------------------------------------------------------------------------------------------------------
 
                 dateAxis.interpolationDuration = 500;
