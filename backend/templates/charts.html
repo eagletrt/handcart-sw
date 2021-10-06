@@ -38,7 +38,7 @@
             // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
             createLineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt", "V");
             createChargeChart();
-            createLineChart("bms-hv/ampere", "ampere", "amperes", NZ, "amp", "A");
+            createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp", "A");
             createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp", "°");
             // these 2 charts are not mandatory for the header
             if (actualChart == "cell") createCellChart();
