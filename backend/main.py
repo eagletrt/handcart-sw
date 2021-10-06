@@ -798,7 +798,6 @@ def thread_2_CAN():
                             else:
                                 mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
                                 out_ampere = STANDARD_ACC_CHG_AMPERE
-                            print(shared_data.target_v)
 
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
@@ -979,26 +978,33 @@ def thread_3_WEB():
     @app.route('/bms-hv/ampere', methods=['GET'])
     def get_bms_hv_ampere():
         timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": timestamp.isoformat(),
+                "data": shared_data.bms_hv.hv_current_history
+            }
 
-        data = {
-            "timestamp": timestamp,
-            "data": shared_data.bms_hv.hv_current_history
-        }
-
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("bms hv is offline")
+            resp.status_code = 450
         return resp
 
     @app.route('/bms-hv/ampere/last', methods=['GET'])
     def get_last_bms_hv_ampere():
-        data = {
-            "timestamp": shared_data.bms_hv.lastupdated,
-            "current": shared_data.bms_hv.act_current,
-            "power": shared_data.bms_hv.act_power
-        }
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": shared_data.bms_hv.lastupdated,
+                "current": shared_data.bms_hv.act_current,
+                "power": shared_data.bms_hv.act_power
+            }
 
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 450
         return resp
 
     # BMS-TEMPERATURE-DATA
@@ -1209,22 +1215,22 @@ def thread_3_WEB():
                 "timestamp": shared_data.brusa.lastupdated,
             }
             if shared_data.brusa.act_NLG5_ACT_I != {}:
-                res["NLG5_MC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT']
-                res["NLG5_MV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT']
-                res["NLG5_OV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT']
-                res["NLG5_OC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT']
+                res["NLG5_MC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],2)
+                res["NLG5_MV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'],2)
+                res["NLG5_OV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'],2)
+                res["NLG5_OC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'],2)
             else:
                 res["NLG5_MC_ACT"] = 0
                 res["NLG5_MV_ACT"] = 0
                 res["NLG5_OV_ACT"] = 0
                 res["NLG5_OC_ACT"] = 0
             if shared_data.brusa.act_NLG5_ACT_II != {}:
-                res["NLG5_S_MC_M_CP"] = shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP']
+                res["NLG5_S_MC_M_CP"] = round(shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'],2)
             else:
                 res["NLG5_S_MC_M_CP"] = 0
 
             if shared_data.brusa.act_NLG5_TEMP != {}:
-                res["NLG5_P_TMP"] = shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP']
+                res["NLG5_P_TMP"] = round(shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP'],2)
             else:
                 res["NLG5_P_TMP"] = 0
 
