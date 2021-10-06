@@ -328,7 +328,7 @@ class BMS_HV:
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
-            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 2)
+            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 1)
             self.max_cell_voltage = round((msg.data[4] << 8 | msg.data[5]) / 10000, 2)
             self.min_cell_voltage = round((msg.data[6] << 8 | msg.data[7]) / 10000, 2)
             self.hv_voltage_history.append({"timestamp": self.lastupdated,
@@ -943,15 +943,19 @@ def thread_3_WEB():
     # BMS-VOLTAGE-DATA
     @app.route('/bms-hv/volt', methods=['GET'])
     def get_bms_hv_volt():
-        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+        if shared_data.bms_hv.isConnected():
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
-        data = {
-            "timestamp": timestamp.isoformat(),
-            "data": shared_data.bms_hv.hv_voltage_history
-        }
+            data = {
+                "timestamp": timestamp.isoformat(),
+                "data": shared_data.bms_hv.hv_voltage_history
+            }
 
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 200
         return resp
 
     @app.route('/bms-hv/volt/last', methods=['GET'])
@@ -1246,7 +1250,9 @@ def thread_3_WEB():
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
-        command = json.loads(command)  # in this method and the below one there's
+        if type(command) != dict:
+            command = json.loads(command)
+        # in this method and the below one there's
         com_queue.put(command)  # an error due to json is a dict not a string
 
         resp = jsonify(success=True)
@@ -1257,9 +1263,10 @@ def thread_3_WEB():
         # print(request.get_json())
         action = request.get_json()
         print(action)
-        print(json.loads(action))
-        print(type(json.loads(action)))
-        com_queue.put(json.loads(action))  # same error above
+        if type(action) != dict:
+            action = json.loads(action)
+
+        com_queue.put(action)  # same error above
 
         resp = jsonify(success=True)
         return resp
