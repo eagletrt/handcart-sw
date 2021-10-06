@@ -207,7 +207,7 @@ function formListener(form, path) {
             "value": value
         };
 
-        postRequest(url, j);
+        postRequest(url, JSON.stringify(j));
     });
 }
 
