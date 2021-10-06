@@ -669,7 +669,7 @@ def staccastacca():
     msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data, is_extended_id=False)
     tx_can_queue.put(msg)
     #CHIMERA
-    msg = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, data=[CAN_REQ_CHIMERA.REQ_TS_OFF], is_extended_id=False)
+    msg = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value], is_extended_id=False)
     tx_can_queue.put(msg)
 
     # Set PON to off
@@ -740,7 +740,7 @@ def thread_1_FSM():
     print("STATE: " + str(act_stat))
 
     while 1:
-        time.sleep(0.01)
+        time.sleep(0.001)
         # print("main")
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
@@ -784,7 +784,7 @@ def thread_2_CAN():
     last_brusa_ctl_sent = 0
 
     while 1:
-        time.sleep(0.01)
+        time.sleep(0.001)
         # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
