@@ -197,7 +197,7 @@ function formListener(form, path) {
     form.addEventListener('submit', function (event) {
         event.preventDefault();                 // prevent page from refreshing
         //const formData = new FormData(form);    // grab the data inside the form fields
-        let url = 'command/' + path;
+        let url = "command/" + path;
 
         let v = form.elements["value"].value.toLowerCase();
         let value = v == "true"? true : v == "false"? false : parseInt(v);
@@ -207,7 +207,7 @@ function formListener(form, path) {
             "value": value
         };
 
-        postRequest(url, JSON.stringify(j));
+        postRequest(url, j);
     });
 }
 
