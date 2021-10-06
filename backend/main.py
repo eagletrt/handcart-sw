@@ -36,7 +36,7 @@ STANDARD_CHARGE_MAINS_AMPERE = 6
 
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
 STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
-MAX_TARGET_V_ACC = 450  # Maximum charging voltage of accumulator
+MAX_TARGET_V_ACC = 430 # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
@@ -287,6 +287,7 @@ class BMS_HV:
         Processes the HV_STATUS CAN message from BMS_HV
         :param msg: the HV_STATUS CAN message
         """
+        print(msg.arbitration_id)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = Ts_Status(TsStatus.deserialize(msg.data).ts_status)
 
@@ -320,6 +321,7 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
+            print("ts on message")
             self.status = Ts_Status.ON
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
             self.status = Ts_Status.OFF
@@ -418,6 +420,8 @@ class Can_rx_listener(Listener):
         """
         # print(msg)
         # print(msg)
+        if msg.arbitration_id == 4:
+            return
         rx_can_queue.put(msg)
 
 
@@ -731,7 +735,7 @@ def thread_1_FSM():
     print("STATE: " + str(act_stat))
 
     while 1:
-        time.sleep(0.05)
+        time.sleep(0.01)
         # print("main")
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
@@ -775,7 +779,7 @@ def thread_2_CAN():
     last_brusa_ctl_sent = 0
 
     while 1:
-        time.sleep(0.05)
+        time.sleep(0.01)
         # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
@@ -794,6 +798,7 @@ def thread_2_CAN():
                             else:
                                 mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
                                 out_ampere = STANDARD_ACC_CHG_AMPERE
+                            print(shared_data.target_v)
 
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
@@ -894,7 +899,7 @@ def thread_3_WEB():
                     "status": "OFFLINE"
                 }
                 res = jsonify(res)
-                res.status_code = 405
+                res.status_code = 450
         return res
 
     @app.route('/bms-hv/errors', methods=['GET'])
@@ -914,7 +919,7 @@ def thread_3_WEB():
                 res = jsonify(res)
             else:
                 res = jsonify("not connected")
-                res.status_code = 405
+                res.status_code = 450
         return res
 
     @app.route('/bms-hv/warnings', methods=['GET'])
@@ -964,7 +969,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("bms hv is offline")
-            resp.status_code = 405
+            resp.status_code = 450
         return resp
 
     @app.route('/bms-hv/ampere', methods=['GET'])
@@ -1004,7 +1009,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("not connected")
-            resp.status_code = 405
+            resp.status_code = 450
 
         return resp
 
@@ -1022,7 +1027,7 @@ def thread_3_WEB():
             resp.status_code = 200
         else:
             resp = jsonify("bms hv is not connected")
-            resp.status_code = 405
+            resp.status_code = 450
         return resp
 
     # BMS-CELLS-DATA
@@ -1173,7 +1178,7 @@ def thread_3_WEB():
                         "status": []
                     }
                 )
-                res.status_code = 405
+                res.status_code = 450
         return res
 
     @app.route('/brusa/errors', methods=['GET'])
@@ -1181,7 +1186,7 @@ def thread_3_WEB():
         with lock:
             if not shared_data.brusa.isConnected():
                 res = jsonify("not connected")
-                res.status_code = 405
+                res.status_code = 450
                 return res
 
             errorList = shared_data.brusa.act_NLG5_ERR_str
@@ -1193,7 +1198,7 @@ def thread_3_WEB():
         with lock:
             if not shared_data.brusa.isConnected():
                 res = jsonify("not connected")
-                res.status_code = 405
+                res.status_code = 450
                 return res
 
             res = {
