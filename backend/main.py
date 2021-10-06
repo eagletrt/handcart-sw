@@ -40,6 +40,7 @@ MAX_TARGET_V_ACC = 430 # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
+CAN_ID_ECU_CHIMERA = 0x55
 
 
 # BMS_HV_BYPASS = False # Use at your own risk
@@ -662,9 +663,13 @@ def staccastacca():
     and all the devices
     """
     global precharge_asked, precharge_done, can_forward_enabled
+    #FENICE
     sts = SetTsStatus()
     data = sts.serialize(Ts_Status_Set.OFF.value)
     msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data, is_extended_id=False)
+    tx_can_queue.put(msg)
+    #CHIMERA
+    msg = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, data=[CAN_REQ_CHIMERA.REQ_TS_OFF], is_extended_id=False)
     tx_can_queue.put(msg)
 
     # Set PON to off
@@ -787,7 +792,7 @@ def thread_2_CAN():
 
         # Handles the brusa ctl messages
         with forward_lock:
-            if time.time() - last_brusa_ctl_sent > 0.1:  # every tot time send a message
+            if time.time() - last_brusa_ctl_sent > 0.15:  # every tot time send a message
                 NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
