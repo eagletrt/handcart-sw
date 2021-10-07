@@ -40,6 +40,7 @@ MAX_TARGET_V_ACC = 430 # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
+CAN_ID_ECU_CHIMERA = 0x55
 
 
 # BMS_HV_BYPASS = False # Use at your own risk
@@ -328,7 +329,7 @@ class BMS_HV:
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
-            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 2)
+            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 1)
             self.max_cell_voltage = round((msg.data[4] << 8 | msg.data[5]) / 10000, 2)
             self.min_cell_voltage = round((msg.data[6] << 8 | msg.data[7]) / 10000, 2)
             self.hv_voltage_history.append({"timestamp": self.lastupdated,
@@ -662,9 +663,13 @@ def staccastacca():
     and all the devices
     """
     global precharge_asked, precharge_done, can_forward_enabled
+    #FENICE
     sts = SetTsStatus()
     data = sts.serialize(Ts_Status_Set.OFF.value)
     msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data, is_extended_id=False)
+    tx_can_queue.put(msg)
+    #CHIMERA
+    msg = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value], is_extended_id=False)
     tx_can_queue.put(msg)
 
     # Set PON to off
@@ -735,7 +740,7 @@ def thread_1_FSM():
     print("STATE: " + str(act_stat))
 
     while 1:
-        time.sleep(0.01)
+        time.sleep(0.001)
         # print("main")
         # Controllo coda rec can messages, in caso li processo. Controllo anche errori
         if not rx_can_queue.empty():
@@ -779,7 +784,7 @@ def thread_2_CAN():
     last_brusa_ctl_sent = 0
 
     while 1:
-        time.sleep(0.01)
+        time.sleep(0.001)
         # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
@@ -787,7 +792,7 @@ def thread_2_CAN():
 
         # Handles the brusa ctl messages
         with forward_lock:
-            if time.time() - last_brusa_ctl_sent > 0.1:  # every tot time send a message
+            if time.time() - last_brusa_ctl_sent > 0.15:  # every tot time send a message
                 NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
@@ -798,7 +803,6 @@ def thread_2_CAN():
                             else:
                                 mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
                                 out_ampere = STANDARD_ACC_CHG_AMPERE
-                            print(shared_data.target_v)
 
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
@@ -947,15 +951,19 @@ def thread_3_WEB():
     # BMS-VOLTAGE-DATA
     @app.route('/bms-hv/volt', methods=['GET'])
     def get_bms_hv_volt():
-        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+        if shared_data.bms_hv.isConnected():
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
-        data = {
-            "timestamp": timestamp.isoformat(),
-            "data": shared_data.bms_hv.hv_voltage_history
-        }
+            data = {
+                "timestamp": timestamp.isoformat(),
+                "data": shared_data.bms_hv.hv_voltage_history
+            }
 
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 200
         return resp
 
     @app.route('/bms-hv/volt/last', methods=['GET'])
@@ -979,26 +987,33 @@ def thread_3_WEB():
     @app.route('/bms-hv/ampere', methods=['GET'])
     def get_bms_hv_ampere():
         timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": timestamp.isoformat(),
+                "data": shared_data.bms_hv.hv_current_history
+            }
 
-        data = {
-            "timestamp": timestamp,
-            "data": shared_data.bms_hv.hv_current_history
-        }
-
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("bms hv is offline")
+            resp.status_code = 450
         return resp
 
     @app.route('/bms-hv/ampere/last', methods=['GET'])
     def get_last_bms_hv_ampere():
-        data = {
-            "timestamp": shared_data.bms_hv.lastupdated,
-            "current": shared_data.bms_hv.act_current,
-            "power": shared_data.bms_hv.act_power
-        }
+        if shared_data.bms_hv.isConnected():
+            data = {
+                "timestamp": shared_data.bms_hv.lastupdated,
+                "current": shared_data.bms_hv.act_current,
+                "power": shared_data.bms_hv.act_power
+            }
 
-        resp = jsonify(data)
-        resp.status_code = 200
+            resp = jsonify(data)
+            resp.status_code = 200
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 450
         return resp
 
     # BMS-TEMPERATURE-DATA
@@ -1209,22 +1224,22 @@ def thread_3_WEB():
                 "timestamp": shared_data.brusa.lastupdated,
             }
             if shared_data.brusa.act_NLG5_ACT_I != {}:
-                res["NLG5_MC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT']
-                res["NLG5_MV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT']
-                res["NLG5_OV_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT']
-                res["NLG5_OC_ACT"] = shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT']
+                res["NLG5_MC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],2)
+                res["NLG5_MV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'],2)
+                res["NLG5_OV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'],2)
+                res["NLG5_OC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'],2)
             else:
                 res["NLG5_MC_ACT"] = 0
                 res["NLG5_MV_ACT"] = 0
                 res["NLG5_OV_ACT"] = 0
                 res["NLG5_OC_ACT"] = 0
             if shared_data.brusa.act_NLG5_ACT_II != {}:
-                res["NLG5_S_MC_M_CP"] = shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP']
+                res["NLG5_S_MC_M_CP"] = round(shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'],2)
             else:
                 res["NLG5_S_MC_M_CP"] = 0
 
             if shared_data.brusa.act_NLG5_TEMP != {}:
-                res["NLG5_P_TMP"] = shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP']
+                res["NLG5_P_TMP"] = round(shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP'],2)
             else:
                 res["NLG5_P_TMP"] = 0
 
@@ -1250,7 +1265,9 @@ def thread_3_WEB():
     def recv_command_setting():
         # print(request.get_json())
         command = request.get_json()
-        command = json.loads(command)  # in this method and the below one there's
+        if type(command) != dict:
+            command = json.loads(command)
+        # in this method and the below one there's
         com_queue.put(command)  # an error due to json is a dict not a string
 
         resp = jsonify(success=True)
@@ -1261,9 +1278,10 @@ def thread_3_WEB():
         # print(request.get_json())
         action = request.get_json()
         print(action)
-        print(json.loads(action))
-        print(type(json.loads(action)))
-        com_queue.put(json.loads(action))  # same error above
+        if type(action) != dict:
+            action = json.loads(action)
+
+        com_queue.put(action)  # same error above
 
         resp = jsonify(success=True)
         return resp

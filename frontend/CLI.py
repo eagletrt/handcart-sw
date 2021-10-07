@@ -154,7 +154,7 @@ def actual_tab(tab):
         actual_tab.addstr(5, SECOND_COLUMN_INDEX, "main in A:\t" + str(brusa_mains_current))
         actual_tab.addstr(6, SECOND_COLUMN_INDEX, "out V:\t" + str(brusa_output_voltage))
         actual_tab.addstr(7, SECOND_COLUMN_INDEX, "out A:\t" + str(brusa_output_current))
-        actual_tab.addstr(8, SECOND_COLUMN_INDEX, "main in limit A:\t" + str(brusa_mains_current_limit))
+        actual_tab.addstr(8, SECOND_COLUMN_INDEX, "mainIN lim A:\t" + str(brusa_mains_current_limit))
         actual_tab.addstr(9, SECOND_COLUMN_INDEX, "temperature:\t" + str(brusa_temp))
         actual_tab.addstr(10, SECOND_COLUMN_INDEX, "Warning:\t" + str(brusa_warning))
 
