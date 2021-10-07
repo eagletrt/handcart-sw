@@ -109,11 +109,11 @@ function errorTable(path, id, msg) {
     fetch(request)
         .then(response => response.json())
         .then(json => {
-            var container = document.getElementById("table-responsive-" + id);
+            let container = document.getElementById("table-responsive-" + id);
             let errors = json["errors"];
 
             if (errors != undefined && errors.length > 0) {
-                var table = document.createElement("table");
+                let table = document.createElement("table");
                 table.className += "table table-striped table-sm";
 
                 createTable(json, table, container);

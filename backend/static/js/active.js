@@ -14,6 +14,9 @@ switch(page) {
         let chart = href.search.split("=")[1];
         document.getElementById("side" + chart).classList.add("active");
         break;
+    case "brusa-info":
+        document.getElementById("sideinfo").classList.add("active");
+        break;
     case "warnings":
     case "errors":
         break;

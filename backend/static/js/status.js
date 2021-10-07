@@ -71,23 +71,6 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
     return bms;
 }
 
-setInterval(function () { // every 2 seconds
-    ((async () => {
-        let errors = await bmsEW("bms-hv/errors", "errors");
-        let warnings = await bmsEW("bms-hv/warnings", "warnings");
-
-        if (errors > 0) {
-            let nErr = document.getElementById("nErrors");
-            nErr.innerHTML = /*parseInt(nErr.innerHTML) +*/ errors; // then set the number of warnings
-        }
-
-        if (warnings > 0) {
-            let nWarn = document.getElementById("nWarnings");
-            nWarn.innerHTML = /*parseInt(nWarn.innerHTML) +*/ warnings;
-        }
-    })());
-}, 2000);
-
 //-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
 setInterval(function () { // every 2 seconds
@@ -277,92 +260,110 @@ async function brusaWarnings() {
 
 setInterval(function () { // every 2 seconds
     ((async () => {
-        let errors = await brusaErrors();       // get the number of brusa's errors
-        let warnings = await brusaWarnings();   // get the number of brusa's warning
+        let brusaE = await brusaErrors();       // get the number of brusa's errors
+        let brusaW = await brusaWarnings();   // get the number of brusa's warning
+
+        let errors = 0;
+        let warnings = 0;
 
         let state = document.getElementById("brusaState");
+        let nWarn = document.getElementById("nWarnings");
+        let nErr = document.getElementById("nErrors");
 
-        if (errors > 0 || warnings > 0) {        // check if there are errors or warnings
-            if (warnings > 0) {                  // if there are warnings
-                state.innerHTML = "WARNING";    // change the text
-                state.className = "orange";     // and the color
+        if (brusaE > 0 || brusaW > 0) {             // check if there are errors or warnings
+            if (brusaW > 0) {                       // if there are warnings
+                state.innerHTML = "WARNING";        // change the text
+                state.className = "orange";         // and the color
 
-                let nWarn = document.getElementById("nWarnings");
-                nWarn.innerHTML = parseInt(nWarn.innerHTML) + warnings; // then set the number of warnings
+                warnings += brusaW;           // then set the number of warnings
             }
             // even if there are warnings
-            if (errors > 0) {                    // if there are errors
-                state.innerHTML = "ERROR";      // change the text
-                state.className = "red";        // and the color
+            if (brusaE > 0) {                       // if there are errors
+                state.innerHTML = "ERROR";          // change the text
+                state.className = "red";            // and the color
 
-                let nErr = document.getElementById("nErrors");
-                nErr.innerHTML = parseInt(nErr.innerHTML) + errors; // then set the number of errors
+                errors += brusaE;            // then set the number of errors
             }
-        } else {                                // if there's no errors and warnings
-            state.innerHTML = "IDLE";           // change the text
-            state.className = "green";          // and the color
+        } else {                                    // if there's no errors and warnings
+            state.innerHTML = "IDLE";               // change the text
+            state.className = "green";              // and the color
         }
+
+        //--------------------------------------------------------------------------------------------------------------
+        let bmsErrors = await bmsEW("bms-hv/errors", "errors");
+        let bmsWarnings = await bmsEW("bms-hv/warnings", "warnings");
+
+        if (bmsErrors > 0) {
+            errors += bmsErrors;
+        }
+
+        if (bmsWarnings > 0) {
+            warnings += bmsWarnings;
+        }
+
+        nWarn.innerHTML = warnings;
+        nErr.innerHTML = errors;
     })());
 }, 2000);
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 //-GET-FASTCHARGE-STATUS--------------------------------------------------------
 setInterval(function () { // every 2 seconds
-        path = 'command/setting';
+    path = 'command/setting';
 
-        request = getRequest(url, path);
+    request = getRequest(url, path);
 
-        fetch(request)
-        .then(response => {
-            if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
-            }
-            return response.json();
-        })
-            .then(json => {
-                var fc = document.getElementById("fc");
+    fetch(request)
+    .then(response => {
+        if(!response.ok) {
+            throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+        }
+        return response.json();
+    })
+        .then(json => {
+            var fc = document.getElementById("fc");
 
-                for (let i = 0; i < json.length; i++) {
-                    let com = json[i];
-                    if (com["com-type"] == "fast-charge") {
-                        if(com["value"] == true) {
-                            if(fc.classList.contains("btn-danger")) {
-                                fc.classList.remove("btn-danger");
-                                fc.className += " btn-success";
-                            }
-                        } else {
-                            if(fc.classList.contains("btn-success")) {
-                                fc.classList.remove("btn-success");
-                                fc.className += " btn-danger";
-                            }
+            for (let i = 0; i < json.length; i++) {
+                let com = json[i];
+                if (com["com-type"] == "fast-charge") {
+                    if(com["value"] == true) {
+                        if(fc.classList.contains("btn-danger")) {
+                            fc.classList.remove("btn-danger");
+                            fc.className += " btn-success";
+                        }
+                    } else {
+                        if(fc.classList.contains("btn-success")) {
+                            fc.classList.remove("btn-success");
+                            fc.className += " btn-danger";
                         }
                     }
                 }
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }, 2000);
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+}, 2000);
 //-END-GET-FASTCHARGE-STATUS----------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
 setInterval(function () { // every 2 seconds
-        path = 'command/setting';
+    path = 'command/setting';
 
-        request = getRequest(url, path);
+    request = getRequest(url, path);
 
-        fetch(request)
-        .then(response => {
-            if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
-            }
-            return response.json();
-        })
-            .then(json => {
-                var cov = document.getElementById("COvolt");
+    fetch(request)
+    .then(response => {
+        if(!response.ok) {
+            throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+        }
+        return response.json();
+    })
+        .then(json => {
+            var cov = document.getElementById("COvolt");
 
-                for (let i = 0; i < json.length; i++) {
-                    if (json[i]["com-type"] == "cutoff") {
-                        cov.innerHTML = json[i]["value"] + "V";
-                    }
+            for (let i = 0; i < json.length; i++) {
+                if (json[i]["com-type"] == "cutoff") {
+                    cov.innerHTML = json[i]["value"] + "V";
                 }
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-    }, 2000);
+            }
+        })
+        .catch(error => console.log('Authorization failed : ' + error.message))
+}, 2000);
 //-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

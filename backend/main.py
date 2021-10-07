@@ -860,6 +860,10 @@ def thread_3_WEB():
         chart = request.args.get("chart")
         return render_template("charts.html", c=chart)
 
+    @app.route('/brusa-info')
+    def brusa_info():
+        return render_template("brusa-info.html")
+
     def getLastNSeconds(n):
         now = datetime.now(pytz.timezone('Europe/Rome'))
         a = [(now - timedelta(seconds=i)) for i in range(n)]
@@ -1196,10 +1200,10 @@ def thread_3_WEB():
     @app.route('/brusa/info', methods=['GET'])
     def get_brusa_info():
         with lock:
-            if not shared_data.brusa.isConnected():
-                res = jsonify("not connected")
-                res.status_code = 450
-                return res
+            #if not shared_data.brusa.isConnected():
+            #    res = jsonify("not connected")
+            #    res.status_code = 450
+            #    return res
 
             res = {
                 "timestamp": shared_data.brusa.lastupdated,
