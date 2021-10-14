@@ -31,59 +31,17 @@
             </div>
             <script>
                 var msg = "Non ci sono warning!";
-                //var url = 'http://127.0.0.1:5000';
                 var path = 'bms-hv/warnings';
 
-                request = getRequest(url, path);
+                var container = document.getElementById("table-responsive-bms");
 
-                fetch(request)
-                    .then(response => response.json())
-                    .then(json => {
-                        var container = document.getElementById("table-responsive-bms");
+                bmsWarningTable(path, container, msg);
 
-                        if (json["warnings"].length > 0) {
-                            var table = document.createElement("table");
-                            table.className += "table table-striped table-sm";
-
-                            createTable(json, table, container);
-                        } else {
-                            container.innerHTML = msg;
-                        }
-                    })
-                    .catch(error => console.log('Authorization failed : ' + error.message))
-
-                //------------------------------------------------------------------------------
-
-                //var url = 'http://127.0.0.1:5000';
                 var path = 'brusa/status';
 
-                request = getRequest(url, path);
+                var container = document.getElementById("table-responsive-brusa");
 
-                fetch(request)
-                    .then(response => response.json())
-                    .then(json => {
-                        var container = document.getElementById("table-responsive-brusa");
-
-                        let status = json["status"];
-                        let warnings = [];
-                        for (let i = 0; i < status.length; i++) {
-                            state = status[i]["pos"];
-                            if (state >= 8 && state <= 23) {
-                                warnings.push(state);
-                            }
-                        }
-
-                        if (warnings.length > 0) {
-                            var table = document.createElement("table");
-                            table.className += "table table-striped table-sm";
-
-
-                            createTable(json, table, container);
-                        } else {
-                            container.innerHTML = msg;
-                        }
-                    })
-                    .catch(error => console.log('Authorization failed : ' + error.message))
+                brusaWarningTable(path, container, msg);
             </script>
         </main>
     </div>

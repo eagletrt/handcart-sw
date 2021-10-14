@@ -1,4 +1,3 @@
-//var url = 'http://10.196.172.17:8080';
 //-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 
 async function bmsStatus() {

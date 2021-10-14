@@ -1,5 +1,4 @@
 function createMultilineChart(path, name, param, zoom, label, u) {
-    //var url = 'http://127.0.0.1:5000';
     let NZ = "nozoom";
 
     request = getRequest(url, path);

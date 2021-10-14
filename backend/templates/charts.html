@@ -41,85 +41,11 @@
             createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp", "A");
             createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp", "°");
             // these 2 charts are not mandatory for the header
-            if (actualChart == "cell") createCellChart();
-            if (actualChart == "heat") createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
-
-            function getCell(c) {
-                if (divs < 2) {                                              // compare max 2 charts
-                    divs++;                                                 // save how many charts there are
-
-                    let container = document.getElementById("chart");       // get the column container
-
-                    let mainRow = container.firstElementChild;
-                    if (mainRow == null) {                                   // check if a row has been already created
-                        mainRow = document.createElement("div");            // if not, it will create it
-                        mainRow.className = "row";
-                    }
-
-                    let mainCol = document.createElement("div");            // create the column that will contain the chart
-                    mainCol.className = "col-sm";
-                    mainCol.setAttribute("id", c);
-
-                    let buttonRow = document.createElement("div");          // create the close-button's row
-                    buttonRow.className = "row";
-
-                    let voidCol = document.createElement("div");
-                    voidCol.className = "col-sm-10";
-                    buttonRow.appendChild(voidCol);
-
-                    let buttonCol = document.createElement("div");          // create the colse-button's col
-                    buttonCol.className = "col-sm";
-
-                    let button = document.createElement("button");          // create the button
-                    button.className = "btn";                               // set the close function with
-                    button.setAttribute("onclick", "reset(" + c + ")");     // the parameter to close it
-                    button.innerHTML = "X";
-
-                    buttonCol.appendChild(button);
-
-                    buttonRow.appendChild(buttonCol);
-
-                    mainCol.appendChild(buttonRow);
-
-                    let chartRow = document.createElement("div");           // create the chart's row
-                    chartRow.className = "row";
-
-                    let chart = document.createElement("div");              // create the chart
-                    let id = "single" + c + "cell";                         // setup an id
-                    chart.setAttribute("id", id + "Chart");
-                    chart.className = "bigChart";
-
-                    chartRow.appendChild(chart);
-
-                    mainCol.appendChild(chartRow);
-
-                    mainRow.appendChild(mainCol);
-
-                    container.appendChild(mainRow);
-
-                    // call the chart creation
-                    createLineChart("bms-hv/cells?cell=" + c, id, "voltage", 15);
-                } else {
-                    alert("You can compare max 2 charts at time!\nClose one of the opened or refresh the page to clean them all.");
-                }
+            if (actualChart == "cell") {
+                createCellChart();
             }
-
-            function reset(id) {
-                if (divs > 0) {
-                    divs--;
-
-                    if (divs == 0) {                                         // if there are no more charts then remove also the row (graphical "issue")
-                        document.getElementById("chart").firstElementChild.remove();
-                    } else {
-                        let chartCol = document.getElementById(id);
-                        chartCol.remove();                                  // remove the whole column that contain the chart
-                    }
-
-                    let path = "bms-hv/cells/last?cell=" + id;
-                    deleteTimer(path);
-                } else {
-                    alert("You shouldn't see the button...\nReport it!")
-                }
+            if (actualChart == "heat") {
+                createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
             }
         </script>
     </div>

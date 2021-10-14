@@ -25,19 +25,11 @@
     <link rel="icon" href="{{ url_for('static', filename='images/eagle.png') }}" type="image/png">
 
     <!-- Custom styles for this template -->
+    <script src="{{ url_for('static', filename='js/const.js') }}"></script>
     <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
-    <!--<script src="{{ url_for('static', filename='js/buttons.js') }}"></script>-->
-
-    <script>
-        timer = [];
-        getUrl = window.location;
-        url = getUrl .protocol + "//" + getUrl.host + "/";
-        OFFLINE_CODE = 450;
-        NZ = "nozoom";
-    </script>
 
     <!-- charts -->
     <script src="{{ url_for('static', filename='charts/multilineChart.js') }}"></script>

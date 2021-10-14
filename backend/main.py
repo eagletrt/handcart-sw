@@ -1215,10 +1215,10 @@ def thread_3_WEB():
     @app.route('/brusa/info', methods=['GET'])
     def get_brusa_info():
         with lock:
-            #if not shared_data.brusa.isConnected():
-            #    res = jsonify("not connected")
-            #    res.status_code = 450
-            #    return res
+            if not shared_data.brusa.isConnected():
+                res = jsonify("not connected")
+                res.status_code = 450
+                return res
 
             res = {
                 "timestamp": shared_data.brusa.lastupdated,

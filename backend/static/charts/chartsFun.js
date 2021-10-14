@@ -1,6 +1,5 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
 function updateLineChartValue(chart, series, path, param, zoom, label, u) {
-    //var url = 'http://127.0.0.1:5000';
     let NZ = "nozoom";
 
     let t = setInterval(function () {
@@ -69,7 +68,6 @@ function setColor(chart, series) {
 
 function updateCellValue(chart, series) {
     setInterval(function () {
-        //var url = 'http://127.0.0.1:5000';
         var path = 'bms-hv/cells/last';
 
         request = getRequest(url, path);
@@ -119,7 +117,7 @@ function setHeatColor(value) {
 function getHeatData(cells, ncells, nrows, subcells, group) {
     let data = [];
 
-    let ncols = ncells / (nrows * group);
+    // let ncols = ncells / (nrows * group); // UNUSED
     let nelem = nrows * subcells;
 
     let j = 0;
@@ -154,7 +152,6 @@ function getHeatData(cells, ncells, nrows, subcells, group) {
 
 function updateHeatValue(chart, series, nrows, group) {
     setInterval(function () {
-        //var url = 'http://127.0.0.1:5000';
         var path = 'bms-hv/heat';
 
         request = getRequest(url, path);
@@ -189,3 +186,82 @@ function updateHeatValue(chart, series, nrows, group) {
 }
 
 //-END-HEAT-CHART---------------------------------------------------------------
+//-CHART-PAGE-------------------------------------------------------------------
+function getCell(c) {
+    if (divs < 2) {                                              // compare max 2 charts
+        divs++;                                                 // save how many charts there are
+
+        let container = document.getElementById("chart");       // get the column container
+
+        let mainRow = container.firstElementChild;
+        if (mainRow == null) {                                   // check if a row has been already created
+            mainRow = document.createElement("div");            // if not, it will create it
+            mainRow.className = "row";
+        }
+
+        let mainCol = document.createElement("div");            // create the column that will contain the chart
+        mainCol.className = "col-sm";
+        mainCol.setAttribute("id", c);
+
+        let buttonRow = document.createElement("div");          // create the close-button's row
+        buttonRow.className = "row";
+
+        let voidCol = document.createElement("div");
+        voidCol.className = "col-sm-10";
+        buttonRow.appendChild(voidCol);
+
+        let buttonCol = document.createElement("div");          // create the colse-button's col
+        buttonCol.className = "col-sm";
+
+        let button = document.createElement("button");          // create the button
+        button.className = "btn";                               // set the close function with
+        button.setAttribute("onclick", "reset(" + c + ", divs)");     // the parameter to close it
+        button.innerHTML = "X";
+
+        buttonCol.appendChild(button);
+
+        buttonRow.appendChild(buttonCol);
+
+        mainCol.appendChild(buttonRow);
+
+        let chartRow = document.createElement("div");           // create the chart's row
+        chartRow.className = "row";
+
+        let chart = document.createElement("div");              // create the chart
+        let id = "single" + c + "cell";                         // setup an id
+        chart.setAttribute("id", id + "Chart");
+        chart.className = "bigChart";
+
+        chartRow.appendChild(chart);
+
+        mainCol.appendChild(chartRow);
+
+        mainRow.appendChild(mainCol);
+
+        container.appendChild(mainRow);
+
+        // call the chart creation
+        createLineChart("bms-hv/cells?cell=" + c, id, "voltage", 15);
+    } else {
+        alert("You can compare max 2 charts at time!\nClose one of the opened or refresh the page to clean them all.");
+    }
+}
+
+function reset(id) {
+    if (divs > 0) {
+        divs--;
+
+        if (divs == 0) {                                         // if there are no more charts then remove also the row (graphical "issue")
+            document.getElementById("chart").firstElementChild.remove();
+        } else {
+            let chartCol = document.getElementById(id);
+            chartCol.remove();                                  // remove the whole column that contain the chart
+        }
+
+        let path = "bms-hv/cells/last?cell=" + id;
+        deleteTimer(path);
+    } else {
+        alert("You shouldn't see the button...\nReport it!")
+    }
+}
+//-END-CHART-PAGE---------------------------------------------------------------

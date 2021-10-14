@@ -40,92 +40,7 @@ function postRequest(url, data) {
 }
 
 /*
-    json: ----- is the json that you would like to insert in the table
-
-    table: ---- is the table you want to create (you can create a new one or
-                use one already in the HTML code)
-                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
-
-    container:  is the container that will contains the table to display it
-*/
-
-function createTable(json, table, container) {
-    let col = [];
-    for (let key in json) {
-        if (col.indexOf(key) === -1) {
-            col.push(key);
-        }
-    }
-
-    let thead = table.createTHead();
-    let tr = thead.insertRow(-1);
-
-    for (let i = 0; i < col.length; i++) {
-        let th = document.createElement("th");
-        th.innerHTML = col[i].charAt(0).toUpperCase() + col[i].slice(1);
-        tr.appendChild(th);
-    }
-
-    let tbody = table.createTBody();
-
-    let array = [];
-    for (let i = 0; i < col.length; i++) {
-        if (Array.isArray(json[col[i]])) {
-            array = json[col[i]];
-        }
-    }
-
-    for (let i = 0; i < array.length; i++) {
-        tr = tbody.insertRow(-1);
-        for (let j = 0; j < col.length; j++) {
-            let tabCell = tr.insertCell(-1);
-            let elem = json[col[j]];
-
-            if (!Array.isArray(elem)) {
-                tabCell.innerHTML = Date(elem);
-            } else {
-                tabCell.innerHTML = elem[i]["desc"];
-            }
-        }
-    }
-
-    container.innerHTML = "";
-    container.appendChild(table);
-}
-
-/*
-    path: - the path for the requested fetch
-
-    id: --- the element's id in which write the value
-
-    msg: -- standard message to write if there are no items
-*/
-
-function errorTable(path, id, msg) {
-    //let url = 'http://127.0.0.1:5000';
-
-    request = getRequest(url, path);
-
-    fetch(request)
-        .then(response => response.json())
-        .then(json => {
-            let container = document.getElementById("table-responsive-" + id);
-            let errors = json["errors"];
-
-            if (errors != undefined && errors.length > 0) {
-                let table = document.createElement("table");
-                table.className += "table table-striped table-sm";
-
-                createTable(json, table, container);
-            } else {
-                container.innerHTML = msg;
-            }
-        })
-        .catch(error => console.log('Authorization failed : ' + error.message))
-}
-
-/*
-    path: - is the path (no url) of the assigned timer
+    path: is the path (no url) of the assigned timer
 */
 
 function deleteTimer(path) {
@@ -135,55 +50,6 @@ function deleteTimer(path) {
             timer.splice(i, 1);
             break;
         }
-    }
-}
-
-//-SETTINGS-FUNCTIONS-----------------------------------------------------------
-function onLoadEnableDisable() {
-    (async () => { // syncronization is necessary
-        //var url = 'http://127.0.0.1:5000';
-        var path = 'command/setting';
-
-        request = getRequest(url, path);
-
-        let enabled;
-
-        await fetch(request) // to sync
-            .then(response => response.json())
-            .then(json => {
-                for (i = 0; i < json.length; i++) {
-                    if (json[i]["com-type"] == "fast-charge") {
-                        enabled = json[i]["value"];
-                    }
-                }
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-
-        enableDisable(enabled);
-    })();
-}
-
-/*
-    json: ----- is the json that you would like to insert in the table
-
-    table: ---- is the table you want to create (you can create a new one or
-                use one already in the HTML code)
-                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
-
-    container:  is the container that will contains the table to display it
-*/
-
-function enableDisable(enabled) {
-    let enableButton = document.getElementById("enable");
-    let disableButton = document.getElementById("disable");
-
-    // modify are sent by the formListener
-    if (enabled) {                              // if fast charge isn't enabled
-        enableButton.style.display = "none";    // hide the enable button
-        disableButton.style.display = "inline"; // and show the disable button
-    } else {                                    // if the fast charge has been enabled
-        enableButton.style.display = "inline";  // show the enable button
-        disableButton.style.display = "none";   // and hide the disabled button
     }
 }
 
@@ -211,6 +77,7 @@ function formListener(form, path) {
     });
 }
 
+//-SETTINGS-FUNCTIONS-----------------------------------------------------------
 /*
     sliderName: the id of the slider
 
@@ -228,6 +95,53 @@ function changeValue(sliderName, label) {
     slider.style.background = 'linear-gradient(to right, ' + green + ' 0%, ' + green + ' ' + value + '%, ' + gray + ' ' + value + '%, ' + gray + ' 100%)';
 
     output.innerHTML = slider.value;
+}
+
+function onLoadEnableDisable() {
+    (async () => { // syncronization is necessary
+        var path = 'command/setting';
+
+        request = getRequest(url, path);
+
+        let enabled;
+
+        await fetch(request) // to sync
+            .then(response => response.json())
+            .then(json => {
+                for (i = 0; i < json.length; i++) {
+                    if (json[i]["com-type"] == "fast-charge") {
+                        enabled = json[i]["value"];
+                    }
+                }
+            })
+            .catch(error => console.log('Authorization failed : ' + error.message))
+
+        enableDisable(enabled);
+    })();
+}
+
+/*
+    json: ---- is the json that you would like to insert in the table
+
+    table: --- is the table you want to create (you can create a new one or
+                use one already in the HTML code)
+                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
+
+    container: is the container that will contains the table to display it
+*/
+
+function enableDisable(enabled) {
+    let enableButton = document.getElementById("enable");
+    let disableButton = document.getElementById("disable");
+
+    // modify are sent by the formListener
+    if (enabled) {                              // if fast charge isn't enabled
+        enableButton.style.display = "none";    // hide the enable button
+        disableButton.style.display = "inline"; // and show the disable button
+    } else {                                    // if the fast charge has been enabled
+        enableButton.style.display = "inline";  // show the enable button
+        disableButton.style.display = "none";   // and hide the disabled button
+    }
 }
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,4 @@
 function createCellChart() {
-    //var url = 'http://127.0.0.1:5000';
     var path = 'bms-hv/cells/last';
 
     request = getRequest(url, path);
@@ -81,9 +80,9 @@ function createCellChart() {
 
                 // check if it has been called from the home page
                 // if not, than set an event listener to check every single cell
-                let href = window.location.href;
-                let re = /.*\/(.*)/;
-                let page = href.match(re)[1];
+                let href = window.location;
+
+                let page = href.pathname.substring(1); // to remove the "/" before the page's name
 
                 if (page != "") {
                     series.columns.template.events.on("hit", function (ev) {
