@@ -152,13 +152,12 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                         var dataItem = target.dataItem;
                         return dataItem.position;
                     })
-                } else {
-
-                    /*var scrollbarX = new am4core.Scrollbar();
-                    chart.scrollbarX = scrollbarX;*/
                 }
-
-                updateLineChartValue(chart, series, lastPath, param, zoom, label, u);
+                /*
+                    ELSE
+                    var scrollbarX = new am4core.Scrollbar();
+                    chart.scrollbarX = scrollbarX;
+                */
 
                 //**************************************************************
 

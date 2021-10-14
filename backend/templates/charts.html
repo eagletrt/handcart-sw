@@ -34,16 +34,32 @@
             var divs = 0;
             var timers = [];
             let actualChart = "{{c}}";
-            // all charts are needed due to the top bar values referesh
             // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
-            createLineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt", "V");
+            // update lineCharts parameters: chart, series, path, parameter, zoom, the header label's id, the unit of measure of the value
+            if(actualChart == "volt") {
+                createLineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt", "V");
+            } else {
+                updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt", "V");
+            }
+
             createChargeChart();
-            createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp", "A");
-            createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp", "°");
-            // these 2 charts are not mandatory for the header
+
+            if(actualChart == "amp") {
+                createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp", "A");
+            } else {
+                updateLineChartValue(null, null, "bms-hv/ampere/last", "current", NZ, "amp", "A");
+            }
+
+            if(actualChart == "temp") {
+                createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp", "°");
+            } else {
+                updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp", "°");
+            }
+
             if (actualChart == "cell") {
                 createCellChart();
             }
+
             if (actualChart == "heat") {
                 createHeatChart(6, 3, 1); // params: nrows, subcells (how many cells in a 'col'), the grouping parameter
             }
