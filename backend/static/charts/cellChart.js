@@ -1,6 +1,9 @@
 function createCellChart() {
     var path = 'bms-hv/cells/last';
 
+    let min = 0;
+    let max = 5;
+
     request = getRequest(url, path);
 
     fetch(request)
@@ -51,6 +54,9 @@ function createCellChart() {
                 valueAxis.renderer.minWidth = 50;
                 valueAxis.tooltip.disabled = true;
 
+                valueAxis.min = min;
+                valueAxis.max = max;
+
                 // Create series
                 var series = chart.series.push(new am4charts.ColumnSeries());
                 series.sequencedInterpolation = true;
@@ -71,7 +77,7 @@ function createCellChart() {
                 hoverState.properties.cornerRadiusTopRight = 0;
                 hoverState.properties.fillOpacity = 1;
 
-                setColor(chart, series);
+                setColor(chart, series, max);
 
                 // Cursor
                 chart.cursor = new am4charts.XYCursor();

@@ -158,6 +158,7 @@ function errorTable(path, id, msg) {
 
     msg: ----- standard message to write if there are no items
 */
+
 function bmsWarningTable(path, container, msg) {
     request = getRequest(url, path);
 
@@ -181,6 +182,14 @@ function bmsWarningTable(path, container, msg) {
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
 }
+
+/*
+    path: ---- the path for the requested fetch
+
+    container: is the container that will contains the table to display it
+
+    msg: ----- standard message to write if there are no items
+*/
 
 function brusaWarningTable(path, container, msg) {
     request = getRequest(url, path);

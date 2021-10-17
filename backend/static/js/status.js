@@ -171,6 +171,10 @@ setInterval(function () { // every 2 seconds
                         ok.style.display = "none";
                     }
 
+                    let timeText = document.getElementById("timeText");
+                    let entered = new Date(json["entered"]);
+                    elapsedTime(timeText, entered);
+
                     state.className = "orange";
                     break;
                 case "C_DONE":
@@ -198,7 +202,7 @@ setInterval(function () { // every 2 seconds
             }
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
-}, 2000);
+}, 1000);
 //-END-GET-THE-HANDCART-STATUS--------------------------------------------------
 //-GET-THE-BRUSA-STATUS---------------------------------------------------------
 async function brusaErrors() {
@@ -324,7 +328,8 @@ setInterval(function () { // every 2 seconds
             for (let i = 0; i < json.length; i++) {
                 let com = json[i];
                 if (com["com-type"] == "fast-charge") {
-                    if(com["value"] == true) {
+                    let enabled = com["value"];
+                    if(enabled) {
                         if(fc.classList.contains("btn-danger")) {
                             fc.classList.remove("btn-danger");
                             fc.className += " btn-success";
@@ -334,6 +339,13 @@ setInterval(function () { // every 2 seconds
                             fc.classList.remove("btn-success");
                             fc.className += " btn-danger";
                         }
+                    }
+                    var href = window.location;
+
+                    var page = href.pathname.substring(1); // to remove the "/" before the page's name
+
+                    if(page == "settings") {
+                        enableDisable(enabled);
                     }
                 }
             }

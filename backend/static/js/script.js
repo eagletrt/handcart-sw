@@ -97,37 +97,8 @@ function changeValue(sliderName, label) {
     output.innerHTML = slider.value;
 }
 
-function onLoadEnableDisable() {
-    (async () => { // syncronization is necessary
-        var path = 'command/setting';
-
-        request = getRequest(url, path);
-
-        let enabled;
-
-        await fetch(request) // to sync
-            .then(response => response.json())
-            .then(json => {
-                for (i = 0; i < json.length; i++) {
-                    if (json[i]["com-type"] == "fast-charge") {
-                        enabled = json[i]["value"];
-                    }
-                }
-            })
-            .catch(error => console.log('Authorization failed : ' + error.message))
-
-        enableDisable(enabled);
-    })();
-}
-
 /*
-    json: ---- is the json that you would like to insert in the table
-
-    table: --- is the table you want to create (you can create a new one or
-                use one already in the HTML code)
-                REMEMBER TO ADD THE CLASS BEFORE PASSING IT
-
-    container: is the container that will contains the table to display it
+    enabled: a flag that says if the fastcharge is enabled or not
 */
 
 function enableDisable(enabled) {
@@ -143,106 +114,12 @@ function enableDisable(enabled) {
         disableButton.style.display = "none";   // and hide the disabled button
     }
 }
+//-END-SETTINGS-FUNCTIONS-------------------------------------------------------
+//-TIME-FUNCTIONS---------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-
-/** Stores the reference to the elapsed time interval*/
-var elapsedTimeIntervalRef;
-
-/** Stores the start time of timer */
-var startTime;
-
-/** Stores the details of elapsed time when paused */
-var pausedTime;
-
-//-BUTTONS-FUNCTIONS------------------------------------------------------------
-
-function onLoadStartStop() {
-    // when page reloads I check if the time has been paused
-    if (sessionStorage.getItem("paused") == "false") {                          // if no
-        startStop(false);                                                       // I have to resume the timer
-    } else if (sessionStorage.getItem("paused") == "true") {                    // if yes
-        let tmpPausedTime = new Date(sessionStorage.getItem("pausedTime"));     // I have to restore the elapsed time
-        let tmpTime = new Date();                                               // and print it in the time label
-        tmpTime.setHours(tmpTime.getHours() - tmpPausedTime.getHours());
-        tmpTime.setMinutes(tmpTime.getMinutes() - tmpPausedTime.getMinutes());
-        tmpTime.setSeconds(tmpTime.getSeconds() - tmpPausedTime.getSeconds());
-
-        document.getElementById("timeText").innerHTML = timeAndDateHandling.getElapsedTime(tmpTime)
-    }
-}
-
-function startStop(started) {
-    let startButton = document.getElementById("start");
-    let stopButton = document.getElementById("stop");
-    let cancelButton = document.getElementById("cancel");
-    let chargeButton = document.getElementById("chargeBtn");
-    let okButton = document.getElementById("ok");
-
-    if (!started) {                             // if the timer has started
-        let href = window.location.href;
-        let re = /.*\/(.*)/;
-        let page = href.match(re)[1];
-
-        if (page == "") {                       // check if I am in the home page
-            startButton.style.display = "none"; // hide the start button
-            stopButton.style.display = "inline";// and show the stop button
-        }
-
-        elapsedTime();                          // then start the timer
-    } else {                                    // if the timer haven't been started or it have been stopped
-        startButton.style.display = "inline";   // show the start button
-        stopButton.style.display = "none";      // and hide the stop button
-
-        if (typeof elapsedTimeIntervalRef !== "undefined") {    // reset timer
-            clearInterval(elapsedTimeIntervalRef);
-            elapsedTimeIntervalRef = undefined;
-        }
-
-        sessionStorage.setItem("paused", true); // set the timer as paused
-
-        pausedTime = new Date();
-        pausedTime.setHours(pausedTime.getHours() - startTime.getHours());
-        pausedTime.setMinutes(pausedTime.getMinutes() - startTime.getMinutes());
-        pausedTime.setSeconds(pausedTime.getSeconds() - startTime.getSeconds());
-
-        sessionStorage.setItem("pausedTime", pausedTime);   // save the elapsed time until paused
-    }
-}
-
-/** Starts the stopwatch */
-function elapsedTime() {
-    // Set start time based on whether the page has been refreshed or changed
-    //sessionStorage.setItem("startTime", "null");
-    //sessionStorage.setItem("pausedTime", "null");
-    if (sessionStorage.getItem("startTime") == null ||      // if it's the first time
-        sessionStorage.getItem("startTime") == "null") {    // that I start the timer
-        startTime = new Date();
-        sessionStorage.setItem("startTime", startTime);     // save the start time
-
-    } else if (sessionStorage.getItem("paused") == "true" &&            // if the timer has been paused
-        (sessionStorage.getItem("pausedTime") != null &&          // and the paused timer has
-            sessionStorage.getItem("pausedTime") != "null")) {       // been setted correctly
-        pausedTime = new Date(sessionStorage.getItem("pausedTime"));    // save locally the elapsed time before the pause
-        sessionStorage.setItem("paused", false);                        // remove the pause
-        startTime = new Date();                                         // calculate the new start time
-        // Subtract the elapsed hours, minutes and seconds from the current date
-        // To get correct elapsed time to resume from it
-        startTime.setHours(startTime.getHours() - pausedTime.getHours());
-        startTime.setMinutes(startTime.getMinutes() - pausedTime.getMinutes());
-        startTime.setSeconds(startTime.getSeconds() - pausedTime.getSeconds());
-
-        sessionStorage.setItem("startTime", startTime);                 // save the new start time
-
-    } else {    // if the timer hasn't been paused and the timer is running
-        startTime = new Date(sessionStorage.getItem("startTime"));  // save locally the start time
-    }
-
-    // Every second
-    elapsedTimeIntervalRef = setInterval(() => {
-        // Compute the elapsed time & display
-        document.getElementById("timeText").innerHTML = timeAndDateHandling.getElapsedTime(startTime) //pass the actual record start time
-    }, 1000);
+function elapsedTime(timeText, entered) {
+    // Compute the elapsed time & display
+    timeText.innerHTML = timeAndDateHandling.getElapsedTime(entered) //pass the actual record start time
 }
 
 //API for time and date functions
@@ -300,3 +177,4 @@ var timeAndDateHandling = {
         }
     }
 }
+//-END-TIME-FUNCTIONS-----------------------------------------------------------

@@ -1060,7 +1060,7 @@ def thread_3_WEB():
         ncells = 108
         digits = 3
         min = 0
-        max = 100
+        max = 5
         n = 30
 
         last_n_seconds = getLastNSeconds(n)
@@ -1117,7 +1117,7 @@ def thread_3_WEB():
         ncells = 108
         digits = 3
         min = 0
-        max = 100
+        max = 5
 
         for i in range(1, ncells + 1):
             value = round(random.uniform(min, max), digits)

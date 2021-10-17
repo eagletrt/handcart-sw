@@ -5,7 +5,7 @@
     {% include 'include/head.html' %}
 </head>
 
-<body onload="onLoadStartStop();onLoadEnableDisable()">
+<body>
 {% include 'include/header.html' %}
 
 <div class="container-fluid">
@@ -22,7 +22,7 @@
                     <div class="col-sm">
                         <div class="row">
                             <div class="col-sm col-title">
-                                <h1 class="h2">CUT-OFF Voltage: <span id="COValue"></span>V - 150V</h1>
+                                <h1 class="h2">CUT-OFF Voltage: <span id="COValue"></span>V - 600V</h1>
                             </div>
                         </div>
                         <div class="row">
@@ -30,7 +30,7 @@
                                 <form method="POST" id="COForm"> <!-- Cut-Off Form -->
                                     <input type="hidden" name="com-type" value="cutoff">
                                     <input type="range" oninput="changeValue('COSlider', 'COValue')"
-                                           min="1" max="100" value="50" class="slider" id="COSlider"
+                                           min="1" max="600" value="50" class="slider" id="COSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
                                 </form>

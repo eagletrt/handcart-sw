@@ -47,10 +47,10 @@ function updateLineChartValue(chart, series, path, param, zoom, label, u) {
 
 //-END-AMPERE-CHART-------------------------------------------------------------
 //-CELL-CHART-------------------------------------------------------------------
-function setColor(chart, series) {
+function setColor(chart, series, max) {
     series.columns.template.adapter.add("fill", function (fill, target) {
         var i = target.dataItem.index;
-        var perc = chart.data[i].voltage/* /maxVolt*100 */;
+        var perc = chart.data[i].voltage / max * 100;
 
         if (perc < 50) {
             r = 255;
