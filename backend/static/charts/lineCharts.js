@@ -96,6 +96,8 @@ function createLineChart(path, name, param, zoom, label, u) {
                 valueAxis.renderer.axisFills.template.disabled = true;
                 valueAxis.renderer.ticks.template.disabled = true;
 
+                valueAxis.min = 0;
+
                 //------------------------------------------------------------------------------------------------------
                 var series = chart.series.push(new am4charts.LineSeries());
                 series.dataFields.dateX = "date";
