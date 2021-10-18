@@ -29,7 +29,7 @@ except can.CanError:
 input("press for brusa status message")
 
 try:
-    bus.send(NLG5_ST)
+    bus.send(NLG5_ERR)
     print("Message sent on {}".format(bus.channel_info))
 except can.CanError:
     print("Message NOT sent")
