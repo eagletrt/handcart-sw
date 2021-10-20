@@ -45,6 +45,13 @@
                     FC
                 </span>
             </div>
+            <div class="left">
+                <form method="POST" id="sdForm"> <!-- Shutdown Button Form -->
+                    <input type="hidden" name="com-type" value="shutdown">
+                    <input type="hidden" name="value" value="true">
+                    <input type="submit" value="SHUTDOWN" id="shutdown" class="btn btn-danger btn-lg">
+                </form>
+            </div>
             <div class="right">
                 <div class="status" id="temp">56°</div>
                 <div class="status"><span id="volt">100V</span>/<span id="COvolt">150V</span></div>
@@ -54,6 +61,14 @@
             </div>
         </div>
     </nav>
+
+    <script>
+        let sdForm = document.getElementById("sdForm");
+
+        let path = "action";
+
+        formListener(sdForm, path);
+    </script>
 
     <script src="{{ url_for('static', filename='js/status.js') }}"></script>
 

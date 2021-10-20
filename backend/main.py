@@ -433,6 +433,7 @@ precharge_done = False
 precharge_command = False  # True if received precharge command
 start_charge_command = False  # True if received start charge command
 stop_charge_command = False  # True if received stop charge command
+shutdown_asked = False
 
 # IPC (shared between threads)
 shared_data = canread  # Variable that holds a copy of canread, to get the information from web thread
@@ -520,6 +521,9 @@ def doIdle():
     """
     global precharge_command
 
+    # Shutdown pork
+    accumulator_sd()
+
     if precharge_command:
         precharge_command = False
         return STATE.PRECHARGE
@@ -594,11 +598,14 @@ def doCharge():
         if stop_charge_command:
             can_forward_enabled = False
             return STATE.READY
-
-        if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
-                and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
-            can_forward_enabled = False
-            return STATE.C_DONE
+        try:
+            if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
+                    and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
+                can_forward_enabled = False
+                return STATE.C_DONE
+        except KeyError:
+            print("Error in reading can message from brusa")
+            canread.can_err = True
 
     return STATE.CHARGE
 
@@ -684,7 +691,7 @@ def checkCommands():
     This function checks for commands in the queue shared between the FSM and the server,
     i.e. if an "fast charge" command is found, the value of that command is set in the fsm
     """
-    global precharge_command, start_charge_command, stop_charge_command
+    global precharge_command, start_charge_command, stop_charge_command, shutdown_asked
 
     if not com_queue.empty():
         act_com = com_queue.get()
@@ -711,6 +718,24 @@ def checkCommands():
         if act_com['com-type'] == "charge" and act_com['value'] is False:
             stop_charge_command = True
 
+        if act_com['com-type'] == "shutdown" and act_com['value'] is True:
+            shutdown_asked = True
+
+
+def accumulator_sd(): # accumulator shutdown
+    if canread.bms_hv.status == Ts_Status.ON:
+        if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
+            message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
+                                  data=[CAN_REQ_CHIMERA.REQ_TS_OFF])
+            tx_can_queue.put(message)
+        elif canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+            if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+                message = can.Message(arbitration_id=ID_SET_TS_STATUS,
+                                        data=SetTsStatus.serialize(Ts_Status_Set.OFF),
+                                        is_extended_id=False)
+                tx_can_queue.put(message)
+        else:
+            canread.generic_error
 
 # Maps state to it's function
 doState = {
@@ -732,7 +757,7 @@ def thread_1_FSM():
     Pls read the documentation about the state machine
     """
 
-    global shared_data
+    global shared_data, shutdown_asked
 
     act_stat = STATE.CHECK
     canread.FSM_entered_stat = datetime.now().isoformat()
@@ -756,6 +781,10 @@ def thread_1_FSM():
             next_stat = doState.get(STATE.ERROR)()
         else:
             next_stat = doState.get(act_stat)()
+
+        if shutdown_asked:
+            next_stat = STATE.IDLE
+            shutdown_asked = False
 
         if next_stat == STATE.EXIT:
             print("Exiting")

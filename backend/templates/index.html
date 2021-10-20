@@ -24,7 +24,7 @@
                                 <form method="POST" id="startForm"> <!-- Start Button Form -->
                                     <input type="hidden" name="com-type" value="precharge">
                                     <input type="hidden" name="value" value="true">
-                                    <input type="submit" value="Start" id="start" class="btn btn-success btn-lg">
+                                    <input type="submit" value="Precharge" id="start" class="btn btn-success btn-lg">
                                 </form>
 
                                 <form method="POST" id="stopForm"> <!-- Stop Button Form -->
@@ -33,11 +33,7 @@
                                     <input type="submit" value="Stop" id="stop" class="btn btn-danger btn-lg">
                                 </form>
 
-                                <form method="POST" id="cancelForm"> <!-- Cancel Button Form -->
-                                    <!--<input type="hidden" name="com-type" value="precharge">
-                                    <input type="hidden" name="value" value="false">-->
-                                    <input type="submit" value="Precharging" id="cancel" class="btn btn-danger btn-lg" disabled>
-                                </form>
+                                <input type="submit" value="Precharging" id="cancel" class="btn btn-danger btn-lg" disabled>
 
                                 <form method="POST" id="chargeForm"> <!-- Charge Button Form -->
                                     <input type="hidden" name="com-type" value="charge">
@@ -54,7 +50,6 @@
                                 <script>
                                     let startForm = document.getElementById("startForm");
                                     let stopForm = document.getElementById("stopForm");
-                                    let cancelForm = document.getElementById("cancelForm");
                                     let chargeForm = document.getElementById("chargeForm");
                                     let okForm = document.getElementById("okForm");
 
@@ -62,7 +57,6 @@
 
                                     formListener(startForm, path);
                                     formListener(stopForm, path);
-                                    formListener(cancelForm, path);
                                     formListener(chargeForm, path);
                                     formListener(okForm, path);
                                 </script>
