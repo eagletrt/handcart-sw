@@ -567,13 +567,15 @@ def doReady():
     """
     Function that do the ready state of the state machine
     """
-    global start_charge_command
+    global start_charge_command, precharge_asked
 
     if canread.bms_hv.status != Ts_Status.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
         # staccastacca()
         return STATE.IDLE
+
+    precharge_asked = False
 
     if start_charge_command:
         start_charge_command = False
@@ -597,6 +599,7 @@ def doCharge():
 
         if stop_charge_command:
             can_forward_enabled = False
+            stop_charge_command = False
             return STATE.READY
         try:
             if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
@@ -726,7 +729,7 @@ def accumulator_sd(): # accumulator shutdown
     if canread.bms_hv.status == Ts_Status.ON:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
             message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
-                                  data=[CAN_REQ_CHIMERA.REQ_TS_OFF])
+                                  data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             tx_can_queue.put(message)
         elif canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
             if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
