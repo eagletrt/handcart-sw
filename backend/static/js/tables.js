@@ -126,6 +126,7 @@ function createTable(json, table, container) {
 
 function errorTable(path, id, msg) {
     request = getRequest(url, path);
+    let container = document.getElementById("table-responsive-" + id);
 
     fetch(request)
         .then(response => {
@@ -136,7 +137,6 @@ function errorTable(path, id, msg) {
             return response.json();
         })
         .then(json => {
-            let container = document.getElementById("table-responsive-" + id);
             let errors = json["errors"];
 
             if (errors != undefined && errors.length > 0) {
