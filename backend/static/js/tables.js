@@ -107,7 +107,7 @@ function createTable(json, table, container) {
             if (!Array.isArray(elem)) {
                 tabCell.innerHTML = Date(elem);
             } else {
-                tabCell.innerHTML = elem[i]["desc"];
+                tabCell.innerHTML = elem[i];
             }
         }
     }
