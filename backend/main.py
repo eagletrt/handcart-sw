@@ -36,7 +36,7 @@ STANDARD_CHARGE_MAINS_AMPERE = 6
 
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
 STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
-MAX_TARGET_V_ACC = 430 # Maximum charging voltage of accumulator
+MAX_TARGET_V_ACC = 430  # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
@@ -930,7 +930,8 @@ def thread_3_WEB():
             if shared_data.bms_hv.isConnected():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
-                    "status": shared_data.bms_hv.status.name
+                    "status": shared_data.bms_hv.status.name,
+                    "accumulator": shared_data.bms_hv.ACC_CONNECTED.value
                 }
                 res = jsonify(res)
             else:
@@ -1212,21 +1213,17 @@ def thread_3_WEB():
     def get_brusa_status():
         with lock:
             if shared_data.brusa.isConnected():
-                status_list = shared_data.brusa.act_NLG5_ST_srt
+                res = {
+                    "timestamp": shared_data.brusa.lastupdated,
+                    "status": shared_data.brusa.act_NLG5_ST_values
+                }
 
-                res = {"timestamp": shared_data.brusa.lastupdated,
-                       "status": [
-                           {
-                               "pos": 1,
-                               "desc": "qualcosa"}
-                       ]
-                       }
                 res = jsonify(res)
             else:
                 res = jsonify(
                     {
                         "timestamp": shared_data.brusa.lastupdated,
-                        "status": []
+                        "status": {}
                     }
                 )
                 res.status_code = 450

@@ -107,17 +107,89 @@ This is the server that serve the requests received from the frontend. It uses t
 
 ## Frontend
 
-## Brusa NLG513
+The handcart's frontend is a webapp based on javascript and html, it fetches the data from the backend by doing RESTFUL requests to the backend.
 
 ## Raspberry configuration
 
 Follow the guide
 here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
-. The password of the raspberry is "handcartpi"
+. The password of the raspberry is "handcartpi". In the handcart just one CAN bus is necessary.
 
 # Hardware
 
 ## Electrical wiring
+
+### Modular cables for Accumulator connection
+
+I decided to create two modular cables that have a common connector handcart-side, but different connectors at accumulator-side, in a way that we are able to easily switch the connectors between the two accumulators.
+Both cables connect to the handcart via an Amphenol AT06-12SX1 connector, having these pin mapping:
+
+-   1 - 12V Supply
+-   2 - 5V Supply (only chimera)
+-   3 - CAN H
+-   4 - TSMS
+-   5 - RESET
+-   6 - IMD LED
+-   7 - Cockpit LED
+-   8 - BMS LED
+-   9 - TO TSMS
+-   10 - CAN L
+-   11 - SD
+-   12 - GND
+
+#### Chimera Evoluzione accumulator cable
+
+To the other side of the cable we have two connectors, LV-CAN and SD IMD BMS. They use the same connectors used for chimera’s CAN.
+LV-CAN pin mapping:
+
+-   1 - RESET
+-   2 - BMS LED
+-   3 - empty
+-   4 - TO TSMS
+-   5 - SD
+-   6 - empty
+-   7 - IMD
+-   8 - TSMS
+
+SD IMD BMS pin mapping:
+
+-   As chimera can connectors standard
+
+#### Fenice accumulator cable
+
+As for chimera it has two connectors to the other end of the cable, this time, the connectors are TE 776273-1 for SD IMD BMS and CeeLok FAS-T for LV CAN.
+
+!!! tip
+Tip for the CeeLok FAS-T connector: if you ever want to build this connector, unless you have the dedicated crimper (M22520/2-01) (685€) (which you can ask to proM), do not attempt to crimp the pins (3€ each), my advice is to solder the cable inside, it is much more resistant than a bad crimp, which is what you’ll get if you take a piler and start squeezing the pin :)
+
+LV CAN pinout:
+
+-   1 - 12V Supply
+-   2 - Empty
+-   3 - GND
+-   4 - empty
+-   5 - CAN H
+-   6 - CAN L
+-   7 - empty
+-   8 - empty
+
+The other connector is much easier to work with.
+SD IMD BMS pinout:
+
+-   6 - from TSMS
+-   7 - to TSMS
+-   8 - BMS LED
+-   9 - IMD LED
+-   10 - COCKPIT LED
+-   11 - FROM SD
+-   12 - RESET
+
+The mapping between the Amphenol connector and the others is self-explanatory,I’m not going to talk about it.
+
+## The shutdown circuit
+
+The shutdown circuit is generated from the PSU, then it passes through the mushroom, to a relay which is controlled by the rasp, then TO_CHARGER, which is the interlock of the connector of the brusa, and then FROM_CHARGER to BMS’s SD, then out of the BMS, to the TSMS key, then in to the BMS again to the airs.
+Note that the PON (Power ON) of the BRUSA is powered from the shutdown circuit, this way, if the shutdown is opened, the BRUSA is instantaneously disabled.
 
 ## Handcart PCB
 
@@ -172,6 +244,44 @@ charge via can you have to send periodically a can message named NLG5_CTL see de
 the can matrix.
 Note that the endianess is big (motorola).
 
+# Setup procedure
+
+First, you need to know what you’re doing, you’re going to work with High Voltage both AC and DC, that’s no joke.
+
+## Finding a good power source
+
+Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the tripolar connector there shouldn’t be any problem, otherwise if you’re using the tripolar to standard socket adaptor, make sure to check if the line is properly supporting the load. Usually it would just warm up the cables, but if you’re unlucky this could cause a fire, so BE CAREFUL. Note that it is possible to specify to the BRUSA how buc current to absorb.
+
+## Connecting the accumulator
+
+Depending on the accumulator (Chimera or Fenice) you have to choose the right cable.
+Turn off the TSMS key
+Turn off the PON switch
+Connect the accumulator and the brusa with the HV connector. With chimera make sure that it makes a good contact, sometimes the interlock will not be closed properly.
+Connect the two LV connectors to the accumulator, and the other end to the handcart.
+
+## Connecting brusa to 220
+
+Once a good power source has been found, connect the brusa to it. You’ll hear a “click” from the BRUSA.
+
+# Charge procedure
+
+Make sure that just the people needed are near the handcart, the presence of an ESO would be ideal in a not official environment, and required in a race environment.
+Turn ONthe TSMS key. From now on, the system could be at >400 DC volt.
+Turn ON the PON.
+Start the charging software, and then, start the charge.
+In case of any problem, push the red shutdown button in the handcart, this will stop the charge and close the AIRs of the accumulator.
+
+# Backup (Emergency) software
+
+Before starting, follow the set up procedure for the handcart.
+It is necessary to initialize the canbus on the raspberry pi, just execute [this](https://github.com/eagletrt/handcart/blob/master/utils/start-can.sh) script.
+If you need the handcart working as fast as possible, just download the [charge script](https://github.com/eagletrt/handcart/blob/master/utils/charge_script.py) from github, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
+
+!!! Warning : This software is DUMB, if you set a voltage, the brusa will deliver it, be careful!.
+!!! Warning: at the time of writing (18/09/2021) the script supports just chimera’s accumulator, this can be bypassed by reading the next note.
+!!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to.
+
 # Resources & Useful links
 
 -   [here](https://www.brusa.biz/_files/drive/02_Energy/Chargers/NLG5/NLG5_BRUSA.html) you can find BRUSA's CAN messages
@@ -186,5 +296,4 @@ Note that the endianess is big (motorola).
 ## Diagram links
 
 https://lucid.app/lucidchart/invitations/accept/dbc53a3d-c901-4d6a-a692-972de6713d43
-
 https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md
