@@ -20,11 +20,6 @@ function createMultilineChart(path, name, param, zoom, label, u) {
 
                 var chart = am4core.create(name + "Chart", am4charts.XYChart);
                 //chart.paddingRight = 20;
-                chart.legend = new am4charts.Legend();
-                chart.legend.useDefaultMarker = true;
-                var marker = chart.legend.markers.template.children.getIndex(0);
-                marker.strokeWidth = 2;
-                marker.strokeOpacity = 1;
 
                 let data = [];
                 let keys = [];
@@ -33,36 +28,47 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                 let jdata = json["data"];
                 let n = jdata.length;
 
-                for(let i = 0; i < n; i++) {
-                    let element = {};
-                    for(let key in jdata[i]) {
-                        let d = jdata[i][key];
-                        if(key != "timestamp") {
-                            if(i == 0) {
-                                keys.push(key);
-                            } else if(key == param) {
-                                if(previousValue <= d) {
-                                    data[i - 1].color = am4core.color("green");
-                                } else {
-                                    data[i - 1].color = am4core.color("red");
+                if(zoom == NZ) {
+                    for(let i = 0; i < n; i++) {
+                        let element = {};
+                        for(let key in jdata[i]) {
+                            let d = jdata[i][key];
+                            if(key != "timestamp") {
+                                if(i == 0) {
+                                    keys.push(key);
+                                } else if(key == param) {
+                                    if (previousValue <= d) {
+                                        data[i - 1].color = am4core.color("green");
+                                    } else {
+                                        data[i - 1].color = am4core.color("red");
+                                    }
+                                    previousValue = d;
                                 }
-                                previousValue = d;
+                                element[key] = d;
+                            } else {
+                                element["date"] = new Date(d);
                             }
-                            element[key] = d;
-                        } else {
-                            element["date"] = new Date(d);
                         }
+                        data.push(element);
                     }
-                    data.push(element);
                 }
 
                 if(data.length == 0) {
                     for (let i = 0; i <= 30; i++) {
-                        let element = {
-                            date: new Date().setSeconds(i - 30),
-                            value: 0
+                        let element = {};
+                        for(let key in jdata[i]) {
+                            let d = jdata[i][key];
+                            if(key != "timestamp") {
+                                if(i == 0) {
+                                    keys.push(key);
+                                } else if(key == param) {
+                                    element.color = am4core.color("green");
+                                }
+                                element[key] = 0;
+                            } else {
+                                element["date"] = new Date().setSeconds(i - 30);
+                            }
                         }
-                        element.color = am4core.color("green");
 
                         data.push(element);
                     }
@@ -88,7 +94,6 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                     dateAxis.zoom({start: 1 / zoom, end: 1.1}, false, true);
                 });
 
-                console.log(chart)
                 for(let key in keys) {
                     let k = keys[key];
 
@@ -98,12 +103,14 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                     //*
                     valueAxis.interpolationDuration = 500;
                     valueAxis.rangeChangeDuration = 500;
-                    //valueAxis.renderer.inside = true;
+
                     valueAxis.renderer.minLabelPosition = 0.05;
                     valueAxis.renderer.maxLabelPosition = 0.95;
                     //*
                     valueAxis.renderer.axisFills.template.disabled = true;
                     valueAxis.renderer.ticks.template.disabled = true;
+
+                    let nameChart = name[0].toUpperCase() + name.substring(1);
 
                     let series = chart.series.push(new am4charts.LineSeries());
                     series.stacked = true;
@@ -127,9 +134,39 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                         series.propertyFields.stroke = "color";
                     } else {
                         valueAxis.renderer.opposite = true;
-                        let actualColor = colorSet.next()
+                        valueAxis.renderer.inside = true;
+                        let actualColor = colorSet.next();
                         valueAxis.renderer.labels.template.fill = actualColor;
                         series.propertyFields.stroke = actualColor;
+                    }
+
+                    let lastPath = path + "/last";  // must be called to update headers values
+                    if(zoom != NZ) {
+                        if(path.includes("?")) {       // check if there are parameters
+                            let matches = path.match(/(.*)(\?.*)/); // create a new string to ask latest data
+                            lastPath = matches[1] + "/last" + matches[2];
+                        }
+
+                        if(keys[key] == param) {
+                            valueAxis.title.text = nameChart + " (" + u + ")";
+                        }
+
+                        chart.zoomOutButton.disabled = true;
+
+                        updateMultilineChartValue(chart, series, lastPath, param, zoom, label, u);
+
+                        // bullet at the front of the line
+                        let bullet = series.createChild(am4charts.CircleBullet);
+                        bullet.circle.radius = 3;
+                        bullet.fillOpacity = 1;
+                        bullet.fill = am4core.color("green");
+                        bullet.stroke = am4core.color("green");
+                        bullet.isMeasured = false;
+
+                        series.events.on("validated", function () {
+                            bullet.moveTo(series.dataItems.last.point);
+                            bullet.validatePosition();
+                        });
                     }
                 }
 
@@ -142,46 +179,32 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                 dateAxis.start = 0;
                 dateAxis.keepSelection = true;
 
-                let lastPath = path + "/last";  // must be called to update headers values
                 if(zoom != NZ) {
-                    chart.zoomOutButton.disabled = true;
-
-                    if (path.includes("?")) { // check if there are parameters
-                        let matches = path.match(/(.*)(\?.*)/); // create a new string to ask latest data
-                        lastPath = matches[1] + "/last" + matches[2];
-                    }
-
-                    // bullet at the front of the line
-                    var bullet = series.createChild(am4charts.CircleBullet);
-                    bullet.circle.radius = 3;
-                    bullet.fillOpacity = 1;
-                    bullet.fill = am4core.color("green");
-                    bullet.stroke = am4core.color("green");
-                    bullet.isMeasured = false;
-
-                    series.events.on("validated", function () {
-                        bullet.moveTo(series.dataItems.last.point);
-                        bullet.validatePosition();
-                    });
 
                     // this makes date axis labels to fade out
                     dateAxis.renderer.labels.template.adapter.add("fillOpacity", function (fillOpacity, target) {
                         var dataItem = target.dataItem;
                         return dataItem.position;
                     })
-                }
-                /*
-                    ELSE
+                } else {
+                    chart.legend = new am4charts.Legend();
+                    chart.legend.useDefaultMarker = true;
+                    var marker = chart.legend.markers.template.children.getIndex(0);
+                    marker.strokeWidth = 2;
+                    marker.strokeOpacity = 1;
+
+                    /*
                     var scrollbarX = new am4core.Scrollbar();
                     chart.scrollbarX = scrollbarX;
-                */
+                    */
+                }
 
                 //**************************************************************
 
                 // this makes date axis labels which are at equal minutes to be rotated
                 dateAxis.renderer.labels.template.adapter.add("rotation", function (rotation, target) {
                     let dataItem = target.dataItem;
-                    if (dataItem.date && dataItem.date.getTime() == am4core.time.round(new Date(dataItem.date.getTime()), "minute").getTime()) {
+                    if(dataItem.date && dataItem.date.getTime() == am4core.time.round(new Date(dataItem.date.getTime()), "minute").getTime()) {
                         target.verticalCenter = "middle";
                         target.horizontalCenter = "left";
                         return -90;

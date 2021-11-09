@@ -1,7 +1,5 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
 function updateLineChartValue(chart, series, path, param, zoom, label, u) {
-    let NZ = "nozoom";
-
     let t = setInterval(function () {
         request = getRequest(url, path);
 
@@ -44,8 +42,49 @@ function updateLineChartValue(chart, series, path, param, zoom, label, u) {
     }
     timer.push(element);
 }
+function updateMultilineChartValue(chart, series, path, param, zoom, label, u) {
+    setInterval(function () {
+        request = getRequest(url, path);
 
-//-END-AMPERE-CHART-------------------------------------------------------------
+        fetch(request)
+            .then(response => response.json())
+            .then(json => {
+                let element = {};
+                let prevItem = chart.data[chart.data.length - 1][param];
+                let mainData;
+
+                for(let key in json) {
+                    if(key != "pack_voltage") { // to be confirmed
+                        let d = json[key];
+                        if(key != "timestamp") {
+                            element[key] = d;
+                            if(key == param) {
+                                mainData = d;
+                                if(element[key] >= prevItem[key]) {
+                                    prevItem.color = am4core.color("green");
+                                } else {
+                                    prevItem.color = am4core.color("red");
+                                }
+                            }
+                        } else {
+                            element["date"] = new Date(d);
+                        }
+                    }
+                }
+
+                chart.addData(element);
+                chart.invalidateRawData();
+
+                let lbl = document.getElementById(label);
+
+                if (lbl != null) {
+                    lbl.innerHTML = mainData + u;
+                }
+            })
+            .catch(error => console.log('Authorization failed : ' + error.message))
+    }, 2000);
+}
+//-END-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-------------------------------
 //-CELL-CHART-------------------------------------------------------------------
 function setColor(chart, series, max) {
     series.columns.template.adapter.add("fill", function (fill, target) {
@@ -92,7 +131,6 @@ function updateCellValue(chart, series) {
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 }
-
 //-END-CELL-CHART---------------------------------------------------------------
 //-HEAT-CHART-------------------------------------------------------------------
 function setHeatColor(value) {
@@ -184,7 +222,6 @@ function updateHeatValue(chart, series, nrows, group) {
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 }
-
 //-END-HEAT-CHART---------------------------------------------------------------
 //-CHART-PAGE-------------------------------------------------------------------
 function getCell(c) {
