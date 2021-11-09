@@ -73,6 +73,7 @@ function createInfoTable(container) {
 */
 
 function createTable(json, table, container) {
+    console.log(json)
     let col = [];
     for (let key in json) {
         if (col.indexOf(key) === -1) {
@@ -104,8 +105,9 @@ function createTable(json, table, container) {
             let tabCell = tr.insertCell(-1);
             let elem = json[col[j]];
 
+
             if (!Array.isArray(elem)) {
-                tabCell.innerHTML = Date(elem);
+                tabCell.innerHTML = getDateFormat(new Date(elem));
             } else {
                 tabCell.innerHTML = elem[i];
             }
@@ -199,17 +201,17 @@ function brusaWarningTable(path, container, msg) {
         .then(json => {
             let status = json["status"];
             let warnings = [];
-            for (let i = 0; i < status.length; i++) {
-                let state = status[i]["pos"];
-                if (state >= 8 && state <= 23) {
-                    warnings.push(state);
+            if(status[IS_WARNING] == 1) {
+                for(let w in WARNINGS) {
+                    if(status[w] == 1) {
+                        warnings.push(status[w]);
+                    }
                 }
             }
 
             if (warnings.length > 0) {
                 var table = document.createElement("table");
                 table.className += "table table-striped table-sm";
-
 
                 createTable(json, table, container);
             } else {

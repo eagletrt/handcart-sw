@@ -177,4 +177,18 @@ var timeAndDateHandling = {
         }
     }
 }
+
+Number.prototype.padLeft = function(base,chr){
+    var  len = (String(base || 10).length - String(this).length)+1;
+    return len > 0? new Array(len).join(chr || '0')+this : this;
+}
+// usage
+//=> 3..padLeft() => '03'
+//=> 3..padLeft(100,'-') => '--3'
+
+function getDateFormat(date) {
+    let timestamp = [(date.getMonth() + 1).padLeft(), date.getDate().padLeft(), date.getFullYear()].join("/") + " " +
+                    [date.getHours().padLeft(), date.getMinutes().padLeft(), date.getSeconds().padLeft()].join(":");
+    return timestamp;
+}
 //-END-TIME-FUNCTIONS-----------------------------------------------------------

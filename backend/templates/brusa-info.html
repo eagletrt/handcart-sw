@@ -28,6 +28,11 @@
             <script>
                 let container = document.getElementById("table-responsive-info");
                 createInfoTable(container);
+
+                // updating header inforamtions
+                updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt", "V");
+                updateLineChartValue(null, null, "bms-hv/ampere/last", "current", NZ, "amp", "A");
+                updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp", "°");
             </script>
         </main>
     </div>

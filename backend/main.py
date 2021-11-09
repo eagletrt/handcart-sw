@@ -966,15 +966,11 @@ def thread_3_WEB():
     @app.route('/bms-hv/warnings', methods=['GET'])
     def get_bms_hv_warnings():
         data = {
-            "timestamp": "2020-12-01:ora",
-            "warnings": [{
-                "id": "0",
-                "desc": "Sto esplodendo"
-            },
-                {
-                    "id": "5",
-                    "desc": "cell 5 overvoltage"
-                }]
+            "timestamp": datetime.now().isoformat(),
+            "warnings": [
+                "i'm exploding",
+                "500A output"
+            ]
         }
 
         resp = jsonify(data)

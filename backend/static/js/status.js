@@ -248,9 +248,11 @@ async function brusaWarnings() {
         .then(json => {
             let status = json["status"];
 
-            for (let i = 0; i < status.length; i++) {
-                if (status[i]["pos"] >= 8 && status[i]["pos"] <= 23) { // find warnings in the brusa status (code 8-23)
-                    warnings++;
+            if(status[IS_WARNING] == 1) {
+                for(let w in WARNINGS) {
+                    if(status[w] == 1) {
+                        warnings++;
+                    }
                 }
             }
         })
@@ -263,7 +265,7 @@ async function brusaWarnings() {
 
 setInterval(function () { // every 2 seconds
     ((async () => {
-        let brusaE = await brusaErrors();       // get the number of brusa's errors
+        let brusaE = await brusaErrors();     // get the number of brusa's errors
         let brusaW = await brusaWarnings();   // get the number of brusa's warning
 
         let errors = 0;

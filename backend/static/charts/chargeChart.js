@@ -35,12 +35,12 @@ function createChargeChart() {
 
         var range0 = axis2.axisRanges.create();
         range0.value = 0;
-        range0.endValue = 50;
+        range0.endValue = 0;
         range0.axisFill.fillOpacity = 1;
         range0.axisFill.fill = am4core.color("green");
 
         var range1 = axis2.axisRanges.create();
-        range1.value = 50;
+        range1.value = 0;
         range1.endValue = 100;
         range1.axisFill.fillOpacity = 1;
         range1.axisFill.fill = am4core.color("red");
@@ -52,11 +52,11 @@ function createChargeChart() {
         var label = chart.radarContainer.createChild(am4core.Label);
         label.isMeasured = false;
         label.fontSize = 45;
-        label.x = am4core.percent(50);
+        label.x = am4core.percent(0);
         label.y = am4core.percent(100);
         label.horizontalCenter = "middle";
         label.verticalCenter = "middle";
-        label.text = "50%";
+        label.text = "0%";
 
 
         /**
@@ -65,7 +65,7 @@ function createChargeChart() {
 
         var hand = chart.hands.push(new am4charts.ClockHand());
         hand.axis = axis2;
-        hand.value = 50;
+        hand.value = 0;
         hand.visible = false;
 
         hand.events.on("propertychanged", function (ev) {
