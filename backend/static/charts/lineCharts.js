@@ -65,6 +65,8 @@ function createLineChart(path, name, param, zoom, label, u) {
 
                 chart.data = data;
 
+                let nameChart = name[0].toUpperCase() + name.substring(1);
+
                 var dateAxis = chart.xAxes.push(new am4charts.DateAxis());
                 dateAxis.renderer.grid.template.location = 0;
                 dateAxis.renderer.minGridDistance = 30;
@@ -86,6 +88,8 @@ function createLineChart(path, name, param, zoom, label, u) {
                 var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
                 valueAxis.tooltip.disabled = true;
                 valueAxis.renderer.minWidth = 35;
+                valueAxis.title.text = nameChart + " (" + u + ")";
+
                 //*
                 valueAxis.interpolationDuration = 500;
                 valueAxis.rangeChangeDuration = 500;
@@ -105,7 +109,7 @@ function createLineChart(path, name, param, zoom, label, u) {
                 series.strokeWidth = 2;
                 series.fillOpacity = 0.25;
                 series.fill = am4core.color("green");
-                series.tooltipText = name[0].toUpperCase() + name.substring(1) + ": {valueY}\nChange: {valueY.previousChange}";
+                series.tooltipText = nameChart + ": {valueY}\nChange: {valueY.previousChange}";
                 series.tooltip.getFillFromObject = false;
                 series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
                 //*

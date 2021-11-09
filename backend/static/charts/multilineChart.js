@@ -15,6 +15,7 @@ function createMultilineChart(path, name, param, zoom, label, u) {
             am4core.ready(function () {
                 // Themes begin
                 am4core.useTheme(am4themes_animated);
+                var colorSet = new am4core.ColorSet();
                 // Themes end
 
                 var chart = am4core.create(name + "Chart", am4charts.XYChart);
@@ -82,26 +83,31 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                     dateAxis.zoom({start: 1 / zoom, end: 1.1}, false, true);
                 });
 
-                var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
-                valueAxis.tooltip.disabled = true;
-                valueAxis.renderer.minWidth = 35;
-                //*
-                valueAxis.interpolationDuration = 500;
-                valueAxis.rangeChangeDuration = 500;
-                //valueAxis.renderer.inside = true;
-                valueAxis.renderer.minLabelPosition = 0.05;
-                valueAxis.renderer.maxLabelPosition = 0.95;
-                //*
-                valueAxis.renderer.axisFills.template.disabled = true;
-                valueAxis.renderer.ticks.template.disabled = true;
-
+                console.log(chart)
                 for(let key in keys) {
-                    var series = chart.series.push(new am4charts.LineSeries());
+                    let k = keys[key];
+
+                    let valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
+                    valueAxis.tooltip.disabled = true;
+                    valueAxis.renderer.minWidth = 35;
+                    //*
+                    valueAxis.interpolationDuration = 500;
+                    valueAxis.rangeChangeDuration = 500;
+                    //valueAxis.renderer.inside = true;
+                    valueAxis.renderer.minLabelPosition = 0.05;
+                    valueAxis.renderer.maxLabelPosition = 0.95;
+                    //*
+                    valueAxis.renderer.axisFills.template.disabled = true;
+                    valueAxis.renderer.ticks.template.disabled = true;
+
+                    let series = chart.series.push(new am4charts.LineSeries());
+                    series.stacked = true;
+                    series.yAxis = valueAxis;
                     series.dataFields.dateX = "date";
-                    series.dataFields.valueY = keys[key];
+                    series.dataFields.valueY = k;
                     series.strokeWidth = 2;
                     series.fillOpacity = 0.25;
-                    let tooltipName = keys[key].split("_");
+                    let tooltipName = k.split("_");
                     let str = ""
                     for(let i in tooltipName) {
                         str += tooltipName[i] + " ";
@@ -111,8 +117,13 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                     series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
                     series.interpolationDuration = 500;
                     series.defaultState.transitionDuration = 0;
-                    if(keys[key] == param) {
+                    if(k == param) {
                         series.propertyFields.stroke = "color";
+                    } else {
+                        valueAxis.renderer.opposite = true;
+                        let actualColor = colorSet.next()
+                        valueAxis.renderer.labels.template.fill = actualColor;
+                        series.propertyFields.stroke = actualColor;
                     }
                 }
 
