@@ -188,33 +188,33 @@ function updateHeatValue(chart, series, nrows, group) {
 //-END-HEAT-CHART---------------------------------------------------------------
 //-CHART-PAGE-------------------------------------------------------------------
 function getCell(c) {
-    if (divs < 2) {                                              // compare max 2 charts
-        divs++;                                                 // save how many charts there are
+    if (divs < 2) {                                                 // compare max 2 charts
+        divs++;                                                     // save how many charts there are
 
-        let container = document.getElementById("chart");       // get the column container
+        let container = document.getElementById("chart");  // get the column container
 
         let mainRow = container.firstElementChild;
-        if (mainRow == null) {                                   // check if a row has been already created
-            mainRow = document.createElement("div");            // if not, it will create it
+        if (mainRow == null) {                                      // check if a row has been already created
+            mainRow = document.createElement("div");        // if not, it will create it
             mainRow.className = "row";
         }
 
-        let mainCol = document.createElement("div");            // create the column that will contain the chart
+        let mainCol = document.createElement("div");        // create the column that will contain the chart
         mainCol.className = "col-sm";
         mainCol.setAttribute("id", c);
 
-        let buttonRow = document.createElement("div");          // create the close-button's row
+        let buttonRow = document.createElement("div");      // create the close-button's row
         buttonRow.className = "row";
 
         let voidCol = document.createElement("div");
         voidCol.className = "col-sm-10";
         buttonRow.appendChild(voidCol);
 
-        let buttonCol = document.createElement("div");          // create the colse-button's col
+        let buttonCol = document.createElement("div");      // create the colse-button's col
         buttonCol.className = "col-sm";
 
-        let button = document.createElement("button");          // create the button
-        button.className = "btn";                               // set the close function with
+        let button = document.createElement("button");                          // create the button
+        button.className = "btn";                                                       // set the close function with
         button.setAttribute("onclick", "reset(" + c + ", divs)");     // the parameter to close it
         button.innerHTML = "X";
 

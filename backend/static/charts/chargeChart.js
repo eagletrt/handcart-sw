@@ -77,8 +77,10 @@ function createChargeChart() {
 
         setInterval(function () {
             let volt = parseInt(document.getElementById("volt").innerHTML); // insert the value in the top bar
+            let minCOVolt = 330;
             let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
-            let value = Math.round(100 * (100 * volt / coVolt)) / 100;
+
+            let value = Math.max(0, Math.round((100 * (volt-minCOVolt) / (coVolt-minCOVolt))));
 
             document.getElementById("charge").innerHTML = Math.round(value) + "%"; // calculate the value of the charge
 

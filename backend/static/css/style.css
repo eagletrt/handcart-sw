@@ -22,8 +22,8 @@ main {
 
 .status {
     display: inline;
-    margin-left: 20px;
-    margin-right: 20px;
+    margin-left: 15px;
+    margin-right: 15px;
 }
 
 .ico {
@@ -100,6 +100,12 @@ main {
     background: none;
     border: none;
     width: auto;
+}
+
+#shutdown {
+    width: 150px;
+    position: absolute;
+    margin-top: -8px;
 }
 
 .fc {

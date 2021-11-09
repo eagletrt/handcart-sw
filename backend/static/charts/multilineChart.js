@@ -20,6 +20,11 @@ function createMultilineChart(path, name, param, zoom, label, u) {
 
                 var chart = am4core.create(name + "Chart", am4charts.XYChart);
                 //chart.paddingRight = 20;
+                chart.legend = new am4charts.Legend();
+                chart.legend.useDefaultMarker = true;
+                var marker = chart.legend.markers.template.children.getIndex(0);
+                marker.strokeWidth = 2;
+                marker.strokeOpacity = 1;
 
                 let data = [];
                 let keys = [];
@@ -103,6 +108,7 @@ function createMultilineChart(path, name, param, zoom, label, u) {
                     let series = chart.series.push(new am4charts.LineSeries());
                     series.stacked = true;
                     series.yAxis = valueAxis;
+                    series.name = k;
                     series.dataFields.dateX = "date";
                     series.dataFields.valueY = k;
                     series.strokeWidth = 2;
