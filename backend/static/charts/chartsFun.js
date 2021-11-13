@@ -42,6 +42,7 @@ function updateLineChartValue(chart, series, path, param, zoom, label, u) {
     }
     timer.push(element);
 }
+
 function updateMultilineChartValue(chart, series, path, param, zoom, label, u) {
     setInterval(function () {
         request = getRequest(url, path);
