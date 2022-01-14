@@ -522,10 +522,10 @@ def GPIO_setup():
     GPIO.setup(PIN.BUT_3.value, GPIO.OUT)
     GPIO.setup(PIN.BUT_4.value, GPIO.OUT)
     GPIO.setup(PIN.BUT_5.value, GPIO.OUT)
-    GPIO.setup(PIN.PON_CONTROL, GPIO.OUT)
-    GPIO.setup(PIN.SD_RELAY, GPIO.OUT)
-    GPIO.setup(PIN.ROT_A, GPIO.OUT)
-    GPIO.setup(PIN.ROT_B, GPIO.OUT)
+    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
+    GPIO.setup(PIN.ROT_A.value, GPIO.OUT)
+    GPIO.setup(PIN.ROT_B.value, GPIO.OUT)
 
 
 def canSend(bus, msg_id, data):
@@ -638,7 +638,7 @@ def doCharge():
     global can_forward_enabled, stop_charge_command
 
     # Set Brusa's PON to 12v (relay)
-    GPIO.setmode(PIN.PON_CONTROL, GPIO.HIGH)
+    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.HIGH)
 
     with forward_lock:
         can_forward_enabled = True
@@ -665,7 +665,7 @@ def doC_done():
     :return:
     """
     # User decide wether charge again or going idle
-    GPIO.setmode(PIN.PON_CONTROL, GPIO.LOW)
+    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.LOW)
 
     return STATE.C_DONE
 
@@ -679,7 +679,7 @@ def doError():
     with forward_lock:
         can_forward_enabled = False
 
-    GPIO.setmode(PIN.PON_CONTROL, GPIO.LOW)
+    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.LOW)
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
@@ -792,46 +792,46 @@ def accumulator_sd(): # accumulator shutdown
 
 def initGPIOs():
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PIN.PON_CONTROL, GPIO.OUT)
-    GPIO.setup(PIN.SD_RELAY, GPIO.OUT)
-    GPIO.setup(PIN.GREEN_LED, GPIO.OUT)
-    GPIO.setup(PIN.BLUE_LED, GPIO.OUT)
-    GPIO.setup(PIN.RED_LED, GPIO.OUT)
+    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
+    GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.RED_LED.value, GPIO.OUT)
 
 
 def resetGPIOs():
-    GPIO.output(PIN.PON_CONTROL, GPIO.LOW)
-    GPIO.output(PIN.SD_RELAY, GPIO.LOW)
-    GPIO.output(PIN.GREEN_LED, GPIO.LOW)
-    GPIO.output(PIN.BLUE_LED, GPIO.LOW)
-    GPIO.output(PIN.RED_LED, GPIO.LOW)
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
+    GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+    GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+    GPIO.output(PIN.RED_LED.value, GPIO.LOW)
 
 
 def setLedColor(color):
     if color == TSAL_COLOR.OFF:
-        GPIO.output(PIN.GREEN_LED, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED, GPIO.LOW)
-        GPIO.output(PIN.RED_LED, GPIO.LOW)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
     if color == TSAL_COLOR.RED:  # TSON
-        GPIO.output(PIN.GREEN_LED, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED, GPIO.LOW)
-        GPIO.output(PIN.RED_LED, GPIO.HIGH)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
     elif color == TSAL_COLOR.ORANGE:  # ERROR
-        GPIO.output(PIN.GREEN_LED, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED, GPIO.LOW)
-        GPIO.output(PIN.RED_LED, GPIO.HIGH)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
     elif color == TSAL_COLOR.PURPLE:  # TSON and CHARGING
-        GPIO.output(PIN.GREEN_LED, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED, GPIO.HIGH)
-        GPIO.output(PIN.RED_LED, GPIO.HIGH)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
     elif color == TSAL_COLOR.GREEN:  # TS OFF
-        GPIO.output(PIN.GREEN_LED, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED, GPIO.LOW)
-        GPIO.output(PIN.RED_LED, GPIO.LOW)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
     elif color == TSAL_COLOR.WHITE:
-        GPIO.output(PIN.GREEN_LED, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED, GPIO.HIGH)
-        GPIO.output(PIN.RED_LED, GPIO.HIGH)
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
 
 # TODO: Thread per il lampeggio
 
