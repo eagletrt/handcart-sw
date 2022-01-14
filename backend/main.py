@@ -679,7 +679,7 @@ def doError():
     with forward_lock:
         can_forward_enabled = False
 
-    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
@@ -690,8 +690,7 @@ def doError():
             pass
             # print("[ERR] " + i)
     if canread.bms_hv.error:
-        print("Accumulator Error: ")
-        print(canread.bms_hv.error_str)
+        pass
     if canread.can_err:
         print("Can Error")
 
@@ -831,6 +830,10 @@ def setLedColor(color):
     elif color == TSAL_COLOR.WHITE:
         GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
         GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+    elif color == TSAL_COLOR.YELLOW:
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
         GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
 
 # TODO: Thread per il lampeggio
