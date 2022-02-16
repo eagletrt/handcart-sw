@@ -520,6 +520,7 @@ def GPIO_setup():
     """
     This function is used to set-up the GPIO pins
     """
+    GPIO.setmode(GPIO.BCM)
     GPIO.setup(PIN.BUT_0.value, GPIO.OUT)
     GPIO.setup(PIN.BUT_1.value, GPIO.OUT)
     GPIO.setup(PIN.BUT_2.value, GPIO.OUT)
@@ -530,6 +531,11 @@ def GPIO_setup():
     GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_A.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_B.value, GPIO.OUT)
+    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
+    GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.RED_LED.value, GPIO.OUT)
 
 
 def canSend(bus, msg_id, data):
@@ -793,16 +799,6 @@ def accumulator_sd(): # accumulator shutdown
         else:
             canread.generic_error
 
-
-def initGPIOs():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
-    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
-    GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
-    GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
-    GPIO.setup(PIN.RED_LED.value, GPIO.OUT)
-
-
 def resetGPIOs():
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
     GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
@@ -864,9 +860,6 @@ def thread_1_FSM():
     """
 
     global shared_data, shutdown_asked
-
-    initGPIOs()
-    resetGPIOs()
 
     act_stat = STATE.CHECK
     canread.FSM_entered_stat = datetime.now().isoformat()
@@ -1476,6 +1469,9 @@ t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
 t3 = threading.Thread(target=thread_3_WEB, args=())
 t4 = threading.Thread(target=thread_led, args=())
+
+GPIO_setup()
+resetGPIOs()
 
 t1.start()
 t2.start()
