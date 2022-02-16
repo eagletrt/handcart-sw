@@ -15,6 +15,7 @@ import random
 import struct
 import threading
 import time
+import atexit
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -473,6 +474,9 @@ lock = threading.Lock()
 can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
+def exit_handler():
+    print("Quitting..")
+    setLedColor(TSAL_COLOR.OFF)
 
 def clrErr():
     """
@@ -503,7 +507,7 @@ def canInit(listener):
         canread.can_err = True
         return False
     except can.CanError:
-        print("Can Error")
+        #print("Can Error")
         canread.can_err = True
         return False
     except NotImplementedError:
@@ -692,7 +696,8 @@ def doError():
     if canread.bms_hv.error:
         pass
     if canread.can_err:
-        print("Can Error")
+        #print("Can Error")
+        pass
 
     if not com_queue.empty:
         act_com = com_queue.get()
@@ -887,7 +892,7 @@ def thread_1_FSM():
             next_stat = doState.get(act_stat)()
 
         if shutdown_asked:
-            next_stat = STATE.IDLE
+            next_stat = STATE.ERROR
             shutdown_asked = False
 
         if next_stat == STATE.EXIT:
@@ -1425,43 +1430,47 @@ def thread_led():
 
     while 1:
         time.sleep(.1)
-        if actual_state != shared_data.FSM_stat:
-            actual_state = shared_data.FSM_stat
-            if shared_data.FSM_stat == STATE.CHECK:
-                blinking = False
-                setLedColor(TSAL_COLOR.WHITE)
-                tsal_actual_color = TSAL_COLOR.WHITE
-            elif shared_data.FSM_stat == STATE.IDLE:
-                blinking = False
-                setLedColor(TSAL_COLOR.GREEN)
-                tsal_actual_color = TSAL_COLOR.GREEN
-            elif shared_data.FSM_stat == STATE.PRECHARGE or \
-                    shared_data.FSM_stat == STATE.READY:
-                blinking = True
-                setLedColor(TSAL_COLOR.RED)
-                tsal_actual_color = TSAL_COLOR.RED
-            elif shared_data.FSM_stat == STATE.CHARGE:
-                blinking = True
-                setLedColor(TSAL_COLOR.ORANGE)
-                tsal_actual_color = TSAL_COLOR.ORANGE
-            elif shared_data.FSM_stat == STATE.C_DONE:
-                blinking = True
-                setLedColor(TSAL_COLOR.PURPLE)
-                tsal_actual_color = TSAL_COLOR.PURPLE
-            elif shared_data.FSM_stat == STATE.ERROR:
-                blinking = False
-                setLedColor(TSAL_COLOR.YELLOW)
-                tsal_actual_color = TSAL_COLOR.YELLOW
+        #if actual_state != shared_data.FSM_stat:
+        actual_state = shared_data.FSM_stat
+        if shared_data.FSM_stat == STATE.CHECK:
+            blinking = False
+            setLedColor(TSAL_COLOR.WHITE)
+            tsal_actual_color = TSAL_COLOR.WHITE
+        elif shared_data.FSM_stat == STATE.IDLE:
+            blinking = False
+            setLedColor(TSAL_COLOR.GREEN)
+            tsal_actual_color = TSAL_COLOR.GREEN
+        elif shared_data.FSM_stat == STATE.PRECHARGE or \
+                shared_data.FSM_stat == STATE.READY:
+            blinking = True
+            setLedColor(TSAL_COLOR.RED)
+            tsal_actual_color = TSAL_COLOR.RED
+        elif shared_data.FSM_stat == STATE.CHARGE:
+            blinking = True
+            setLedColor(TSAL_COLOR.ORANGE)
+            tsal_actual_color = TSAL_COLOR.ORANGE
+        elif shared_data.FSM_stat == STATE.C_DONE:
+            blinking = True
+            setLedColor(TSAL_COLOR.PURPLE)
+            tsal_actual_color = TSAL_COLOR.PURPLE
+        elif shared_data.FSM_stat == STATE.ERROR:
+            blinking = False
+            setLedColor(TSAL_COLOR.YELLOW)
+            tsal_actual_color = TSAL_COLOR.YELLOW
 
         if blinking:
             if is_tsal_on:
                 setLedColor(TSAL_COLOR.OFF)
+                is_tsal_on = False
             else:
                 setLedColor(tsal_actual_color)
+                is_tsal_on = True
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
+
+atexit.register(exit_handler()) # On exit of the program, execute the function
 
 t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
