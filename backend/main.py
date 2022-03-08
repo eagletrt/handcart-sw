@@ -15,6 +15,7 @@ import random
 import struct
 import threading
 import time
+import atexit
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -25,11 +26,14 @@ import pytz
 from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
+import RPi.GPIO as GPIO
 
 from can_cicd.includes_generator.Primary.ids import *
 from can_cicd.naked_generator.Primary.py.Primary import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
+
+GPIO.setmode(GPIO.BCM) # Set Pi to use pin number when referencing GPIO pins.
 
 FAST_CHARGE_MAINS_AMPERE = 16
 STANDARD_CHARGE_MAINS_AMPERE = 6
@@ -42,8 +46,34 @@ CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
 CAN_ID_ECU_CHIMERA = 0x55
 
+led_blink = False
 
 # BMS_HV_BYPASS = False # Use at your own risk
+
+class PIN(Enum):
+    RED_LED = 12 #31
+    GREEN_LED = 13 #33
+    BLUE_LED = 16 #36
+    SD_RELAY = 20
+    PON_CONTROL = 21
+    BUT_0 = 22
+    BUT_1 = 23
+    BUT_2 = 24
+    BUT_3 = 26
+    BUT_4 = 27
+    BUT_5 = 19
+    ROT_A = 18
+    ROT_B = 17
+
+
+class TSAL_COLOR(Enum):
+    OFF = -1
+    RED = 0
+    GREEN = 1
+    ORANGE = 2
+    PURPLE = 3
+    WHITE = 4
+    YELLOW = 5
 
 class ACCUMULATOR(Enum):
     CHIMERA = 1
@@ -93,7 +123,7 @@ class CAN_BRUSA_MSG_ID(Enum):
 class BRUSA:
     """Class to store and process all the Brusa data
     """
-    lastupdated = 0
+    lastupdated = 1
 
     act_NLG5_ST_values = {}
     act_NLG5_ACT_I = {}
@@ -444,6 +474,9 @@ lock = threading.Lock()
 can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
+def exit_handler():
+    print("Quitting..")
+    setLedColor(TSAL_COLOR.OFF)
 
 def clrErr():
     """
@@ -474,13 +507,35 @@ def canInit(listener):
         canread.can_err = True
         return False
     except can.CanError:
-        print("Can Error")
+        #print("Can Error")
         canread.can_err = True
         return False
     except NotImplementedError:
         print("Can interface not recognized")
         canread.can_err = True
         return False
+
+
+def GPIO_setup():
+    """
+    This function is used to set-up the GPIO pins
+    """
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(PIN.BUT_0.value, GPIO.OUT)
+    GPIO.setup(PIN.BUT_1.value, GPIO.OUT)
+    GPIO.setup(PIN.BUT_2.value, GPIO.OUT)
+    GPIO.setup(PIN.BUT_3.value, GPIO.OUT)
+    GPIO.setup(PIN.BUT_4.value, GPIO.OUT)
+    GPIO.setup(PIN.BUT_5.value, GPIO.OUT)
+    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
+    GPIO.setup(PIN.ROT_A.value, GPIO.OUT)
+    GPIO.setup(PIN.ROT_B.value, GPIO.OUT)
+    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
+    GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
+    GPIO.setup(PIN.RED_LED.value, GPIO.OUT)
 
 
 def canSend(bus, msg_id, data):
@@ -593,6 +648,7 @@ def doCharge():
     global can_forward_enabled, stop_charge_command
 
     # Set Brusa's PON to 12v (relay)
+    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.HIGH)
 
     with forward_lock:
         can_forward_enabled = True
@@ -619,6 +675,7 @@ def doC_done():
     :return:
     """
     # User decide wether charge again or going idle
+    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.LOW)
 
     return STATE.C_DONE
 
@@ -632,6 +689,8 @@ def doError():
     with forward_lock:
         can_forward_enabled = False
 
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == Ts_Status.OFF.value:
         staccastacca()
@@ -641,10 +700,10 @@ def doError():
             pass
             # print("[ERR] " + i)
     if canread.bms_hv.error:
-        print("Accumulator Error: ")
-        print(canread.bms_hv.error_str)
+        pass
     if canread.can_err:
-        print("Can Error")
+        #print("Can Error")
+        pass
 
     if not com_queue.empty:
         act_com = com_queue.get()
@@ -740,6 +799,47 @@ def accumulator_sd(): # accumulator shutdown
         else:
             canread.generic_error
 
+def resetGPIOs():
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
+    GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+    GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+    GPIO.output(PIN.RED_LED.value, GPIO.LOW)
+
+
+def setLedColor(color):
+    if color == TSAL_COLOR.OFF:
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
+    if color == TSAL_COLOR.RED:  # TSON
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+    elif color == TSAL_COLOR.ORANGE:  # ERROR
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+    elif color == TSAL_COLOR.PURPLE:  # TSON and CHARGING
+        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+    elif color == TSAL_COLOR.GREEN:  # TS OFF
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
+    elif color == TSAL_COLOR.WHITE:
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+    elif color == TSAL_COLOR.YELLOW:
+        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
+        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
+        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
+
+# TODO: Thread per il lampeggio
+
+
 # Maps state to it's function
 doState = {
     STATE.CHECK: doCheck,
@@ -751,7 +851,6 @@ doState = {
     STATE.ERROR: doError,
     STATE.EXIT: doExit
 }
-
 
 # Backend Thread
 def thread_1_FSM():
@@ -786,7 +885,7 @@ def thread_1_FSM():
             next_stat = doState.get(act_stat)()
 
         if shutdown_asked:
-            next_stat = STATE.IDLE
+            next_stat = STATE.ERROR
             shutdown_asked = False
 
         if next_stat == STATE.EXIT:
@@ -863,7 +962,6 @@ def thread_2_CAN():
                                                is_extended_id=False)
                 tx_can_queue.put(NLG5_CTL_message)
                 last_brusa_ctl_sent = time.time()
-
 
 def thread_3_WEB():
     """
@@ -1315,13 +1413,67 @@ def thread_3_WEB():
     app.run(use_reloader=False, host="0.0.0.0", port=8080)  # to run on the pc ip
 
 
+def thread_led():
+    global shared_data
+
+    actual_state = STATE.IDLE
+    blinking = False
+    is_tsal_on = False
+    tsal_actual_color = TSAL_COLOR.OFF
+
+    while 1:
+        time.sleep(.1)
+        #if actual_state != shared_data.FSM_stat:
+        actual_state = shared_data.FSM_stat
+        if shared_data.FSM_stat == STATE.CHECK:
+            blinking = False
+            setLedColor(TSAL_COLOR.WHITE)
+            tsal_actual_color = TSAL_COLOR.WHITE
+        elif shared_data.FSM_stat == STATE.IDLE:
+            blinking = False
+            setLedColor(TSAL_COLOR.GREEN)
+            tsal_actual_color = TSAL_COLOR.GREEN
+        elif shared_data.FSM_stat == STATE.PRECHARGE or \
+                shared_data.FSM_stat == STATE.READY:
+            blinking = True
+            setLedColor(TSAL_COLOR.RED)
+            tsal_actual_color = TSAL_COLOR.RED
+        elif shared_data.FSM_stat == STATE.CHARGE:
+            blinking = True
+            setLedColor(TSAL_COLOR.ORANGE)
+            tsal_actual_color = TSAL_COLOR.ORANGE
+        elif shared_data.FSM_stat == STATE.C_DONE:
+            blinking = True
+            setLedColor(TSAL_COLOR.PURPLE)
+            tsal_actual_color = TSAL_COLOR.PURPLE
+        elif shared_data.FSM_stat == STATE.ERROR:
+            blinking = False
+            setLedColor(TSAL_COLOR.YELLOW)
+            tsal_actual_color = TSAL_COLOR.YELLOW
+
+        if blinking:
+            if is_tsal_on:
+                setLedColor(TSAL_COLOR.OFF)
+                is_tsal_on = False
+            else:
+                setLedColor(tsal_actual_color)
+                is_tsal_on = True
+
+
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
+
+atexit.register(exit_handler()) # On exit of the program, execute the function
 
 t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
 t3 = threading.Thread(target=thread_3_WEB, args=())
+t4 = threading.Thread(target=thread_led, args=())
+
+GPIO_setup()
+resetGPIOs()
 
 t1.start()
 t2.start()
 t3.start()
+t4.start()
