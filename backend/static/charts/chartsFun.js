@@ -1,5 +1,5 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
-function updateLineChartValue(chart, series, path, param, zoom, label, u) {
+function updateLineChartValue(chart, series, path, param, zoom, label) {
     let t = setInterval(function () {
         request = getRequest(url, path);
 
@@ -30,7 +30,8 @@ function updateLineChartValue(chart, series, path, param, zoom, label, u) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = d + u;
+                    lbl.innerHTML = d;
+                    updateSessionValue(param, d);
                 }
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
@@ -43,7 +44,7 @@ function updateLineChartValue(chart, series, path, param, zoom, label, u) {
     timer.push(element);
 }
 
-function updateMultilineChartValue(chart, series, path, param, zoom, label, u) {
+function updateMultilineChartValue(chart, series, path, param, zoom, label) {
     setInterval(function () {
         request = getRequest(url, path);
 
@@ -55,7 +56,7 @@ function updateMultilineChartValue(chart, series, path, param, zoom, label, u) {
                 let mainData;
 
                 for(let key in json) {
-                    if(key != "pack_voltage") { // to be confirmed
+                    if(key != "pack_voltage") {
                         let d = json[key];
                         if(key != "timestamp") {
                             element[key] = d;
@@ -79,7 +80,8 @@ function updateMultilineChartValue(chart, series, path, param, zoom, label, u) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = mainData + u;
+                    lbl.innerHTML = mainData;
+                    updateSessionValue(param, mainData);
                 }
             })
             .catch(error => console.log('Authorization failed : ' + error.message))

@@ -17,26 +17,22 @@
                 <div class="status">BMS state: <b id="bmsState"></b></div>
                 <div class="status">State: <b id="hcState"></b></div>
                 <div class="status">Brusa state: <b id="brusaState"></b></div>
-                <div class="status">Elapsed time: <b id="timeText">00:00</b></div>
+                <div class="status">Elapsed time: <b id="timeText"></b></div>
             </div>
             <div class="left">
                 <button type="button" class="btn btn-light position-relative hbtn"
                         onclick="window.location.href = './warnings'">
                     <span data-feather="alert-triangle" class="ico orange"></span>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                          id="nWarnings">
-                    0
-                </span>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="nWarnings">
+                    </span>
                 </button>
             </div>
             <div class="left">
                 <button type="button" class="btn btn-light position-relative hbtn"
                         onclick="window.location.href = './errors'">
                     <span data-feather="alert-triangle" class="ico red"></span>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                          id="nErrors">
-                    0
-                </span>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="nErrors">
+                    </span>
                 </button>
             </div>
             <div class="left">
@@ -53,16 +49,38 @@
                 </form>
             </div>
             <div class="right">
-                <div class="status" id="temp">0°</div>
-                <div class="status"><span id="volt">0V</span>/<span id="COvolt">0V</span></div>
-                <!-- tensione/cut-off -->
-                <div class="status" id="amp">0A</div>
-                <div class="status" id="charge">0%</div>
+                <div class="status"><span id="temp"></span>°</div>
+                <div class="status"><span id="volt">0</span>V/<span id="COvolt">0</span>V</div>
+                <div class="status"><span id="amp">0</span>A</div>
+                <div class="status"><span id="charge">0</span>%</div>
             </div>
         </div>
     </nav>
 
     <script>
+        updateHeader();
+        /*document.getElementById("bmsState").innerHTML = sessionStorage.getItem("bmsState");
+        document.getElementById("hcState").innerHTML = sessionStorage.getItem("hcState");
+        document.getElementById("brusaState").innerHTML = sessionStorage.getItem("brusaState");
+        if(sessionStorage.getItem("timeText") == null) {
+            document.getElementById("timeText").innerHTML = "00:00";
+        } else {
+            document.getElementById("timeText").innerHTML = sessionStorage.getItem("timeText");
+        }
+        document.getElementById("nWarnings").innerHTML = sessionStorage.getItem("warnings");
+        document.getElementById("nErrors").innerHTML = sessionStorage.getItem("errors");
+        if(sessionStorage.getItem("fcState") == "true") {
+
+        } else {
+
+        }
+        document.getElementById("temp").innerHTML = sessionStorage.getItem("average_temp") + "°";
+        document.getElementById("volt").innerHTML = sessionStorage.getItem("bus_voltage") + "V";
+        document.getElementById("COvolt").innerHTML = sessionStorage.getItem("covValue") + "V";
+        document.getElementById("amp").innerHTML = sessionStorage.getItem("current") + "A";
+        document.getElementById("charge").innerHTML = sessionStorage.getItem("charge") + "%";*/
+
+
         let sdForm = document.getElementById("sdForm");
 
         let path = "action";

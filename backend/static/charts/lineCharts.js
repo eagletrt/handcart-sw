@@ -164,7 +164,7 @@ function createLineChart(path, name, param, zoom, label, u) {
                     chart.scrollbarX = scrollbarX;*/
                 }
 
-                updateLineChartValue(chart, series, lastPath, param, zoom, label, u);
+                updateLineChartValue(chart, series, lastPath, param, zoom, label);
 
                 //**************************************************************
 

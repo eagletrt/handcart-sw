@@ -153,7 +153,7 @@ function createMultilineChart(path, name, param, zoom, label, u) {
 
                         chart.zoomOutButton.disabled = true;
 
-                        updateMultilineChartValue(chart, series, lastPath, param, zoom, label, u);
+                        updateMultilineChartValue(chart, series, lastPath, param, zoom, label);
 
                         // bullet at the front of the line
                         let bullet = series.createChild(am4charts.CircleBullet);

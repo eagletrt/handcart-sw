@@ -10,6 +10,10 @@ async function bmsStatus() {
     await fetch(request)
         .then(response => {
             if(!response.ok) {
+                let state = document.getElementById("bmsState");
+                updateSessionValue("bmsState", "OFFLINE");
+                state.innerHTML = "OFFLINE";
+                state.className = "red";
                 throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
             }
             return response.json();
@@ -17,9 +21,21 @@ async function bmsStatus() {
         .then(json => {
             let state = document.getElementById("bmsState");
 
-            // if there's only one status message to read
+            let car = json["accumulator"];
+
+            if(car == 1) {
+                car = "Chimera";
+            } else {
+                car = "Fenice";
+            }
+
+            updateSessionValue("car", car);
+
             let key = "status";
             str = json[key];
+
+            updateSessionValue("bmsState", str);
+
             state.innerHTML = str;
 
             switch (str) {
@@ -30,8 +46,8 @@ async function bmsStatus() {
                     state.className = "orange";
                     break;
                 case "FATAL":
-                case "OFF":
                 case "OFFLINE":
+                case "OFF":
                     state.className = "red";
                     break;
             }
@@ -46,7 +62,7 @@ setInterval(function () { // every 2 seconds
     })());
 }, 2000);
 
-async function bmsEW(path, field) { // function to setup the number of error(s)/warning(s)
+async function bmsEW(path, field) { // function to read the number of error(s)/warning(s)
     let bms = 0;
 
     let request = getRequest(url, path);
@@ -73,7 +89,7 @@ async function bmsEW(path, field) { // function to setup the number of error(s)/
 //-END-GET-THE-BMS-HV-STATUS----------------------------------------------------
 //-GET-THE-HANDCART-STATUS------------------------------------------------------
 setInterval(function () { // every 2 seconds
-    path = 'handcart/status';
+    let path = 'handcart/status';
 
     request = getRequest(url, path);
 
@@ -96,6 +112,9 @@ setInterval(function () { // every 2 seconds
             // if there's only one status message to read
             let key = "state";
             let str = json[key];
+
+            updateSessionValue("hcState", str);
+
             state.innerHTML = str;
 
             // get the actual path to check if there sould be buttons or not
@@ -294,6 +313,8 @@ setInterval(function () { // every 2 seconds
             state.className = "green";              // and the color
         }
 
+        updateSessionValue("brusaState", state.innerHTML);
+
         //--------------------------------------------------------------------------------------------------------------
         let bmsErrors = await bmsEW("bms-hv/errors", "errors");
         let bmsWarnings = await bmsEW("bms-hv/warnings", "warnings");
@@ -306,6 +327,9 @@ setInterval(function () { // every 2 seconds
             warnings += bmsWarnings;
         }
 
+        updateSessionValue("errors", errors);
+        updateSessionValue("warnings", warnings);
+
         nWarn.innerHTML = warnings;
         nErr.innerHTML = errors;
     })());
@@ -313,7 +337,7 @@ setInterval(function () { // every 2 seconds
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 //-GET-FASTCHARGE-STATUS--------------------------------------------------------
 setInterval(function () { // every 2 seconds
-    path = 'command/setting';
+    let path = 'command/setting';
 
     request = getRequest(url, path);
 
@@ -331,20 +355,14 @@ setInterval(function () { // every 2 seconds
                 let com = json[i];
                 if (com["com-type"] == "fast-charge") {
                     let enabled = com["value"];
-                    if(enabled) {
-                        if(fc.classList.contains("btn-danger")) {
-                            fc.classList.remove("btn-danger");
-                            fc.className += " btn-success";
-                        }
-                    } else {
-                        if(fc.classList.contains("btn-success")) {
-                            fc.classList.remove("btn-success");
-                            fc.className += " btn-danger";
-                        }
-                    }
-                    var href = window.location;
 
-                    var page = href.pathname.substring(1); // to remove the "/" before the page's name
+                    updateSessionValue("fcState", enabled);
+
+                    uploadFCValue(fc, enabled);
+
+                    let href = window.location;
+
+                    let page = href.pathname.substring(1); // to remove the "/" before the page's name
 
                     if(page == "settings") {
                         enableDisable(enabled);
@@ -357,7 +375,7 @@ setInterval(function () { // every 2 seconds
 //-END-GET-FASTCHARGE-STATUS----------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
 setInterval(function () { // every 2 seconds
-    path = 'command/setting';
+    let path = 'command/setting';
 
     request = getRequest(url, path);
 
@@ -369,11 +387,12 @@ setInterval(function () { // every 2 seconds
         return response.json();
     })
         .then(json => {
-            var cov = document.getElementById("COvolt");
+            let cov = document.getElementById("COvolt");
 
             for (let i = 0; i < json.length; i++) {
                 if (json[i]["com-type"] == "cutoff") {
-                    cov.innerHTML = json[i]["value"] + "V";
+                    cov.innerHTML = json[i]["value"];
+                    updateSessionValue("covValue", json[i]["value"]);
                 }
             }
         })

@@ -143,6 +143,10 @@ a.red:hover {
     color: #cf001a;
 }
 
+#hidden {
+    display: none;
+}
+
 .slider {
     background: linear-gradient(to right, #00ba44 0%, #00ba44 0%, #d3d3d3 0%, #d3d3d3 100%);
     -webkit-appearance: none;

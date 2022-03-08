@@ -22,3 +22,17 @@ WARNINGS = {
     "NLG5_S_L_T_TR":    "Output power limited by temperature of transformer",
     "NLG5_S_L_T_BATT":  "Output power limited by battery temperature"
 };
+states = {  // a dictionary containing HTML ids and sessionStorage's keys
+    "bmsState": "bmsState",
+    "hcState": "hcState",
+    "brusaState": "brusaState",
+    "timeText": "timeText",
+    "nWarnings": "warnings",
+    "nErrors": "errors",
+    "fc" : "fcState",
+    "temp": "average_temp",
+    "volt": "bus_voltage",
+    "COvolt": "covValue",
+    "amp": "current",
+    "charge": "charge"
+};

@@ -76,7 +76,7 @@
                     <div class="col-sm-4">
                         <div id="tempChart"></div>
                     </div>
-                    <div class="col-sm-8">
+                    <div class="col-sm-8" id="hidden">
                         <div class="row">
                             <div id="cellChart"></div>
                         </div>
@@ -89,6 +89,10 @@
         </main>
     </div>
     <script>
+        if(sessionStorage.getItem("car") != "Chimera") {
+            document.getElementById("hidden").style.display = "block";
+        }
+
         // lineCharts parameters: path, chart's div, json's parameter, the zoom level, the header label's id, the unit of measure of the value
         createMultilineChart("bms-hv/volt", "volt", "bus_voltage", 1.25, "volt", "V");
         createChargeChart();

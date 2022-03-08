@@ -77,6 +77,53 @@ function formListener(form, path) {
     });
 }
 
+function updateSessionValue(key, value) {
+    if (sessionStorage.getItem(key) == null || sessionStorage.getItem(key) != value) {
+        sessionStorage.setItem(key, value);
+    }
+}
+
+function uploadSessionValue(id, key, value) {
+    let item = sessionStorage.getItem(key);
+
+    if(item != null) {
+        value = item;
+    }
+    document.getElementById(id).innerHTML = value; // value is passed as a default value
+}
+
+function uploadFCValue(fc, enabled) {
+    if(enabled) {
+        if(fc.classList.contains("btn-danger")) {
+            fc.classList.remove("btn-danger");
+            fc.className += " btn-success";
+        }
+    } else {
+        if(fc.classList.contains("btn-success")) {
+            fc.classList.remove("btn-success");
+            fc.className += " btn-danger";
+        }
+    }
+}
+
+// this function update the header's value when the page is loaded, reading data from session attributes
+function updateHeader() {
+    for(let key in states) {
+        let value = "0";
+        if(key == "timeText") {
+            value = "00:00";
+        }
+        if(key != "fc") {
+            uploadSessionValue(key, states[key], value);
+        } else {
+            let fc = document.getElementById(key);
+            let fcValue = sessionStorage.getItem("fcState");
+
+            fcValue = fcValue == "true" ? true : false;
+            uploadFCValue(fc, fcValue);
+        }
+    }
+}
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------
 /*
     sliderName: the id of the slider
@@ -119,7 +166,9 @@ function enableDisable(enabled) {
 
 function elapsedTime(timeText, entered) {
     // Compute the elapsed time & display
-    timeText.innerHTML = timeAndDateHandling.getElapsedTime(entered) //pass the actual record start time
+    let text = timeAndDateHandling.getElapsedTime(entered) //pass the actual record start time
+    updateSessionValue("timeText", text);
+    timeText.innerHTML = text;
 }
 
 //API for time and date functions
