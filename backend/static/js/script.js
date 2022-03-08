@@ -78,7 +78,7 @@ function formListener(form, path) {
 }
 
 function updateSessionValue(key, value) {
-    if (sessionStorage.getItem(key) == null || sessionStorage.getItem(key) != value) {
+    if(sessionStorage.getItem(key) == null || sessionStorage.getItem(key) != value) {
         sessionStorage.setItem(key, value);
     }
 }
@@ -227,7 +227,7 @@ var timeAndDateHandling = {
     }
 }
 
-Number.prototype.padLeft = function(base,chr){
+Number.prototype.padLeft = function(base,chr) {
     var  len = (String(base || 10).length - String(this).length)+1;
     return len > 0? new Array(len).join(chr || '0')+this : this;
 }
