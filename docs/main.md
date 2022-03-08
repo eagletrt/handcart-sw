@@ -234,7 +234,19 @@ SD IMD BMS pinout:
 The mapping between the Amphenol connector and the others is self-explanatory,I’m not going to talk about it.
 
 ### The handcart wiring & PCB connectors
-All the Shutdown cables in the wiring have purple color
+All the Shutdown cables in the wiring have purple color.
+
+#### RGB TSAL (fake)
+The TSAL is used to get a visual feedback of the state of the handcart during charging. The original fenice's TSAL has been taken and has been equiped with RGB leds, connetting the mosphet gates to some pins in the raspberry, specifically:
+- RED_LED = GPIO 12 #31
+- GREEN_LED = GPIO 13 #33
+- BLUE_LED = GPIO 16 #36
+Some cables has been routed from the back of the pcb to a weipu 6 pin female connector. Then, the male connector is connected to the TSAL. The pin assignment is:
+- 1 - GND
+-   2 - 12V
+-   3 - Red signal
+-   4 - Green signal
+-   5 - Blue signal
 
 ## The shutdown circuit
 
