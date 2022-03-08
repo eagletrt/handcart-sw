@@ -19,14 +19,18 @@ async function bmsStatus() {
             return response.json();
         })
         .then(json => {
+            //console.log("car: " + json);
+
             let state = document.getElementById("bmsState");
 
             let car = json["accumulator"];
 
             if(car == 1) {
                 car = "Chimera";
-            } else {
+            } else if (car == 2) {
                 car = "Fenice";
+            } else {
+                car = "null";
             }
 
             updateSessionValue("car", car);

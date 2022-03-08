@@ -228,6 +228,7 @@ class BMS_HV:
     errors = 0
     warnings = None
     error_str = ""
+    error_list_chimera = []
     status = Ts_Status.OFF
     chg_status = -1
     req_chg_current = 0
@@ -358,6 +359,17 @@ class BMS_HV:
             self.status = Ts_Status.OFF
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
+            if msg.data[1] == 0: # ERROR_LTC6804_PEC_ERROR
+                self.error_list_chimera.append("ERROR_LTC6804_PEC_ERROR")
+            if msg.data[2] == 1:  # ERROR_CELL_UNDER_VOLTAGE
+                self.error_list_chimera.append("ERROR_CELL_UNDER_VOLTAGE")
+            if msg.data[3] == 2:  # ERROR_CELL_OVER_VOLTAGE
+                self.error_list_chimera.append("ERROR_CELL_OVER_VOLTAGE")
+            if msg.data[4] == 3:  # ERROR_CELL_OVER_TEMPERATURE
+                self.error_list_chimera.append("ERROR_CELL_OVER_TEMPERATURE")
+            if msg.data[5] == 4: # ERROR_OVER_CURRENT
+                self.error_list_chimera.append("ERROR_OVER_CURRENT")
+
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
             self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 1)
             self.max_cell_voltage = round((msg.data[4] << 8 | msg.data[5]) / 10000, 2)
@@ -497,7 +509,7 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel="can0")
+        canbus = can.interface.Bus(interface="socketcan", channel="can1") #TODO
         # links the bus with the listener
         notif = can.Notifier(canbus, [listener])
 
@@ -528,10 +540,8 @@ def GPIO_setup():
     GPIO.setup(PIN.BUT_4.value, GPIO.OUT)
     GPIO.setup(PIN.BUT_5.value, GPIO.OUT)
     GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
-    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_A.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_B.value, GPIO.OUT)
-    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
     GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
     GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
     GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
@@ -552,10 +562,10 @@ def canSend(bus, msg_id, data):
         # print("Message sent on {}".format(canbus.channel_info))
         return True
     except can.CanError:
-        print("Can Error: Message not sent")
+        #print("Can Error: Message not sent")
         with(lock):
             shared_data.can_err = True
-        raise can.CanError
+        #raise can.CanError
 
 
 def doCheck():
@@ -576,6 +586,8 @@ def doIdle():
     """
     global precharge_command
 
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
     # Shutdown pork
     accumulator_sd()
 
@@ -593,6 +605,8 @@ def doPreCharge():
     # ask pork to do precharge
     # Send req to bms "TS_ON"
     global precharge_asked, precharge_done
+
+    GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
 
     if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
@@ -732,6 +746,8 @@ def staccastacca():
     and all the devices
     """
     global precharge_asked, precharge_done, can_forward_enabled
+    GPIO.output(PIN.PON_CONTROL, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY, GPIO.LOW)
     #FENICE
     sts = SetTsStatus()
     data = sts.serialize(Ts_Status_Set.OFF.value)
@@ -875,8 +891,7 @@ def thread_1_FSM():
             canread.on_message_received(new_msg)
 
         if act_stat != STATE.CHECK and (not canread.bms_hv.isConnected() or not canread.brusa.isConnected()):
-            staccastacca()
-            next_stat = doState.get(STATE.CHECK)
+            next_stat = doState.get(STATE.ERROR)
 
         # Checks errors
         if canread.brusa.error or canread.bms_hv.error or canread.can_err:
@@ -920,6 +935,7 @@ def thread_2_CAN():
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
             canSend(canbus, act.arbitration_id, act.data)
+
 
         # Handles the brusa ctl messages
         with forward_lock:
@@ -1035,7 +1051,8 @@ def thread_3_WEB():
             else:
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
-                    "status": "OFFLINE"
+                    "status": "OFFLINE",
+                    "accumulator": -1
                 }
                 res = jsonify(res)
                 res.status_code = 450
@@ -1047,9 +1064,12 @@ def thread_3_WEB():
             if shared_data.bms_hv.isConnected():
                 error_list = []
 
-                for i in Hv_Errors:
-                    if Hv_Errors(i) in Hv_Errors(shared_data.bms_hv.errors):
-                        error_list.append(Hv_Errors(i).name)
+                if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+                    for i in Hv_Errors:
+                        if Hv_Errors(i) in Hv_Errors(shared_data.bms_hv.errors):
+                            error_list.append(Hv_Errors(i).name)
+                elif shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
+                    error_list = shared_data.bms_hv.error_list_chimera
 
                 res = {
                     "timestamp": shared_data.brusa.lastupdated,
@@ -1065,10 +1085,7 @@ def thread_3_WEB():
     def get_bms_hv_warnings():
         data = {
             "timestamp": datetime.now().isoformat(),
-            "warnings": [
-                "i'm exploding",
-                "500A output"
-            ]
+            "warnings": []
         }
 
         resp = jsonify(data)
@@ -1463,15 +1480,15 @@ def thread_led():
 # Usare le code tra FSM e CAN per invio e ricezione
 # Processare i messaggi nella FSM e inoltrarli gia a posto
 
-atexit.register(exit_handler()) # On exit of the program, execute the function
+GPIO_setup()
+resetGPIOs()
+
+atexit.register(exit_handler) # On exit of the program, execute the function
 
 t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
 t3 = threading.Thread(target=thread_3_WEB, args=())
 t4 = threading.Thread(target=thread_led, args=())
-
-GPIO_setup()
-resetGPIOs()
 
 t1.start()
 t2.start()
