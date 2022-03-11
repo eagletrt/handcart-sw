@@ -44,6 +44,7 @@ async function bmsStatus() {
 
             switch (str) {
                 case "ON":
+                case "OFF":
                     state.className = "green";
                     break;
                 case "PRECHARGE":
@@ -51,7 +52,6 @@ async function bmsStatus() {
                     break;
                 case "FATAL":
                 case "OFFLINE":
-                case "OFF":
                     state.className = "red";
                     break;
             }

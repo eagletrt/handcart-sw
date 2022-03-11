@@ -380,8 +380,8 @@ class BMS_HV:
                                             "min_cell_voltage": self.max_cell_voltage})
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_TEMPS.value:
-            a = "<hhhx"
-            self.act_average_temp, self.max_temp, self.min_temp = struct.unpack(a, msg.data)
+            a = ">chhh"
+            _, self.act_average_temp, self.max_temp, self.min_temp = struct.unpack(a, msg.data)
             self.act_average_temp /= 100
             self.max_temp /= 100
             self.min_temp /= 100
@@ -389,6 +389,7 @@ class BMS_HV:
                                          "average_temp": self.act_average_temp,
                                          "max_temp": self.max_temp,
                                          "min_temp": self.min_temp})
+            print(self.act_average_temp, self.max_temp, self.min_temp)
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.CURRENT.value:
             self.act_current = (msg.data[1] << 8 | msg.data[2])/10
@@ -486,9 +487,12 @@ lock = threading.Lock()
 can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
+
 def exit_handler():
     print("Quitting..")
     setLedColor(TSAL_COLOR.OFF)
+    resetGPIOs()
+
 
 def clrErr():
     """
@@ -509,7 +513,7 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel="can1") #TODO
+        canbus = can.interface.Bus(interface="socketcan", channel="can0")
         # links the bus with the listener
         notif = can.Notifier(canbus, [listener])
 
@@ -746,8 +750,8 @@ def staccastacca():
     and all the devices
     """
     global precharge_asked, precharge_done, can_forward_enabled
-    GPIO.output(PIN.PON_CONTROL, GPIO.LOW)
-    GPIO.output(PIN.SD_RELAY, GPIO.LOW)
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
     #FENICE
     sts = SetTsStatus()
     data = sts.serialize(Ts_Status_Set.OFF.value)
@@ -1185,7 +1189,7 @@ def thread_3_WEB():
                 "max_temp": shared_data.bms_hv.max_temp,
                 "min_temp": shared_data.bms_hv.min_temp
             }
-
+            #print(shared_data.bms_hv.act_average_temp)
             resp = jsonify(data)
             resp.status_code = 200
         else:
