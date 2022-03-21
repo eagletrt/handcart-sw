@@ -1,3 +1,3 @@
-[submodule "backend/can-cicd-forkme"]
+[submodule "backend/can_cicd"]
 	path = backend/can_cicd
 	url = https://github.com/eagletrt/can-cicd-forkme.git
