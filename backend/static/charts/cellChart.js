@@ -9,7 +9,7 @@ function createCellChart() {
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                document.getElementById(name + "Chart").innerHTML = "Device not connected!";
+                document.getElementById("cellChart").innerHTML = "Device not connected!";
                 throw new Error("Error code " + response.status + ": Device not connected");
             }
             return response.json();

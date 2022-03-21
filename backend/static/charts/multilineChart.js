@@ -7,7 +7,7 @@ function createMultilineChart(path, name, param, zoom, label, u) {
         .then(response => {
             if(!response.ok) {
                 document.getElementById(name + "Chart").innerHTML = "Device not connected!";
-                throw new Error("Error code " + response.status + ": Device not connected");
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
             }
             return response.json();
         })
@@ -20,7 +20,7 @@ function createMultilineChart(path, name, param, zoom, label, u) {
 
                 var chart = am4core.create(name + "Chart", am4charts.XYChart);
                 //chart.paddingRight = 20;
-
+                console.log(json)
                 let data = [];
                 let keys = [];
                 let previousValue = -1;

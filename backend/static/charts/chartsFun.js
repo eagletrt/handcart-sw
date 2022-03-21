@@ -4,7 +4,13 @@ function updateLineChartValue(chart, series, path, param, zoom, label) {
         request = getRequest(url, path);
 
         fetch(request)
-            .then(response => response.json())
+            .then(response => {
+                if(!response.ok) {
+                    deleteTimer(path);
+                    throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                }
+                response.json()
+            })
             .then(json => {
                 let timestamp = json["timestamp"];
                 let d = json[param];
@@ -30,7 +36,7 @@ function updateLineChartValue(chart, series, path, param, zoom, label) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = d;
+                    lbl.innerHTML = d == undefined? 0 : d;
                     updateSessionValue(param, d);
                 }
             })
@@ -45,11 +51,17 @@ function updateLineChartValue(chart, series, path, param, zoom, label) {
 }
 
 function updateMultilineChartValue(chart, series, path, param, zoom, label) {
-    setInterval(function () {
+    let t = setInterval(function () {
         request = getRequest(url, path);
 
         fetch(request)
-            .then(response => response.json())
+            .then(response => {
+                if(!response.ok) {
+                    deleteTimer(path);
+                    throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                }
+                response.json()
+            })
             .then(json => {
                 let element = {};
                 let prevItem = chart.data[chart.data.length - 1][param];
@@ -80,12 +92,18 @@ function updateMultilineChartValue(chart, series, path, param, zoom, label) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = mainData;
+                    lbl.innerHTML = mainData == undefined? 0 : mainData;
                     updateSessionValue(param, mainData);
                 }
             })
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
+
+    let element = {
+        "timer": t,
+        "chart": path
+    }
+    timer.push(element);
 }
 //-END-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-------------------------------
 //-CELL-CHART-------------------------------------------------------------------

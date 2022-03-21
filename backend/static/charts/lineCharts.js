@@ -7,7 +7,7 @@ function createLineChart(path, name, param, zoom, label, u) {
         .then(response => {
             if(!response.ok) {
                 document.getElementById(name + "Chart").innerHTML = "Device not connected!";
-                throw new Error("Error code " + response.status + ": Device not connected");
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
             }
             return response.json();
         })

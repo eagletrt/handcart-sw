@@ -1,8 +1,6 @@
 //-GET-THE-BMS-HV-STATUS--------------------------------------------------------
 
-async function bmsStatus() {
-    let path = 'bms-hv/status';
-
+async function bmsStatus(path) {
     request = getRequest(url, path);
 
     var str = "";
@@ -11,10 +9,16 @@ async function bmsStatus() {
         .then(response => {
             if(!response.ok) {
                 let state = document.getElementById("bmsState");
-                updateSessionValue("bmsState", "OFFLINE");
+
                 state.innerHTML = "OFFLINE";
                 state.className = "red";
-                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
+
+                updateSessionValue("bmsState", "OFFLINE");
+                updateSessionValue("car", null); // to hide cell and heat chart
+
+                deleteTimer(path);
+
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
             }
             return response.json();
         })
@@ -44,6 +48,7 @@ async function bmsStatus() {
 
             switch (str) {
                 case "ON":
+                case "OFF":
                     state.className = "green";
                     break;
                 case "PRECHARGE":
@@ -51,7 +56,6 @@ async function bmsStatus() {
                     break;
                 case "FATAL":
                 case "OFFLINE":
-                case "OFF":
                     state.className = "red";
                     break;
             }
@@ -60,13 +64,24 @@ async function bmsStatus() {
     return str;
 }
 
-setInterval(function () { // every 2 seconds
-    ((async () => {
-        bmsState = await bmsStatus();
-    })());
-}, 2000);
+{
+    let t = setInterval(function () { // every 2 seconds
+        ((async () => {
+            let path = 'bms-hv/status';
 
-async function bmsEW(path, field) { // function to read the number of error(s)/warning(s)
+            let element = {
+                "timer": t,
+                "chart": path
+            }
+
+            timer.push(element);
+
+            bmsState = await bmsStatus(path);
+        })());
+    }, 2000);
+}
+
+async function bmsEW(path, field, timer) { // function to read the number of error(s)/warning(s)
     let bms = 0;
 
     let request = getRequest(url, path);
@@ -74,7 +89,8 @@ async function bmsEW(path, field) { // function to read the number of error(s)/w
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
+                deleteTimer(timer);
+                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
             }
             return response.json();
         })
@@ -228,7 +244,7 @@ setInterval(function () { // every 2 seconds
 }, 1000);
 //-END-GET-THE-HANDCART-STATUS--------------------------------------------------
 //-GET-THE-BRUSA-STATUS---------------------------------------------------------
-async function brusaErrors() {
+async function brusaErrors(timer) {
     let errors = 0;
 
     let path = 'brusa/errors';
@@ -238,7 +254,8 @@ async function brusaErrors() {
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)");
+                deleteTimer(timer);
+                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)\nConnect the device and refresh.");
             }
             return response.json();
         })
@@ -254,7 +271,7 @@ async function brusaErrors() {
     return errors;
 }
 
-async function brusaWarnings() {
+async function brusaWarnings(timer) {
     let warnings = 0;
 
     let path = 'brusa/status';
@@ -264,7 +281,8 @@ async function brusaWarnings() {
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)");
+                deleteTimer(timer);
+                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)\nConnect the device and refresh.");
             }
             return response.json();
         })
@@ -286,58 +304,69 @@ async function brusaWarnings() {
 
 // these 2 function above can't be moved in the "script.js", else it won't work
 
-setInterval(function () { // every 2 seconds
-    ((async () => {
-        let brusaE = await brusaErrors();     // get the number of brusa's errors
-        let brusaW = await brusaWarnings();   // get the number of brusa's warning
+{
+    let t = setInterval(function () { // every 2 seconds
+        ((async () => {
+            let tName = 'ew';
 
-        let errors = 0;
-        let warnings = 0;
-
-        let state = document.getElementById("brusaState");
-        let nWarn = document.getElementById("nWarnings");
-        let nErr = document.getElementById("nErrors");
-
-        if (brusaE > 0 || brusaW > 0) {             // check if there are errors or warnings
-            if (brusaW > 0) {                       // if there are warnings
-                state.innerHTML = "WARNING";        // change the text
-                state.className = "orange";         // and the color
-
-                warnings += brusaW;           // then set the number of warnings
+            let element = {
+                "timer": t,
+                "chart": tName
             }
-            // even if there are warnings
-            if (brusaE > 0) {                       // if there are errors
-                state.innerHTML = "ERROR";          // change the text
-                state.className = "red";            // and the color
 
-                errors += brusaE;            // then set the number of errors
+            timer.push(element);
+
+            let brusaE = await brusaErrors(tName);     // get the number of brusa's errors
+            let brusaW = await brusaWarnings(tName);   // get the number of brusa's warning
+
+            let errors = 0;
+            let warnings = 0;
+
+            let state = document.getElementById("brusaState");
+            let nWarn = document.getElementById("nWarnings");
+            let nErr = document.getElementById("nErrors");
+
+            if (brusaE > 0 || brusaW > 0) {             // check if there are errors or warnings
+                if (brusaW > 0) {                       // if there are warnings
+                    state.innerHTML = "WARNING";        // change the text
+                    state.className = "orange";         // and the color
+
+                    warnings += brusaW;           // then set the number of warnings
+                }
+                // even if there are warnings
+                if (brusaE > 0) {                       // if there are errors
+                    state.innerHTML = "ERROR";          // change the text
+                    state.className = "red";            // and the color
+
+                    errors += brusaE;            // then set the number of errors
+                }
+            } else {                                    // if there's no errors and warnings
+                state.innerHTML = "IDLE";               // change the text
+                state.className = "green";              // and the color
             }
-        } else {                                    // if there's no errors and warnings
-            state.innerHTML = "IDLE";               // change the text
-            state.className = "green";              // and the color
-        }
 
-        updateSessionValue("brusaState", state.innerHTML);
+            updateSessionValue("brusaState", state.innerHTML);
 
-        //--------------------------------------------------------------------------------------------------------------
-        let bmsErrors = await bmsEW("bms-hv/errors", "errors");
-        let bmsWarnings = await bmsEW("bms-hv/warnings", "warnings");
+            //--------------------------------------------------------------------------------------------------------------
+            let bmsErrors = await bmsEW("bms-hv/errors", "errors", tName);
+            let bmsWarnings = await bmsEW("bms-hv/warnings", "warnings", tName);
 
-        if (bmsErrors > 0) {
-            errors += bmsErrors;
-        }
+            if (bmsErrors > 0) {
+                errors += bmsErrors;
+            }
 
-        if (bmsWarnings > 0) {
-            warnings += bmsWarnings;
-        }
+            if (bmsWarnings > 0) {
+                warnings += bmsWarnings;
+            }
 
-        updateSessionValue("errors", errors);
-        updateSessionValue("warnings", warnings);
+            updateSessionValue("errors", errors);
+            updateSessionValue("warnings", warnings);
 
-        nWarn.innerHTML = warnings;
-        nErr.innerHTML = errors;
-    })());
-}, 2000);
+            nWarn.innerHTML = warnings;
+            nErr.innerHTML = errors;
+        })());
+    }, 2000);
+}
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
 //-GET-FASTCHARGE-STATUS--------------------------------------------------------
 setInterval(function () { // every 2 seconds
@@ -346,12 +375,12 @@ setInterval(function () { // every 2 seconds
     request = getRequest(url, path);
 
     fetch(request)
-    .then(response => {
-        if(!response.ok) {
-            throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
-        }
-        return response.json();
-    })
+        .then(response => {
+            if(!response.ok) {
+                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+            }
+            return response.json();
+        })
         .then(json => {
             var fc = document.getElementById("fc");
 

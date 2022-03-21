@@ -38,8 +38,9 @@
             // update lineCharts parameters: chart, series, path, parameter, zoom, the header label's id, the unit of measure of the value
             if(actualChart == "volt") {
                 createMultilineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt");
+            } else {
+                updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
             }
-            updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
 
             createChargeChart();
 
@@ -51,8 +52,9 @@
 
             if(actualChart == "temp") {
                 createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp");
+            } else {
+                updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp");
             }
-            updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp");
 
             if (actualChart == "cell") {
                 createCellChart();

@@ -89,7 +89,8 @@
         </main>
     </div>
     <script>
-        if(sessionStorage.getItem("car") != "Chimera") {
+        let car = sessionStorage.getItem("car");
+        if(car == "Fenice") {
             document.getElementById("hidden").style.display = "block";
         }
 

@@ -79,6 +79,11 @@
                     </div>
                 </div>
                 <script>
+                    // updating header informations
+                    updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
+                    updateLineChartValue(null, null, "bms-hv/ampere/last", "current", NZ, "amp");
+                    updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp");
+                    
                     var COForm = document.getElementById("COForm");     // form cut-off voltage
                     var MCOForm = document.getElementById("MCOForm");   // form maxcurrent outlet
                     var FCEForm = document.getElementById("FCEForm");   // form fast charge enabled
