@@ -492,7 +492,6 @@ def exit_handler():
     print("Quitting..")
     setLedColor(TSAL_COLOR.OFF)
     resetGPIOs()
-    GPIO.cleanup()
 
 
 def clrErr():
