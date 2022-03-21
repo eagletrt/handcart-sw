@@ -28,8 +28,8 @@ from flask import render_template
 from flask import request, jsonify
 import RPi.GPIO as GPIO
 
-from can_cicd.includes_generator.Primary.ids import *
-from can_cicd.naked_generator.Primary.py.Primary import *
+from can_cicd.includes_generator.primary.ids import *
+from can_cicd.naked_generator.primary.py.primary import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
@@ -45,6 +45,8 @@ MAX_TARGET_V_ACC = 430  # Maximum charging voltage of accumulator
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
 CAN_ID_ECU_CHIMERA = 0x55
+
+actual_fsm_state = 0 # Read only
 
 led_blink = False
 
@@ -218,6 +220,7 @@ class BMS_HV:
     hv_current_history = []
     hv_temp_history = []
 
+    charged_capacity_ah = 0
     act_pack_voltage = -1
     act_bus_voltage = -1
     act_current = -1
@@ -270,6 +273,8 @@ class BMS_HV:
         """
 
         deserialized = HvCurrent.deserialize(msg.data)
+        delta_from_last = datetime.date(datetime.fromtimestamp(msg.timestamp).isoformat()) - \
+                          datetime.date(self.lastupdated)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_current = deserialized.current
@@ -279,6 +284,10 @@ class BMS_HV:
             "ampere": deserialized.current,
             "power": deserialized.power
         })
+
+        if actual_fsm_state == STATE.CHARGE.value:
+            self.charged_capacity_ah += self.act_current*delta_from_last
+            print(self.charged_capacity_ah)
 
     def doHV_TEMP(self, msg):
         """
@@ -322,27 +331,6 @@ class BMS_HV:
         print(msg.arbitration_id)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = Ts_Status(TsStatus.deserialize(msg.data).ts_status)
-
-    def do_CHG_SET_POWER(self, msg):
-        """
-        Processes the CHG_SET_POWER CAN message from BMS_HV
-        :param msg: the CHG_SET_POWER CAN message
-        """
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        power = SetChgPower.deserialize(msg.data)
-        self.req_chg_current = power.current
-        if power.voltage > 500:
-            self.error = True
-            self.error_str = "Required charging voltage exceeds 500 Volts"
-        self.req_chg_voltage = power.voltage
-
-    def doCHG_STATUS(self, msg):
-        """
-        Processes the CHG_STATUS CAN message from BMS_HV
-        :param msg: the CHG_STATUS CAN message
-        """
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.status = ChgStatus.deserialize(msg.data).status
 
     def do_CHIMERA(self, msg):
         """
@@ -398,6 +386,7 @@ class BMS_HV:
                                             "current": self.act_current,
                                             "power": self.act_power})
 
+
 class CanListener:
     """
     That listener is called wether a can message arrives, then
@@ -430,8 +419,6 @@ class CanListener:
         ID_HV_ERRORS: bms_hv.doHV_ERRORS,
         ID_HV_TEMP: bms_hv.doHV_TEMP,
         ID_TS_STATUS: bms_hv.doHV_STATUS,
-        ID_SET_CHG_POWER: bms_hv.do_CHG_SET_POWER,
-        ID_CHG_STATUS: bms_hv.doCHG_STATUS,
 
         # BMS_HV Chimera
         CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
@@ -513,7 +500,7 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel="can0")
+        canbus = can.interface.Bus(interface="socketcan", channel="can1")
         # links the bus with the listener
         notif = can.Notifier(canbus, [listener])
 
@@ -879,7 +866,7 @@ def thread_1_FSM():
     Pls read the documentation about the state machine
     """
 
-    global shared_data, shutdown_asked
+    global shared_data, shutdown_asked, actual_fsm_state
 
     act_stat = STATE.CHECK
     canread.FSM_entered_stat = datetime.now().isoformat()
@@ -920,6 +907,7 @@ def thread_1_FSM():
             print("STATE: " + str(next_stat))
 
         act_stat = next_stat
+        actual_fsm_state = next_stat
 
         with lock:
             shared_data = canread
