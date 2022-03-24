@@ -6,8 +6,8 @@ function createHeatChart(nrows, subcells, group) {
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                document.getElementById(name + "Chart").innerHTML = "Device not connected!";
-                throw new Error("Error code " + response.status + ": Device not connected");
+                document.getElementById(name + "Chart").innerHTML = errMsg;
+                throw new Error("Error code " + response.status + ": " + errMsg);
             }
             return response.json();
         })

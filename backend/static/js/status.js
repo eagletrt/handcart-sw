@@ -18,7 +18,7 @@ async function bmsStatus(path) {
 
                 deleteTimer(path);
 
-                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
             }
             return response.json();
         })
@@ -90,7 +90,7 @@ async function bmsEW(path, field, timer) { // function to read the number of err
         .then(response => {
             if(!response.ok) {
                 deleteTimer(timer);
-                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
             }
             return response.json();
         })
@@ -116,7 +116,7 @@ setInterval(function () { // every 2 seconds
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (HANDCART)");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (HANDCART)");
             }
             return response.json();
         })
@@ -255,7 +255,7 @@ async function brusaErrors(timer) {
         .then(response => {
             if(!response.ok) {
                 deleteTimer(timer);
-                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)\nConnect the device and refresh.");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
             return response.json();
         })
@@ -282,7 +282,7 @@ async function brusaWarnings(timer) {
         .then(response => {
             if(!response.ok) {
                 deleteTimer(timer);
-                throw new Error("Error code " + response.status + ": Device not connected (BRUSA)\nConnect the device and refresh.");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
             return response.json();
         })
@@ -377,7 +377,7 @@ setInterval(function () { // every 2 seconds
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+                throw new Error("Error code " + response.status + ": " + errMsg + " (can't read settings)");
             }
             return response.json();
         })
@@ -415,7 +415,7 @@ setInterval(function () { // every 2 seconds
     fetch(request)
     .then(response => {
         if(!response.ok) {
-            throw new Error("Error code " + response.status + ": Device not connected (can't read settings)");
+            throw new Error("Error code " + response.status + ": " + errMsg + " (can't read settings)");
         }
         return response.json();
     })

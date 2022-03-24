@@ -701,13 +701,12 @@ def doError():
         staccastacca()
 
     if canread.brusa.error:
-        for i in canread.brusa.act_NLG5_ERR_str:
-            pass
-            # print("[ERR] " + i)
+        print("brusa error")
     if canread.bms_hv.error:
+        print("bms error")
         pass
     if canread.can_err:
-        #print("Can Error")
+        print("Can Error")
         pass
 
     if not com_queue.empty:

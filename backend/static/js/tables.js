@@ -19,8 +19,8 @@ function createInfoTable(container) {
         fetch(request)
             .then(response => {
                 if(!response.ok) {
-                    container.innerHTML = "Device not connected!";
-                    throw new Error("Error code " + response.status + ": Device not connected (BRUSA)");
+                    container.innerHTML = errMsg;
+                    throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)");
                 }
                 return response.json();
             })
@@ -133,8 +133,8 @@ function errorTable(path, id, msg) {
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                container.innerHTML = "Device not connected!";
-                throw new Error("Error code " + response.status + ": Device not connected");
+                container.innerHTML = errMsg;
+                throw new Error("Error code " + response.status + ": " + errMsg);
             }
             return response.json();
         })
@@ -167,8 +167,8 @@ function bmsWarningTable(path, container, msg) {
     fetch(request)
         .then(response => {
             if(!response.ok) {
-                container.innerHTML = "Device not connected!";
-                throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)");
+                container.innerHTML = errMsg;
+                throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)");
             }
             return response.json();
         })

@@ -1,6 +1,8 @@
 timer = [];
 getUrl = window.location;
 url = getUrl .protocol + "//" + getUrl.host + "/";
+errMsg = "Device not connected!";
+hintMsg = "Connect the device and refresh."
 OFFLINE_CODE = 450;
 NZ = "nozoom";
 IS_WARNING = "NLG5_S_WAR";

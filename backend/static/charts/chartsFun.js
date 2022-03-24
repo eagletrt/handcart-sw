@@ -7,7 +7,7 @@ function updateLineChartValue(chart, series, path, param, zoom, label) {
             .then(response => {
                 if(!response.ok) {
                     deleteTimer(path);
-                    throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                    throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
                 response.json()
             })
@@ -58,7 +58,7 @@ function updateMultilineChartValue(chart, series, path, param, zoom, label) {
             .then(response => {
                 if(!response.ok) {
                     deleteTimer(path);
-                    throw new Error("Error code " + response.status + ": Device not connected (BMS-HV)\nConnect the device and refresh.");
+                    throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
                 response.json()
             })
