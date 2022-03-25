@@ -40,7 +40,7 @@ STANDARD_CHARGE_MAINS_AMPERE = 6
 
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
 STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
-MAX_TARGET_V_ACC = 430  # Maximum charging voltage of accumulator
+MAX_TARGET_V_ACC = 446  # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
@@ -125,10 +125,11 @@ class CAN_BRUSA_MSG_ID(Enum):
 class BRUSA:
     """Class to store and process all the Brusa data
     """
-    lastupdated = 1
+    lastupdated = 1 # bypass the check of brusa presence if set to 1
 
     act_NLG5_ST_values = {}
-    act_NLG5_ACT_I = {}
+    act_NLG5_ACT_I = {'NLG5_OV_ACT':0,
+                       'NLG5_OC_ACT':0.2 }
     act_NLG5_ACT_II = {}
     act_NLG5_TEMP = {}
     act_NLG5_ERR = {}
@@ -500,7 +501,7 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel="can1")
+        canbus = can.interface.Bus(interface="socketcan", channel="can0")
         # links the bus with the listener
         notif = can.Notifier(canbus, [listener])
 
@@ -553,7 +554,7 @@ def canSend(bus, msg_id, data):
         # print("Message sent on {}".format(canbus.channel_info))
         return True
     except can.CanError:
-        #print("Can Error: Message not sent")
+        print("Can Error: Message not sent")
         with(lock):
             shared_data.can_err = True
         #raise can.CanError
@@ -653,7 +654,7 @@ def doCharge():
     global can_forward_enabled, stop_charge_command
 
     # Set Brusa's PON to 12v (relay)
-    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.HIGH)
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
     with forward_lock:
         can_forward_enabled = True
@@ -666,10 +667,12 @@ def doCharge():
             if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
                     and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
                 can_forward_enabled = False
+                print(canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'])
+                print(canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'])
                 return STATE.C_DONE
         except KeyError:
             print("Error in reading can message from brusa")
-            canread.can_err = True
+            #canread.can_err = True da rimettere
 
     return STATE.CHARGE
 
@@ -680,7 +683,7 @@ def doC_done():
     :return:
     """
     # User decide wether charge again or going idle
-    GPIO.setmode(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
     return STATE.C_DONE
 
