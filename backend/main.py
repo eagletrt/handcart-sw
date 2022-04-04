@@ -7,6 +7,7 @@ Notes:
     BMS (or BMS HV) - Stands for Battery Manage System (also the accumulator)
 """
 
+import atexit
 import datetime
 import json
 import logging
@@ -15,10 +16,10 @@ import random
 import struct
 import threading
 import time
-import atexit
 from datetime import datetime, timedelta
 from enum import Enum
 
+import RPi.GPIO as GPIO
 import can
 import cantools
 import flask
@@ -26,14 +27,13 @@ import pytz
 from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
-import RPi.GPIO as GPIO
 
 from can_cicd.includes_generator.primary.ids import *
 from can_cicd.naked_generator.primary.py.primary import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
-GPIO.setmode(GPIO.BCM) # Set Pi to use pin number when referencing GPIO pins.
+GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
 FAST_CHARGE_MAINS_AMPERE = 16
 STANDARD_CHARGE_MAINS_AMPERE = 6
@@ -46,16 +46,20 @@ CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
 CAN_ID_ECU_CHIMERA = 0x55
 
-actual_fsm_state = 0 # Read only
+actual_fsm_state = 0  # Read only
 
 led_blink = False
 
+CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
+CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
+
 # BMS_HV_BYPASS = False # Use at your own risk
 
+
 class PIN(Enum):
-    RED_LED = 12 #31
-    GREEN_LED = 13 #33
-    BLUE_LED = 16 #36
+    RED_LED = 12  # 31
+    GREEN_LED = 13  # 33
+    BLUE_LED = 16  # 36
     SD_RELAY = 20
     PON_CONTROL = 21
     BUT_0 = 22
@@ -76,6 +80,7 @@ class TSAL_COLOR(Enum):
     PURPLE = 3
     WHITE = 4
     YELLOW = 5
+
 
 class ACCUMULATOR(Enum):
     CHIMERA = 1
@@ -125,11 +130,11 @@ class CAN_BRUSA_MSG_ID(Enum):
 class BRUSA:
     """Class to store and process all the Brusa data
     """
-    lastupdated = 1 # bypass the check of brusa presence if set to 1
+    lastupdated = 1  # bypass the check of brusa presence if set to 1
 
     act_NLG5_ST_values = {}
-    act_NLG5_ACT_I = {'NLG5_OV_ACT':0,
-                       'NLG5_OC_ACT':0.2 }
+    act_NLG5_ACT_I = {'NLG5_OV_ACT': 0,
+                      'NLG5_OC_ACT': 0.2}
     act_NLG5_ACT_II = {}
     act_NLG5_TEMP = {}
     act_NLG5_ERR = {}
@@ -142,7 +147,11 @@ class BRUSA:
         """Checks if Brusa is connected
         :return: True if Brusa is connected
         """
-        return not self.lastupdated == 0
+        if self.lastupdated == 0:
+            return False
+        elif self.lastupdated != 1:
+            return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
+                   < CAN_BRUSA_PRESENCE_TIMEOUT
 
     def doNLG5_ST(self, msg):
         """
@@ -246,7 +255,11 @@ class BMS_HV:
         Check if BMS_HV is connected
         :return: True if BMS_HV is connected
         """
-        return not self.lastupdated == 0
+        if self.lastupdated == 0:
+            return False
+        else:
+            return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
+                       < CAN_BMS_PRESENCE_TIMEOUT
 
     def doHV_VOLTAGE(self, msg):
         """
@@ -287,7 +300,7 @@ class BMS_HV:
         })
 
         if actual_fsm_state == STATE.CHARGE.value:
-            self.charged_capacity_ah += self.act_current*delta_from_last
+            self.charged_capacity_ah += self.act_current * delta_from_last
             print(self.charged_capacity_ah)
 
     def doHV_TEMP(self, msg):
@@ -348,7 +361,7 @@ class BMS_HV:
             self.status = Ts_Status.OFF
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
-            if msg.data[1] == 0: # ERROR_LTC6804_PEC_ERROR
+            if msg.data[1] == 0:  # ERROR_LTC6804_PEC_ERROR
                 self.error_list_chimera.append("ERROR_LTC6804_PEC_ERROR")
             if msg.data[2] == 1:  # ERROR_CELL_UNDER_VOLTAGE
                 self.error_list_chimera.append("ERROR_CELL_UNDER_VOLTAGE")
@@ -356,7 +369,7 @@ class BMS_HV:
                 self.error_list_chimera.append("ERROR_CELL_OVER_VOLTAGE")
             if msg.data[4] == 3:  # ERROR_CELL_OVER_TEMPERATURE
                 self.error_list_chimera.append("ERROR_CELL_OVER_TEMPERATURE")
-            if msg.data[5] == 4: # ERROR_OVER_CURRENT
+            if msg.data[5] == 4:  # ERROR_OVER_CURRENT
                 self.error_list_chimera.append("ERROR_OVER_CURRENT")
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
@@ -378,10 +391,10 @@ class BMS_HV:
                                          "average_temp": self.act_average_temp,
                                          "max_temp": self.max_temp,
                                          "min_temp": self.min_temp})
-            #print(self.act_average_temp, self.max_temp, self.min_temp)
+            # print(self.act_average_temp, self.max_temp, self.min_temp)
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.CURRENT.value:
-            self.act_current = (msg.data[1] << 8 | msg.data[2])/10
+            self.act_current = (msg.data[1] << 8 | msg.data[2]) / 10
             self.act_power = (msg.data[3] << 8 | msg.data[4])
             self.hv_current_history.append({"timestamp": self.lastupdated,
                                             "current": self.act_current,
@@ -450,10 +463,6 @@ class Can_rx_listener(Listener):
         it then put the message in the rx queue
         :param msg: the incoming message
         """
-        # print(msg)
-        # print(msg)
-        if msg.arbitration_id == 4:
-            return
         rx_can_queue.put(msg)
 
 
@@ -482,6 +491,7 @@ def exit_handler():
     resetGPIOs()
     GPIO.cleanup()
 
+
 def clrErr():
     """
     Function that clears all the errors in the FSM, use with care
@@ -501,7 +511,7 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel="can0")
+        canbus = can.interface.Bus(interface="socketcan", channel="can1")
         # links the bus with the listener
         notif = can.Notifier(canbus, [listener])
 
@@ -511,7 +521,7 @@ def canInit(listener):
         canread.can_err = True
         return False
     except can.CanError:
-        #print("Can Error")
+        # print("Can Error")
         canread.can_err = True
         return False
     except NotImplementedError:
@@ -555,15 +565,17 @@ def canSend(bus, msg_id, data):
         return True
     except can.CanError:
         print("Can Error: Message not sent")
-        with(lock):
+        with lock:
             shared_data.can_err = True
-        #raise can.CanError
+        # raise can.CanError
 
 
 def doCheck():
     """
     Do check status of the state machine
     """
+    # Make sure that acc is in ts off
+    accumulator_sd()
 
     if canread.bms_hv.isConnected() and canread.brusa.isConnected():
         return STATE.IDLE
@@ -580,7 +592,7 @@ def doIdle():
 
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
     GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
-    # Shutdown pork
+    # Make sure that acc is in ts off
     accumulator_sd()
 
     if precharge_command:
@@ -672,7 +684,7 @@ def doCharge():
                 return STATE.C_DONE
         except KeyError:
             print("Error in reading can message from brusa")
-            #canread.can_err = True da rimettere
+            # canread.can_err = True da rimettere
 
     return STATE.CHARGE
 
@@ -709,7 +721,7 @@ def doError():
         print("bms error")
         pass
     if canread.can_err:
-        print("Can Error")
+        # print("Can Error")
         pass
 
     if not com_queue.empty:
@@ -736,19 +748,13 @@ def staccastacca():
     """
     Function that is to be called in an unsafe environment, this function
     will ask the BMS_HV to close the airs and it will disable the Brusa
-    and all the devices
+    and all the devices. This will also open the SD_Relay
     """
     global precharge_asked, precharge_done, can_forward_enabled
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
     GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
-    #FENICE
-    sts = SetTsStatus()
-    data = sts.serialize(Ts_Status_Set.OFF.value)
-    msg = can.Message(arbitration_id=ID_SET_TS_STATUS, data=data, is_extended_id=False)
-    tx_can_queue.put(msg)
-    #CHIMERA
-    msg = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value], is_extended_id=False)
-    tx_can_queue.put(msg)
+
+    accumulator_sd()
 
     # Set PON to off
     # Open shutdown
@@ -793,7 +799,7 @@ def checkCommands():
             shutdown_asked = True
 
 
-def accumulator_sd(): # accumulator shutdown
+def accumulator_sd():  # accumulator shutdown
     if canread.bms_hv.status == Ts_Status.ON:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
             message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
@@ -802,11 +808,12 @@ def accumulator_sd(): # accumulator shutdown
         elif canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
             if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
                 message = can.Message(arbitration_id=ID_SET_TS_STATUS,
-                                        data=SetTsStatus.serialize(Ts_Status_Set.OFF),
-                                        is_extended_id=False)
+                                      data=SetTsStatus.serialize(Ts_Status_Set.OFF),
+                                      is_extended_id=False)
                 tx_can_queue.put(message)
         else:
-            canread.generic_error
+            canread.generic_error = True
+
 
 def resetGPIOs():
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
@@ -846,8 +853,6 @@ def setLedColor(color):
         GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
         GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
 
-# TODO: Thread per il lampeggio
-
 
 # Maps state to it's function
 doState = {
@@ -860,6 +865,7 @@ doState = {
     STATE.ERROR: doError,
     STATE.EXIT: doExit
 }
+
 
 # Backend Thread
 def thread_1_FSM():
@@ -883,8 +889,11 @@ def thread_1_FSM():
             new_msg = rx_can_queue.get()
             canread.on_message_received(new_msg)
 
-        if act_stat != STATE.CHECK and (not canread.bms_hv.isConnected() or not canread.brusa.isConnected()):
-            next_stat = doState.get(STATE.ERROR)
+        if act_stat != STATE.CHECK:
+            if not canread.bms_hv.isConnected():
+                next_stat = doState.get(STATE.CHECK)
+            if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not canread.brusa.isConnected():
+                next_stat = doState.get(STATE.CHECK)
 
         # Checks errors
         if canread.brusa.error or canread.bms_hv.error or canread.can_err:
@@ -929,7 +938,6 @@ def thread_2_CAN():
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
             canSend(canbus, act.arbitration_id, act.data)
-
 
         # Handles the brusa ctl messages
         with forward_lock:
@@ -1180,7 +1188,7 @@ def thread_3_WEB():
                 "max_temp": shared_data.bms_hv.max_temp,
                 "min_temp": shared_data.bms_hv.min_temp
             }
-            #print(shared_data.bms_hv.act_average_temp)
+            # print(shared_data.bms_hv.act_average_temp)
             resp = jsonify(data)
             resp.status_code = 200
         else:
@@ -1359,22 +1367,22 @@ def thread_3_WEB():
                 "timestamp": shared_data.brusa.lastupdated,
             }
             if shared_data.brusa.act_NLG5_ACT_I != {}:
-                res["NLG5_MC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'],2)
-                res["NLG5_MV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'],2)
-                res["NLG5_OV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'],2)
-                res["NLG5_OC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'],2)
+                res["NLG5_MC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MC_ACT'], 2)
+                res["NLG5_MV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_MV_ACT'], 2)
+                res["NLG5_OV_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'], 2)
+                res["NLG5_OC_ACT"] = round(shared_data.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'], 2)
             else:
                 res["NLG5_MC_ACT"] = 0
                 res["NLG5_MV_ACT"] = 0
                 res["NLG5_OV_ACT"] = 0
                 res["NLG5_OC_ACT"] = 0
             if shared_data.brusa.act_NLG5_ACT_II != {}:
-                res["NLG5_S_MC_M_CP"] = round(shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'],2)
+                res["NLG5_S_MC_M_CP"] = round(shared_data.brusa.act_NLG5_ACT_II['NLG5_S_MC_M_CP'], 2)
             else:
                 res["NLG5_S_MC_M_CP"] = 0
 
             if shared_data.brusa.act_NLG5_TEMP != {}:
-                res["NLG5_P_TMP"] = round(shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP'],2)
+                res["NLG5_P_TMP"] = round(shared_data.brusa.act_NLG5_TEMP['NLG5_P_TMP'], 2)
             else:
                 res["NLG5_P_TMP"] = 0
 
@@ -1435,7 +1443,7 @@ def thread_led():
 
     while 1:
         time.sleep(.1)
-        #if actual_state != shared_data.FSM_stat:
+        # if actual_state != shared_data.FSM_stat:
         actual_state = shared_data.FSM_stat
         if shared_data.FSM_stat == STATE.CHECK:
             blinking = False
@@ -1478,7 +1486,7 @@ def thread_led():
 GPIO_setup()
 resetGPIOs()
 
-atexit.register(exit_handler) # On exit of the program, execute the function
+atexit.register(exit_handler)  # On exit of the program, execute the function
 
 t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
