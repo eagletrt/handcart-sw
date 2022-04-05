@@ -227,8 +227,11 @@ class BMS_HV:
     lastupdated = 0
 
     hv_voltage_history = []
+    hv_voltage_history_index = 0
     hv_current_history = []
+    hv_current_history_index = 0
     hv_temp_history = []
+    hv_temp_history_index = 0
 
     charged_capacity_ah = 0
     act_pack_voltage = -1
@@ -280,6 +283,8 @@ class BMS_HV:
                                         "max_cell_voltage": self.max_cell_voltage,
                                         "min_cell_voltage": self.max_cell_voltage})
 
+        self.hv_current_history_index += 1
+
     def doHV_CURRENT(self, msg):
         """
         Processes the HV_CURRENT CAN message from BMS_HV
@@ -299,6 +304,8 @@ class BMS_HV:
             "power": deserialized.power
         })
 
+        self.hv_current_history_index += 1
+
         if actual_fsm_state == STATE.CHARGE.value:
             self.charged_capacity_ah += self.act_current * delta_from_last
             print(self.charged_capacity_ah)
@@ -317,6 +324,8 @@ class BMS_HV:
                                      "average_temp": deserialized.average_temp,
                                      "max_temp": deserialized.max_temp,
                                      "min_temp": deserialized.min_temp})
+
+        self.hv_temp_history_index += 1
 
         self.min_temp = deserialized.min_temp
         self.max_temp = deserialized.max_temp
@@ -381,6 +390,8 @@ class BMS_HV:
                                             "max_cell_voltage": self.max_cell_voltage,
                                             "min_cell_voltage": self.max_cell_voltage})
 
+            self.hv_voltage_history_index += 1
+
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_TEMPS.value:
             a = ">chhh"
             _, self.act_average_temp, self.max_temp, self.min_temp = struct.unpack(a, msg.data)
@@ -392,6 +403,7 @@ class BMS_HV:
                                          "max_temp": self.max_temp,
                                          "min_temp": self.min_temp})
             # print(self.act_average_temp, self.max_temp, self.min_temp)
+            self.hv_temp_history_index += 1
 
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.CURRENT.value:
             self.act_current = (msg.data[1] << 8 | msg.data[2]) / 10
@@ -400,6 +412,7 @@ class BMS_HV:
                                             "current": self.act_current,
                                             "power": self.act_power})
 
+            self.hv_current_history_index += 1
 
 class CanListener:
     """
@@ -1075,7 +1088,7 @@ def thread_3_WEB():
                     error_list = shared_data.bms_hv.error_list_chimera
 
                 res = {
-                    "timestamp": shared_data.brusa.lastupdated,
+                    "timestamp": shared_data.bms_hv.lastupdated,
                     "errors": error_list
                 }
                 res = jsonify(res)
@@ -1098,13 +1111,35 @@ def thread_3_WEB():
     # BMS-VOLTAGE-DATA
     @app.route('/bms-hv/volt', methods=['GET'])
     def get_bms_hv_volt():
+        args = request.args
+        args.to_dict()
+
+        try:
+            f = int(args.get("from"))
+            t = int(args.get("to"))
+        except (ValueError, TypeError):
+            resp = jsonify("Error in request arguments")
+            resp.status_code = 400
+            return resp
+
         if shared_data.bms_hv.isConnected():
             timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
-            data = {
-                "timestamp": timestamp.isoformat(),
-                "data": shared_data.bms_hv.hv_voltage_history
-            }
+            if f < 0 or f > t or t < 0 :
+                resp = jsonify("JSON index error in request")
+                resp.status_code = 400
+                return resp
+
+            data = {"timestamp": timestamp.isoformat(),
+                    "remaining": 0}
+
+            if f > shared_data.bms_hv.hv_voltage_history_index:
+                data["data"] = []
+            elif t > shared_data.bms_hv.hv_voltage_history_index:
+                data["data"] = shared_data.bms_hv.hv_voltage_history[f:shared_data.bms_hv.hv_voltage_history_index]
+            else:
+                data["data"] = shared_data.bms_hv.hv_voltage_history[f:t]
+                data["remaining"] = shared_data.bms_hv.hv_voltage_history_index - t
 
             resp = jsonify(data)
             resp.status_code = 200
@@ -1119,10 +1154,10 @@ def thread_3_WEB():
             data = {
                 "timestamp": shared_data.bms_hv.lastupdated,
                 "pack_voltage": shared_data.bms_hv.act_bus_voltage,
-                # this doesn't exist when asking for whole precedent data
                 "bus_voltage": shared_data.bms_hv.act_bus_voltage,
                 "max_cell_voltage": shared_data.bms_hv.max_cell_voltage,
-                "min_cell_voltage": shared_data.bms_hv.min_cell_voltage
+                "min_cell_voltage": shared_data.bms_hv.min_cell_voltage,
+                "index": shared_data.bms_hv.hv_voltage_history_index
             }
             resp = jsonify(data)
             resp.status_code = 200
@@ -1133,17 +1168,40 @@ def thread_3_WEB():
 
     @app.route('/bms-hv/ampere', methods=['GET'])
     def get_bms_hv_ampere():
-        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+        args = request.args
+        args.to_dict()
+
+        try:
+            f = int(args.get("from"))
+            t = int(args.get("to"))
+        except (ValueError, TypeError):
+            resp = jsonify("Error in request arguments")
+            resp.status_code = 400
+            return resp
+
         if shared_data.bms_hv.isConnected():
-            data = {
-                "timestamp": timestamp.isoformat(),
-                "data": shared_data.bms_hv.hv_current_history
-            }
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+
+            if f < 0 or f > t or t < 0:
+                resp = jsonify("JSON index error in request")
+                resp.status_code = 400
+                return resp
+
+            data = {"timestamp": timestamp.isoformat(),
+                    "remaining": 0}
+
+            if f > shared_data.bms_hv.hv_current_history_index:
+                data["data"] = []
+            elif t > shared_data.bms_hv.hv_current_history_index:
+                data["data"] = shared_data.bms_hv.hv_current_history[f:shared_data.bms_hv.hv_current_history_index]
+            else:
+                data["data"] = shared_data.bms_hv.hv_current_history[f:t]
+                data["remaining"] = shared_data.bms_hv.hv_current_history_index - t
 
             resp = jsonify(data)
             resp.status_code = 200
         else:
-            resp = jsonify("bms hv is offline")
+            resp = jsonify("not connected")
             resp.status_code = 450
         return resp
 
@@ -1153,7 +1211,8 @@ def thread_3_WEB():
             data = {
                 "timestamp": shared_data.bms_hv.lastupdated,
                 "current": shared_data.bms_hv.act_current,
-                "power": shared_data.bms_hv.act_power
+                "power": shared_data.bms_hv.act_power,
+                "index": shared_data.bms_hv.hv_current_history_index
             }
 
             resp = jsonify(data)
@@ -1166,17 +1225,41 @@ def thread_3_WEB():
     # BMS-TEMPERATURE-DATA
     @app.route('/bms-hv/temp', methods=['GET'])
     def get_bms_temp():
+        args = request.args
+        args.to_dict()
+
+        try:
+            f = int(args.get("from"))
+            t = int(args.get("to"))
+        except (ValueError, TypeError):
+            resp = jsonify("Error in request arguments")
+            resp.status_code = 400
+            return resp
+
         if shared_data.bms_hv.isConnected():
-            data = {
-                "timestamp": shared_data.bms_hv.lastupdated,
-                "data": shared_data.bms_hv.hv_temp_history
-            }
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+
+            if f < 0 or f > t or t < 0 :
+                resp = jsonify("JSON index error in request")
+                resp.status_code = 400
+                return resp
+
+            data = {"timestamp": timestamp.isoformat(),
+                    "remaining": 0}
+
+            if f > shared_data.bms_hv.hv_temp_history_index:
+                data["data"] = []
+            elif t > shared_data.bms_hv.hv_temp_history_index:
+                data["data"] = shared_data.bms_hv.hv_temp_history[f:shared_data.bms_hv.hv_temp_history_index]
+            else:
+                data["data"] = shared_data.bms_hv.hv_temp_history[f:t]
+                data["remaining"] = shared_data.bms_hv.hv_temp_history_index - t
+
             resp = jsonify(data)
             resp.status_code = 200
         else:
             resp = jsonify("not connected")
             resp.status_code = 450
-
         return resp
 
     @app.route('/bms-hv/temp/last', methods=['GET'])
@@ -1186,9 +1269,9 @@ def thread_3_WEB():
                 "timestamp": shared_data.bms_hv.lastupdated,
                 "average_temp": shared_data.bms_hv.act_average_temp,
                 "max_temp": shared_data.bms_hv.max_temp,
-                "min_temp": shared_data.bms_hv.min_temp
+                "min_temp": shared_data.bms_hv.min_temp,
+                "index": shared_data.bms_hv.hv_temp_history
             }
-            # print(shared_data.bms_hv.act_average_temp)
             resp = jsonify(data)
             resp.status_code = 200
         else:
