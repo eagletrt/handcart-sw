@@ -95,10 +95,10 @@
         }
 
         // lineCharts parameters: path, chart's div, json's parameter, the zoom level, the header label's id, the unit of measure of the value
-        createMultilineChart("bms-hv/volt", "volt", "bus_voltage", 1.25, "volt");
+        createMultilineChart("bms-hv/volt", "volt", "bus_voltage", 1.25, "volt", "V");
         createChargeChart();
-        createLineChart("bms-hv/ampere", "ampere", "current", 1.25, "amp");
-        createLineChart("bms-hv/temp", "temp", "average_temp", 1.25, "temp");
+        createLineChart("bms-hv/ampere", "ampere", "current", 1.25, "amp", "A");
+        createLineChart("bms-hv/temp", "temp", "average_temp", 1.25, "temp", "°");
         createCellChart();
         createHeatChart(6, 1, 3); // params: nrows, subcells (how many cells in a col), the grouping parameter
     </script>

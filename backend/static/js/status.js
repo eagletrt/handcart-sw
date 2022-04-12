@@ -89,7 +89,7 @@ async function bmsEW(path, field, timer) { // function to read the number of err
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                deleteTimer(timer);
+                //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
             }
             return response.json();
@@ -254,7 +254,7 @@ async function brusaErrors(timer) {
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                deleteTimer(timer);
+                //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
             return response.json();
@@ -281,7 +281,7 @@ async function brusaWarnings(timer) {
     await fetch(request)
         .then(response => {
             if(!response.ok) {
-                deleteTimer(timer);
+                //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
             return response.json();

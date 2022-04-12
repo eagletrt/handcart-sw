@@ -1,15 +1,15 @@
 //-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-----------------------------------
-function updateLineChartValue(chart, series, path, param, zoom, label) {
+function updateLineChartValue(chart, path, param, zoom, label) {
     let t = setInterval(function () {
         request = getRequest(url, path);
 
         fetch(request)
             .then(response => {
                 if(!response.ok) {
-                    deleteTimer(path);
+                    //deleteTimer(path);
                     throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
-                response.json()
+                return response.json();
             })
             .then(json => {
                 let timestamp = json["timestamp"];
@@ -50,17 +50,17 @@ function updateLineChartValue(chart, series, path, param, zoom, label) {
     timer.push(element);
 }
 
-function updateMultilineChartValue(chart, series, path, param, zoom, label) {
+function updateMultilineChartValue(chart, path, param, zoom, label) {
     let t = setInterval(function () {
         request = getRequest(url, path);
 
         fetch(request)
             .then(response => {
                 if(!response.ok) {
-                    deleteTimer(path);
+                    //deleteTimer(path);
                     throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
-                response.json()
+                return response.json()
             })
             .then(json => {
                 let element = {};

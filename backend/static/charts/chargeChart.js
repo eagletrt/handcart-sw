@@ -80,12 +80,13 @@ function createChargeChart() {
             let minCOVolt = 330;
             let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
 
-            let value = Math.max(0, Math.round((100 * (volt-minCOVolt) / (coVolt-minCOVolt))));
+            let value = Math.max(0, (100 * (volt-minCOVolt) / (coVolt-minCOVolt)));
             value = Math.min(value, 100); // should never happen, but it's just a check
 
-            updateSessionValue("charge", value);
+            let roundedValue = Math.round(value);
+            updateSessionValue("charge", roundedValue);
 
-            document.getElementById("charge").innerHTML = Math.round(value); // calculate the value of the charge
+            document.getElementById("charge").innerHTML = roundedValue; // calculate the value of the charge
 
             let animation = new am4core.Animation(hand, {
                 property: "value",

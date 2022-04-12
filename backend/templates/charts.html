@@ -39,7 +39,7 @@
             if(actualChart == "volt") {
                 createMultilineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt");
             } else {
-                updateLineChartValue(null, null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
+                updateLineChartValue(null,"bms-hv/volt/last", "bus_voltage", NZ, "volt");
             }
 
             createChargeChart();
@@ -47,13 +47,13 @@
             if(actualChart == "ampere") {
                 createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp");
             } else {
-                updateLineChartValue(null, null, "bms-hv/ampere/last", "current", NZ, "amp");
+                updateLineChartValue(null, "bms-hv/ampere/last", "current", NZ, "amp");
             }
 
             if(actualChart == "temp") {
                 createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp");
             } else {
-                updateLineChartValue(null, null, "bms-hv/temp/last", "average_temp", NZ, "temp");
+                updateLineChartValue(null, "bms-hv/temp/last", "average_temp", NZ, "temp");
             }
 
             if (actualChart == "cell") {
