@@ -50,7 +50,7 @@ actual_fsm_state = 0  # Read only
 
 led_blink = False
 
-CAN_INTERFACE = "can1" # or can0
+CAN_INTERFACE = "can0"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 
@@ -293,7 +293,7 @@ class BMS_HV:
                                         "max_cell_voltage": self.max_cell_voltage,
                                         "min_cell_voltage": self.max_cell_voltage})
 
-        self.hv_current_history_index += 1
+        self.hv_voltage_history_index += 1
 
     def doHV_CURRENT(self, msg):
         """
@@ -378,10 +378,8 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        #tmp = HvCellsVoltage.deserialize(msg.data)
-        #self.hv_cells_act[tmp.cell_index:tmp.cell_index+4] = tmp.voltage_0/10000, tmp.voltage_1/10000, tmp.voltage_2/10000
-        #print(self.hv_cells_act)
-
+        tmp = HvCellsVoltage.deserialize(msg.data)
+        self.hv_cells_act[tmp.cell_index:tmp.cell_index+4] = tmp.voltage_0/10000, tmp.voltage_1/10000, tmp.voltage_2/10000
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -1338,129 +1336,69 @@ def thread_3_WEB():
         return resp
 
     # BMS-CELLS-DATA
-    @app.route('/bms-hv/cells', methods=['GET'])
+    @app.route('/bms-hv/cells/voltage', methods=['GET'])
     def get_bms_cells():
         # Indice assoluto rispetto a tutte le celle
         data = {
             "timestamp": "2020-12-01:ora",
             "data": []
         }
-
-        ncells = 108
-        digits = 3
-        min = 0
-        max = 5
-        n = 30
-
-        last_n_seconds = getLastNSeconds(n)
-
-        for timestamp in last_n_seconds:
-            element = {
-                "timestamp": timestamp,
-                "cells": []
-            }
-            for i in range(1, ncells + 1):
-                value = round(random.uniform(min, max), digits)
-                cell = {
-                    "id": i,
-                    "voltage": value
-                }
-                element["cells"].append(cell)
-            data["data"].append(element)
-
-        c = request.args.get("cell")
-        # get all data, if there's a parameter in the request, then it will return
-        # a json with only the specified cell values
-        if c != None and c != "":
-            filtered = {
-                "timestamp": "2020-12-01:ora",
-                "data": []
-            }
-
-            for i in data["data"]:
-                for j in i["cells"]:
-                    if j["id"] == int(c):
-                        element = {
-                            "timestamp": i["timestamp"],
-                            "voltage": j["voltage"]
-                        }
-
-                        filtered["data"].append(element)
-                        break  # no need to cycle over the whole array
-
-            resp = jsonify(filtered)
-        else:
-            resp = jsonify(data)
-
-        resp.status_code = 200
-        return resp
-
-    @app.route('/bms-hv/cells/last', methods=['GET'])
-    def get_last_bms_cells():
-        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
-        data = {
-            "timestamp": timestamp,
-            "cells": []
-        }
-
-        ncells = 108
-        digits = 3
-        min = 0
-        max = 5
-
-        for i in range(1, ncells + 1):
-            value = round(random.uniform(min, max), digits)
-            cell = {
-                "id": i,
-                "voltage": value
-            }
-            data["cells"].append(cell)
-
-        c = request.args.get("cell")
-        # get all data, if there's a parameter in the request, then it will return
-        # a json with only the specified cell values
-        if c != None and c != "":
-            filtered = {}
-            for i in data["cells"]:
-                if i["id"] == int(c):
-                    filtered = {
-                        "timestamp": timestamp,
-                        "voltage": i["voltage"]
-                    }
-
-                    break  # no need to cycle over the whole array
-
-            resp = jsonify(filtered)
-        else:
-            resp = jsonify(data)
-
-        resp.status_code = 450
-        return resp
-
-    @app.route('/bms-hv/heat', methods=['GET'])
-    def get_bms_heat():
-        min = 20
-        max = 250
-        ncells = 108
-
-        timestamp = datetime.now(pytz.timezone('Europe/Rome'))
-
-        data = {
-            "timestamp": timestamp,
-            "data": []
-        }
-
-        for i in range(1, ncells + 1):
-            value = random.randrange(min, max)
-            element = {
-                "cell": i,
-                "temp": value
-            }
-            data["data"].append(element)
-
         resp = jsonify(data)
+
         resp.status_code = 200
         return resp
+
+    @app.route('/bms-hv/cells/voltage/last', methods=['GET'])
+    def get_last_bms_cells():
+        if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE and shared_data.bms_hv.isConnected():
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+
+            cells = []
+
+            for i, c in enumerate(shared_data.bms_hv.hv_cells_act):
+                cells.append({
+                    "id": i,
+                    "voltage": c
+                })
+
+            data = {
+                "timestamp": timestamp,
+                "cells": cells
+            }
+
+            resp = jsonify(data)
+            resp.status_code = 200
+            return resp
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 450
+            return resp
+
+    @app.route('/bms-hv/cells/temp/last', methods=['GET'])
+    def get_bms_heat():
+        if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE and shared_data.bms_hv.isConnected():
+            timestamp = datetime.now(pytz.timezone('Europe/Rome'))
+
+            cells = []
+
+            for i, t in enumerate(shared_data.bms_hv.hv_temps_act):
+                cells.append({
+                    "id": i,
+                    "temp": t
+                })
+
+            data = {
+                "timestamp": timestamp,
+                "cells": cells
+            }
+
+            resp = jsonify(data)
+            resp.status_code = 200
+            return resp
+        else:
+            resp = jsonify("not connected")
+            resp.status_code = 450
+            return resp
 
     # END-BMS-HV--------------------------------------------------------------------
     # BRUSA-------------------------------------------------------------------------

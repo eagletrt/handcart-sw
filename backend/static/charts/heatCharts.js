@@ -1,5 +1,5 @@
 function createHeatChart(nrows, subcells, group) {
-    var path = 'bms-hv/heat';
+    var path = 'bms-hv/cells/temp/last';
 
     request = getRequest(url, path);
 
@@ -56,7 +56,7 @@ function createHeatChart(nrows, subcells, group) {
                 column.column.cornerRadius(6, 6, 6, 6);
                 column.propertyFields.fill = "color";
 
-                let cells = json["data"];
+                let cells = json["cells"];
                 let ncells = cells.length;
 
                 chart.data = getHeatData(cells, ncells, nrows, subcells, group);

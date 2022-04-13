@@ -1,5 +1,5 @@
 function createCellChart() {
-    var path = 'bms-hv/cells/last';
+    var path = 'bms-hv/cells/voltage/last';
 
     let min = 0;
     let max = 5;

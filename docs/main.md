@@ -311,7 +311,7 @@ First, you need to know what you’re doing, you’re going to work with High Vo
 
 ## Finding a good power source
 
-Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the tripolar connector there shouldn’t be any problem, otherwise if you’re using the tripolar to standard socket adaptor, make sure to check if the line is properly supporting the load. Usually it would just warm up the cables, but if you’re unlucky this could cause a fire, so BE CAREFUL. Note that it is possible to specify to the BRUSA how buc current to absorb.
+Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the tripolar connector there shouldn’t be any problem, otherwise if you’re using the tripolar to standard socket adaptor, make sure to check if the line is properly supporting the load. Usually it would just warm up the cables, but if you’re unlucky this could cause a fire, so BE CAREFUL. Note that it is possible to specify to the BRUSA how much current to absorb.
 
 ## Connecting the accumulator
 
@@ -329,9 +329,8 @@ Once a good power source has been found, connect the brusa to it. You’ll hear 
 
 Make sure that just the people needed are near the handcart, the presence of an ESO would be ideal in a not official environment, and required in a race environment.
 Turn ONthe TSMS key. From now on, the system could be at >400 DC volt.
-Turn ON the PON.
 Start the charging software, and then, start the charge.
-In case of any problem, push the red shutdown button in the handcart, this will stop the charge and close the AIRs of the accumulator.
+In case of any problem, push the red shutdown button in the handcart, this will stop the charge and open the AIRs of the accumulator.
 
 # Backup (Emergency) software
 
@@ -345,14 +344,16 @@ If you need the handcart working as fast as possible, just download the [charge 
 
 # Resources & Useful links
 
--   [here](https://www.brusa.biz/_files/drive/02_Energy/Chargers/NLG5/NLG5_BRUSA.html) you can find BRUSA's CAN messages
--   For pork's can messages search on other E-Agle's repo
--   [Fake pointers in python](https://realpython.com/pointers-in-python/#simulating-pointers-in-python)
--   [Python threading API](https://docs.python.org/3/library/threading.html)
--   [Bootstrap dashboard template](https://getbootstrap.com/docs/4.5/examples/dashboard/)
--   [JS Charts](https://www.amcharts.com)
--   [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
--   [Charge state machine of BMS](https://github.com/eagletrt/chimera-bms/blob/sw-charging/src/Src/chg.c)
+- [Frontend REST API Documentation](handcartfrontend.docs.apiary.io)
+- [CAN messages reference](https://docs.google.com/spreadsheets/d/1_lV08HAnuSkv5-ramh94GRA4ftQi6S_ziCta-qIculQ/edit)
+- [here](https://www.brusa.biz/_files/drive/02_Energy/Chargers/NLG5/NLG5_BRUSA.html) you can find BRUSA's CAN messages
+- For pork's can messages search on other E-Agle's repo
+- [Fake pointers in python](https://realpython.com/pointers-in-python/#simulating-pointers-in-python)
+- [Python threading API](https://docs.python.org/3/library/threading.html)
+- [Bootstrap dashboard template](https://getbootstrap.com/docs/4.5/examples/dashboard/)
+- [JS Charts](https://www.amcharts.com)
+- [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
+- [Charge state machine of BMS](https://github.com/eagletrt/chimera-bms/blob/sw-charging/src/Src/chg.c)
 
 ## Diagram links
 

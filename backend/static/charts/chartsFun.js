@@ -128,7 +128,7 @@ function setColor(chart, series, max) {
 
 function updateCellValue(chart, series) {
     setInterval(function () {
-        var path = 'bms-hv/cells/last';
+        var path = 'bms-hv/cells/voltage/last';
 
         request = getRequest(url, path);
 
@@ -211,7 +211,7 @@ function getHeatData(cells, ncells, nrows, subcells, group) {
 
 function updateHeatValue(chart, series, nrows, group) {
     setInterval(function () {
-        var path = 'bms-hv/heat';
+        var path = 'bms-hv/cells/temp/last';
 
         request = getRequest(url, path);
 
@@ -225,7 +225,7 @@ function updateHeatValue(chart, series, nrows, group) {
                     let k = parseInt((x - 1) * nrows + (y - 1));
 
                     let value = 0;
-                    let cells = json["data"];
+                    let cells = json["cells"];
 
                     for (let i = k * group; i < ((k * group) + group); i++) {
                         value += cells[i]["temp"];
@@ -316,7 +316,7 @@ function reset(id) {
             chartCol.remove();                                  // remove the whole column that contain the chart
         }
 
-        let path = "bms-hv/cells/last?cell=" + id;
+        let path = "bms-hv/cells/voltage/last?cell=" + id;
         deleteTimer(path);
     } else {
         alert("You shouldn't see the button...\nReport it!")
