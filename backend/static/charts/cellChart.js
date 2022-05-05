@@ -31,7 +31,7 @@ function createCellChart() {
 
                 for (i = 0; i < ncells; i++) {
                     voltage = cells[i]["voltage"];
-                    cellName = (i + 1);
+                    cellName = i;
 
                     element = {
                         "cell": cellName,
