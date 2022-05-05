@@ -155,8 +155,8 @@ function updateCellValue(chart, series) {
 //-END-CELL-CHART---------------------------------------------------------------
 //-HEAT-CHART-------------------------------------------------------------------
 function setHeatColor(value) {
-    let minValue = 20;
-    let maxValue = 250 - minValue;
+    let minValue = 0;
+    let maxValue = 70 - minValue;
     let perc = 100 - ((value - minValue) / maxValue * 100);
 
     if (perc < 50) {
@@ -173,43 +173,30 @@ function setHeatColor(value) {
     return rgb;
 }
 
-function getHeatData(cells, ncells, nrows, subcells, group) {
+function getHeatData(cells, ncols) {
     let data = [];
 
-    // let ncols = ncells / (nrows * group); // UNUSED
-    let nelem = nrows * subcells;
-
-    let j = 0;
-    let k = 0;
     let value = 0;
 
-    for (let i = 0; i < cells.length; i++) {
-        value += cells[i]["temp"];
-        j++;
+    for (let i = 0; i < cells.length - 1; i++) {
+        value = cells[i]["temp"];
 
-        if (j % group == 0) {
-            let x = (k % subcells) + (Math.floor(k / nelem) * subcells) + 1;
-            let y = Math.floor((k % nelem) / subcells) + 1;
-            value = value / group;
+        let x = i % ncols;
+        let y = Math.floor(i / ncols);
 
-            let element = {
-                "x": x,
-                "y": y,
-                "color": setHeatColor(value),
-                "value": value
-            }
-
-            data.push(element);
-
-            k++;
-            j = 0;
-            value = 0;
+        let element = {
+            "x": x,
+            "y": y,
+            "color": setHeatColor(value),
+            "value": value
         }
+
+        data.push(element);
     }
     return data;
 }
 
-function updateHeatValue(chart, series, nrows, group) {
+function updateHeatValue(chart, ncols) {
     setInterval(function () {
         var path = 'bms-hv/cells/temp/last';
 
@@ -222,16 +209,11 @@ function updateHeatValue(chart, series, nrows, group) {
                     let x = item.x;
                     let y = item.y;
 
-                    let k = parseInt((x - 1) * nrows + (y - 1));
-
-                    let value = 0;
+                    let i = (x * ncols) + y;
+                    
                     let cells = json["cells"];
 
-                    for (let i = k * group; i < ((k * group) + group); i++) {
-                        value += cells[i]["temp"];
-                    }
-
-                    value /= group;
+                    let value = cells[i]["temp"];
 
                     item.value = value;
 

@@ -1,4 +1,4 @@
-function createHeatChart(nrows, subcells, group) {
+function createHeatChart(ncols) {
     var path = 'bms-hv/cells/temp/last';
 
     request = getRequest(url, path);
@@ -57,11 +57,10 @@ function createHeatChart(nrows, subcells, group) {
                 column.propertyFields.fill = "color";
 
                 let cells = json["cells"];
-                let ncells = cells.length;
 
-                chart.data = getHeatData(cells, ncells, nrows, subcells, group);
+                chart.data = getHeatData(cells, ncols);
 
-                updateHeatValue(chart, series, nrows, group);
+                updateHeatValue(chart, ncols);
 
             }); // end am4core.ready()
         })

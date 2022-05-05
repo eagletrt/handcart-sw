@@ -1,8 +1,8 @@
 function createCellChart() {
     var path = 'bms-hv/cells/voltage/last';
 
-    let min = 0;
-    let max = 5;
+    let min = 2.8;
+    let max = 4.3;
 
     request = getRequest(url, path);
 

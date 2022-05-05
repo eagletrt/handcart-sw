@@ -54,6 +54,8 @@ CAN_INTERFACE = "can0"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 
+BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 1
+
 # BMS_HV_BYPASS = False # Use at your own risk
 
 
@@ -332,14 +334,14 @@ class BMS_HV:
         deserialized = HvTemp.deserialize(msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = deserialized.average_temp
-        self.min_temp = deserialized.min_temp
-        self.max_temp = deserialized.max_temp
+        self.act_average_temp = deserialized.average_temp / 4
+        self.min_temp = deserialized.min_temp / 4
+        self.max_temp = deserialized.max_temp / 4
 
         self.hv_temp_history.append({"timestamp": self.lastupdated,
-                                     "average_temp": deserialized.average_temp,
-                                     "max_temp": deserialized.max_temp,
-                                     "min_temp": deserialized.min_temp})
+                                     "average_temp": self.act_average_temp,
+                                     "max_temp": self.max_temp,
+                                     "min_temp": self.min_temp})
 
         self.hv_temp_history_index += 1
 
@@ -527,7 +529,9 @@ class Can_rx_listener(Listener):
 # FSM vars
 canread = CanListener()  # Access it ONLY with the FSM
 precharge_asked = False  # True if precharge asked to bms
+precharge_asked_time = 0  # time when the precharge has been asked
 precharge_done = False
+
 precharge_command = False  # True if received precharge command
 start_charge_command = False  # True if received start charge command
 stop_charge_command = False  # True if received stop charge command
@@ -662,11 +666,11 @@ def doIdle():
 
 def doPreCharge():
     """
-    Function that do the precharge status
+    Function that do the precharge statusc
     """
     # ask pork to do precharge
     # Send req to bms "TS_ON"
-    global precharge_asked, precharge_done
+    global precharge_asked, precharge_done, precharge_asked_time
 
     GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
 
@@ -682,19 +686,24 @@ def doPreCharge():
 
         tx_can_queue.put(ts_on_msg)
         precharge_asked = True
+        precharge_asked_time = time.time()
 
     if canread.bms_hv.status == Ts_Status.ON:
         print("Precharge done, TS is on")
         precharge_done = True
         precharge_asked = False
+        precharge_asked_time = 0
 
     if precharge_done:
         return STATE.READY
     else:
-        if precharge_asked and canread.bms_hv.status == Ts_Status.PRECHARGE:
-            return STATE.PRECHARGE
+        if time.time() - precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
+            if precharge_asked and canread.bms_hv.status == Ts_Status.PRECHARGE:
+                return STATE.PRECHARGE
+            else:
+                return STATE.IDLE
         else:
-            return STATE.IDLE
+            return STATE.PRECHARGE
 
 
 def doReady():
