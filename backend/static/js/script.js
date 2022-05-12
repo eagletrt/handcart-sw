@@ -83,6 +83,14 @@ function updateSessionValue(key, value) {
     }
 }
 
+/*
+    id: --- the item id
+
+    key: -- the session attribute's key
+
+    value:  the default value if the session value is NULL
+*/
+
 function uploadSessionValue(id, key, value) {
     let item = sessionStorage.getItem(key);
 
@@ -91,6 +99,12 @@ function uploadSessionValue(id, key, value) {
     }
     document.getElementById(id).innerHTML = value; // value is passed as a default value
 }
+
+/*
+    fc: ---- the fast charge button to update
+
+    enabled: this parameter say if the Fast Charge is either enabled or disabled
+*/
 
 function uploadFCValue(fc, enabled) {
     if(enabled) {
@@ -153,7 +167,7 @@ function enableDisable(enabled) {
     let disableButton = document.getElementById("disable");
 
     // modify are sent by the formListener
-    if (enabled) {                              // if fast charge isn't enabled
+    if(enabled) {                               // if fast charge isn't enabled
         enableButton.style.display = "none";    // hide the enable button
         disableButton.style.display = "inline"; // and show the disable button
     } else {                                    // if the fast charge has been enabled
