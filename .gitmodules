@@ -1,1 +1,5 @@
 
+[submodule "backend/can"]
+	path = backend/can_eagle
+	url = https://github.com/eagletrt/can.git
+	branch = build
