@@ -108,29 +108,29 @@ This is the server that serve the requests received from the frontend. It uses t
 ## Frontend
 
 The handcart's frontend is a webapp based on javascript and html, it fetches the data from the backend by doing RESTFUL requests to the backend.
-Chart are created using amcharts 4 (https://www.amcharts.com/) with Javascript method (NOT the JSON method).
-To use fetches there are some basic method such as the request-create and the POST method to submit data.
-I strongly recommend you to use the "formListener" method that take a form and the partial URL (because we have to send commands only on the "/command/" path, so we can avoid things that can't be done)
+Charts are created using [amcharts 4](https://www.amcharts.com/) with Javascript method (NOT the JSON method).
+To use fetches there are some basic method such as the request-create and the ```POST``` method to submit data.
+I strongly recommend you to use the ```formListener``` method that take a form and the partial URL (because we have to send commands only on the ```/command/``` path, so we can avoid things that can't be done).
 In forms I create some hidden parameters to identify the command we want to send and it have to correspond with the json parameters shown in the documentation describing the json format.
 
 ### include/header.html
 
 Is the top-bar that have all status, number of warnings and errors, and actual value for each parameter needed.
 The error and warning's counter can be clicked to access the respective pages.
-Every value in the header are calculated by the js/status.js file, which will be loaded on page loading.
-There's also a big SHUTDOWN button to turn off the charge every time, independently whether page you are.
+Every value in the header are calculated by the ```js/status.js``` file, which will be loaded on page loading.
+There's also a big ```SHUTDOWN``` button to turn off the charge in every moment, independently whether page you are.
 
 ### index.html
 
 This page has six charts: the first on top-left graphically describe the latest voltage values, then you have the charge percentage and the latest current values on the first row.
-On the second row there are the latest temperature's chart and two charts about cells voltage and temperature that will work only with Fenice (Chimera still don't have these values).<br>
+On the second row there are the latest temperature's chart and two charts about cells voltage and temperature that will work only with Fenice (Chimera still doesn't have these values).<br>
 Data are received by the flask server using a fetch for each chart to fill the previous data (30 zeros to avoid graphical issues) and then another fetch will be called to ask the server the last data, in order to have a live chart (every 2 seconds).
 
 ### error.html and warning.html
 
 These two pages just print BMS-HV and Brusa errors and warnings in a table.
-The creating-table method is inside the js/tables.js file and look at the json's parameters to create the table.
-If you need to print a json with the "title-parameter" in one column instead of on a row, follow the method used in brusa-info.html.
+The ```createTable``` method is inside the ```js/tables.js``` file and look at the json's parameters to create the table.
+If you need to print a json with the "title-parameter" in one column instead of on a row, follow the method used in ```brusa-info.html```.
 
 ### brusa-info.html
 
@@ -138,23 +138,43 @@ In this page are displayed some Brusa's flags in a table made as described above
 
 ### settings.html
 
-Here you can modify some parameters, for example the Cut-Off voltage, the maximum current outlet and a button to enable or disable the fastcharge.
+Here you can modify some parameters, such as the Cut-Off voltage, the maximum current outlet and there's a button to enable or disable the fastcharge.
 
-### chart.html
+### charts.html
 
-This page can actually display "more pages": it depends on the parameter passed using the GET method.
+This page can actually display "more pages": it depends on the parameter passed using the ```GET``` method.
 This parameter is used to set a title in the page and to decide which chart you want to display.
 At this point it will automatically check which chart-function it has to call and calls also the functions to update the header's values.
-Those charts won't refresh automatically: you have to refresh the page to see all new data, so you can use the zoom (by clicking in the start position and drag until the end position of the zoom).
-To seeing all values about a specific chart there is a function called "createMultilineChart" that will create a chart with many lines as parameters that are in the json (timestamp excluded). 
+Those charts won't refresh automatically: you have to refresh the page to see new data, so you can use the zoom (by clicking in the start position and drag until the end position of the zoom).
+To see all values about a specific chart there is a function called ```createMultilineChart``` that will create a chart with many lines as parameters that are in the json (timestamp excluded). 
 
 ### Chart functions
 
-In addition to chart's creating functions there are some utilities functions in "/chart/chartsFun.js": most of them are
+In addition to chart's creating functions there are some utilities functions in ```/chart/chartsFun.js```: most of them are
 in this file just to clear the main one and to reuse them if needed, however they contain the more logical part
 (i.e. how to set the correct color using a percentage or how to set the correct position of each cell value according to the real position - check the image below to understand it better).
 
-![Cell position in the car](https://lucid.app/publicSegments/view/0d31d787-d408-4bd9-9a63-ce9854e574ae/image.png)
+![Cell position in the car](https://lucid.app/publicSegments/view/ba152ca7-6d76-4ce1-b8e2-efb3e70a9319/image.png)
+
+### CSS
+
+All styles are in the ```css/style.css``` file.
+
+### Images
+
+All used images are in the ```images/``` folder.
+
+### JavaScript
+
+- ```active.js```: Contain a little script to check which page is active, in order to highlight it in the left navigation bar.
+
+- ```const.js```: Contain all constants needed in the whole frontend, to avoid hardcoding.
+
+- ```script.js```: Contains all other kind of functions; every function has its own parameter's description.
+
+- ```status.js```: As mentioned before it contains functions to check the devices' status to refresh the top bar.
+
+- ```tables.js```: As mentioned before it contains all used tables function.
 
 ## Raspberry configuration
 
