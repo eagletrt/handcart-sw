@@ -697,7 +697,8 @@ def doPreCharge():
     if precharge_done:
         return STATE.READY
     else:
-        if time.time() - precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
+        if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE and \
+                time.time() - precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
             if precharge_asked and canread.bms_hv.status == Ts_Status.PRECHARGE:
                 return STATE.PRECHARGE
             else:
