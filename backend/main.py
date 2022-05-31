@@ -281,12 +281,12 @@ class BMS_HV:
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = deserialize_HV_VOLTAGE(msg.data)
+        converted = message_HV_VOLTAGE.deserialize(msg.data).convert
 
-        self.act_pack_voltage = deserialized.pack_voltage
-        self.act_bus_voltage = deserialized.bus_voltage
-        self.max_cell_voltage = deserialized.max_cell_voltage
-        self.min_cell_voltage = deserialized.min_cell_voltage
+        self.act_pack_voltage = converted.pack_voltage
+        self.act_bus_voltage = converted.bus_voltage
+        self.max_cell_voltage = converted.max_cell_voltage
+        self.min_cell_voltage = converted.min_cell_voltage
 
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
                                         "pack_voltage": self.act_pack_voltage,
@@ -303,16 +303,17 @@ class BMS_HV:
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        deserialized = deserialize_HV_CURRENT(msg.data)
+        converted = message_HV_CURRENT.deserialize(msg.data).convert()
+
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_current = deserialized.current
-        self.act_power = deserialized.power
+        self.act_current = converted.current
+        self.act_power = converted.power
 
         self.hv_current_history.append({
             "timestamp": self.lastupdated,
-            "current": deserialized.current,
-            "power": deserialized.power
+            "current": converted.current,
+            "power": converted.power
         })
 
         self.hv_current_history_index += 1
@@ -330,12 +331,12 @@ class BMS_HV:
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        deserialized = deserialize_HV_TEMP(msg.data)
+        converted = message_HV_TEMP.deserialize(msg.data).convert()
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = deserialized.average_temp / 4
-        self.min_temp = deserialized.min_temp / 4
-        self.max_temp = deserialized.max_temp / 4
+        self.act_average_temp = converted.average_temp / 4
+        self.min_temp = converted.min_temp / 4
+        self.max_temp = converted.max_temp / 4
 
         self.hv_temp_history.append({"timestamp": self.lastupdated,
                                      "average_temp": self.act_average_temp,
@@ -353,7 +354,7 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = deserialize_HV_ERRORS(msg.data)
+        deserialized = message_HV_ERRORS.deserialize(msg.data)
 
         self.errors = HvErrors(deserialized.errors)
 
@@ -370,7 +371,7 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.status = TsStatus(deserialize_TS_STATUS(msg.data).ts_status)
+        self.status = TsStatus(message_TS_STATUS.deserialize(msg.data).ts_status)
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """
@@ -380,11 +381,11 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        tmp = deserialize_HV_CELLS_VOLTAGE(msg.data)
-        #conversion = raw_to_conversion_HV_CELLS_VOLTAGE(tmp)
-        #conversion.voltage_0
+        converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
 
-        self.hv_cells_act[tmp.start_index:tmp.start_index+4] = tmp.voltage_0/10000, tmp.voltage_1/10000, tmp.voltage_2/10000
+        self.hv_cells_act[converted.start_index:converted.start_index+4] = converted.voltage_0, \
+                                                                           converted.voltage_1, \
+                                                                           converted.voltage_2
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -394,14 +395,14 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        tmp = deserialize_HV_CELLS_TEMP(msg.data)
-        self.hv_temps_act[tmp.start_index:tmp.start_index+8] = tmp.temp_0/4, \
-                                                                tmp.temp_1/4, \
-                                                                tmp.temp_2/4, \
-                                                                tmp.temp_3/4, \
-                                                                tmp.temp_4/4, \
-                                                                tmp.temp_5/4, \
-                                                                tmp.temp_6/4
+        converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
+        self.hv_temps_act[converted.start_index:converted.start_index+8] = converted.temp_0/4, \
+                                                                converted.temp_1/4, \
+                                                                converted.temp_2/4, \
+                                                                converted.temp_3/4, \
+                                                                converted.temp_4/4, \
+                                                                converted.temp_5/4, \
+                                                                converted.temp_6/4
 
     def do_CHIMERA(self, msg):
         """
@@ -679,9 +680,9 @@ def doPreCharge():
 
     if canread.bms_hv.status == TsStatus.OFF and not precharge_asked:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-            tmp = message_SET_TS_STATUS(ts_status_set=Toggle.ON)
+            data = message_SET_TS_STATUS(ts_status_set=Toggle.ON)
             ts_on_msg = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
-                                    data=serialize_SET_TS_STATUS(tmp),
+                                    data=data.serialize(),
                                     is_extended_id=False)
         else:
             ts_on_msg = can.Message(arbitration_id=0x55,
@@ -884,7 +885,7 @@ def accumulator_sd():  # accumulator shutdown
             if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
                 tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
                 message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
-                                                    data=serialize_SET_TS_STATUS(tmp),
+                                                    data=tmp.serialize(),
                                                     is_extended_id=False)
                 tx_can_queue.put(message)
         else:
@@ -1061,7 +1062,7 @@ def thread_2_CAN():
                 if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
                     tmp = message_HANDCART_STATUS(connected=True)
                     status_message = can.Message(arbitration_id=primary_ID_HANDCART_STATUS,
-                                                 data=serialize_HANDCART_STATUS(tmp),
+                                                 data=tmp.serialize(),
                                                  is_extended_id=False)
                     tx_can_queue.put(status_message)
                     last_hc_presence_sent = time.time()
