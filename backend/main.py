@@ -281,7 +281,7 @@ class BMS_HV:
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        converted = message_HV_VOLTAGE.deserialize(msg.data).convert
+        converted = message_HV_VOLTAGE.deserialize(msg.data).convert()
 
         self.act_pack_voltage = converted.pack_voltage
         self.act_bus_voltage = converted.bus_voltage
@@ -371,7 +371,7 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.status = TsStatus(message_TS_STATUS.deserialize(msg.data).ts_status)
+        self.status = message_TS_STATUS.deserialize(msg.data).ts_status
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """
