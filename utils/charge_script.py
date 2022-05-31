@@ -6,13 +6,18 @@ import re
 import time
 import can
 from can.listener import Listener
+from RPi.GPIO import GPIO
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.OUT)
+GPIO.output(21, GPIO.HIGH)
 
 bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
 ts_status = False
-BYPASS_TS_CHECK = False  # True
+BYPASS_TS_CHECK = True  # True
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
     0, 0x00, 0x0A, 0x10, 0x68, 0, 0x0A], is_extended_id=False)

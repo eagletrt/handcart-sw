@@ -12,7 +12,6 @@ import datetime
 import json
 import logging
 import queue
-import random
 import struct
 import threading
 import time
@@ -28,8 +27,8 @@ from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
 
-from can_cicd.includes_generator.primary.ids import *
-from can_cicd.naked_generator.primary.py.primary import *
+from can_eagle.lib.primary.python.ids import *
+from can_eagle.lib.primary.python.network import *
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
@@ -253,7 +252,7 @@ class BMS_HV:
     warnings = None
     error_str = ""
     error_list_chimera = []
-    status = Ts_Status.OFF
+    status = TsStatus.OFF
     chg_status = -1
     req_chg_current = 0
     req_chg_voltage = 0
@@ -282,7 +281,7 @@ class BMS_HV:
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = HvVoltage.deserialize(msg.data)
+        deserialized = deserialize_HV_VOLTAGE(msg.data)
 
         self.act_pack_voltage = deserialized.pack_voltage
         self.act_bus_voltage = deserialized.bus_voltage
@@ -304,7 +303,7 @@ class BMS_HV:
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        deserialized = HvCurrent.deserialize(msg.data)
+        deserialized = deserialize_HV_CURRENT(msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_current = deserialized.current
@@ -331,7 +330,7 @@ class BMS_HV:
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        deserialized = HvTemp.deserialize(msg.data)
+        deserialized = deserialize_HV_TEMP(msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         self.act_average_temp = deserialized.average_temp / 4
@@ -354,9 +353,10 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = HvErrors.deserialize(msg.data)
+        deserialized = deserialize_HV_ERRORS(msg.data)
 
-        self.errors = Hv_Errors(deserialized.errors)
+        self.errors = HvErrors(deserialized.errors)
+
         self.warnings = deserialized.warnings
 
         if self.errors != 0:
@@ -370,7 +370,7 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.status = Ts_Status(TsStatus.deserialize(msg.data).ts_status)
+        self.status = TsStatus(deserialize_TS_STATUS(msg.data).ts_status)
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """
@@ -380,8 +380,11 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        tmp = HvCellsVoltage.deserialize(msg.data)
-        self.hv_cells_act[tmp.cell_index:tmp.cell_index+4] = tmp.voltage_0/10000, tmp.voltage_1/10000, tmp.voltage_2/10000
+        tmp = deserialize_HV_CELLS_VOLTAGE(msg.data)
+        #conversion = raw_to_conversion_HV_CELLS_VOLTAGE(tmp)
+        #conversion.voltage_0
+
+        self.hv_cells_act[tmp.start_index:tmp.start_index+4] = tmp.voltage_0/10000, tmp.voltage_1/10000, tmp.voltage_2/10000
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -391,8 +394,8 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        tmp = HvCellsTemp.deserialize(msg.data)
-        self.hv_temps_act[tmp.cell_index:tmp.cell_index+8] = tmp.temp_0/4, \
+        tmp = deserialize_HV_CELLS_TEMP(msg.data)
+        self.hv_temps_act[tmp.start_index:tmp.start_index+8] = tmp.temp_0/4, \
                                                                 tmp.temp_1/4, \
                                                                 tmp.temp_2/4, \
                                                                 tmp.temp_3/4, \
@@ -410,9 +413,9 @@ class BMS_HV:
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
             print("ts on message")
-            self.status = Ts_Status.ON
+            self.status = TsStatus.ON
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
-            self.status = Ts_Status.OFF
+            self.status = TsStatus.OFF
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
             if msg.data[1] == 0:  # ERROR_LTC6804_PEC_ERROR
@@ -486,13 +489,13 @@ class CanListener:
         CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
 
         # BMS_HV Fenice
-        ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
-        ID_HV_CURRENT: bms_hv.doHV_CURRENT,
-        ID_HV_ERRORS: bms_hv.doHV_ERRORS,
-        ID_HV_TEMP: bms_hv.doHV_TEMP,
-        ID_TS_STATUS: bms_hv.doHV_STATUS,
-        ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
-        ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
+        primary_ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
+        primary_ID_HV_CURRENT: bms_hv.doHV_CURRENT,
+        primary_ID_HV_ERRORS: bms_hv.doHV_ERRORS,
+        primary_ID_HV_TEMP: bms_hv.doHV_TEMP,
+        primary_ID_TS_STATUS: bms_hv.doHV_STATUS,
+        primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
+        primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
 
         # BMS_HV Chimera
         CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
@@ -674,10 +677,11 @@ def doPreCharge():
 
     GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
 
-    if canread.bms_hv.status == Ts_Status.OFF and not precharge_asked:
+    if canread.bms_hv.status == TsStatus.OFF and not precharge_asked:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-            ts_on_msg = can.Message(arbitration_id=ID_SET_TS_STATUS,
-                                    data=SetTsStatus.serialize(Ts_Status_Set.ON),
+            tmp = message_SET_TS_STATUS(ts_status_set=Toggle.ON)
+            ts_on_msg = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
+                                    data=serialize_SET_TS_STATUS(tmp),
                                     is_extended_id=False)
         else:
             ts_on_msg = can.Message(arbitration_id=0x55,
@@ -688,7 +692,7 @@ def doPreCharge():
         precharge_asked = True
         precharge_asked_time = time.time()
 
-    if canread.bms_hv.status == Ts_Status.ON:
+    if canread.bms_hv.status == TsStatus.ON:
         print("Precharge done, TS is on")
         precharge_done = True
         precharge_asked = False
@@ -699,7 +703,7 @@ def doPreCharge():
     else:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE and \
                 time.time() - precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
-            if precharge_asked and canread.bms_hv.status == Ts_Status.PRECHARGE:
+            if precharge_asked and canread.bms_hv.status == TsStatus.PRECHARGE:
                 return STATE.PRECHARGE
             else:
                 return STATE.IDLE
@@ -713,7 +717,7 @@ def doReady():
     """
     global start_charge_command, precharge_asked
 
-    if canread.bms_hv.status != Ts_Status.ON:
+    if canread.bms_hv.status != TsStatus.ON:
         print("BMS_HV is not in TS_ON, going back idle")
         # note that errors are already managed in mainloop
         # staccastacca()
@@ -783,7 +787,7 @@ def doError():
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
     # Send to BMS stacca stacca
-    if not canread.bms_hv.status == Ts_Status.OFF.value:
+    if not canread.bms_hv.status == TsStatus.OFF.value:
         staccastacca()
 
     if canread.brusa.error:
@@ -871,16 +875,17 @@ def checkCommands():
 
 
 def accumulator_sd():  # accumulator shutdown
-    if canread.bms_hv.status == Ts_Status.ON:
+    if canread.bms_hv.status == TsStatus.ON:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
             message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
                                   data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             tx_can_queue.put(message)
         elif canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
             if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-                message = can.Message(arbitration_id=ID_SET_TS_STATUS,
-                                      data=SetTsStatus.serialize(Ts_Status_Set.OFF),
-                                      is_extended_id=False)
+                tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
+                message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
+                                                    data=serialize_SET_TS_STATUS(tmp),
+                                                    is_extended_id=False)
                 tx_can_queue.put(message)
         else:
             canread.generic_error = True
@@ -1054,8 +1059,9 @@ def thread_2_CAN():
                 last_brusa_ctl_sent = time.time()
             if time.time() - last_hc_presence_sent > 0.5:
                 if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-                    status_message = can.Message(arbitration_id=ID_HANDCART_STATUS,
-                                                 data=HandcartStatus.serialize(True),
+                    tmp = message_HANDCART_STATUS(connected=True)
+                    status_message = can.Message(arbitration_id=primary_ID_HANDCART_STATUS,
+                                                 data=serialize_HANDCART_STATUS(tmp),
                                                  is_extended_id=False)
                     tx_can_queue.put(status_message)
                     last_hc_presence_sent = time.time()
@@ -1147,9 +1153,9 @@ def thread_3_WEB():
                 error_list = []
 
                 if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-                    for i in Hv_Errors:
-                        if Hv_Errors(i) in Hv_Errors(shared_data.bms_hv.errors):
-                            error_list.append(Hv_Errors(i).name)
+                    for i in HvErrors:
+                        if HvErrors(i) in HvErrors(shared_data.bms_hv.errors):
+                            error_list.append(HvErrors(i).name)
                 elif shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
                     error_list = shared_data.bms_hv.error_list_chimera
 
