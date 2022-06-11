@@ -1,0 +1,11 @@
+[Unit]
+Description=Backend service for handcart
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/Desktop/handcart-sw/
+ExecStart=python3.7 backend/main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
