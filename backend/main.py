@@ -39,7 +39,7 @@ STANDARD_CHARGE_MAINS_AMPERE = 6
 
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
 STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
-MAX_TARGET_V_ACC = 446  # Maximum charging voltage of accumulator
+MAX_TARGET_V_ACC = 448  # Maximum charging voltage of accumulator
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
@@ -53,10 +53,9 @@ CAN_INTERFACE = "can0"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 
-BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 1
+BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2
 
 # BMS_HV_BYPASS = False # Use at your own risk
-
 
 class PIN(Enum):
     RED_LED = 12  # 31
@@ -550,7 +549,6 @@ lock = threading.Lock()
 can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
-
 def exit_handler():
     print("Quitting..")
     setLedColor(TSAL_COLOR.OFF)
@@ -657,7 +655,6 @@ def doIdle():
     global precharge_command
 
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
-    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
     # Make sure that acc is in ts off
     accumulator_sd()
 
@@ -675,8 +672,6 @@ def doPreCharge():
     # ask pork to do precharge
     # Send req to bms "TS_ON"
     global precharge_asked, precharge_done, precharge_asked_time
-
-    GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
 
     if canread.bms_hv.status == TsStatus.OFF and not precharge_asked:
         if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
@@ -894,7 +889,7 @@ def accumulator_sd():  # accumulator shutdown
 
 def resetGPIOs():
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
-    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
     GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
     GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
     GPIO.output(PIN.RED_LED.value, GPIO.LOW)
