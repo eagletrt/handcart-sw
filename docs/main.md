@@ -186,72 +186,14 @@ here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/140278
 
 ## Electrical wiring
 
-### Modular cables for Accumulator connection
+### TS Tractive System Wiring
 
-I decided to create two modular cables that have a common connector handcart-side, but different connectors at accumulator-side, in a way that we are able to easily switch the connectors between the two accumulators.
-Both cables connect to the handcart via an Amphenol AT06-12SX1 connector, having these pin mapping:
+The TS wiring is described in this diagram:
+![image](images/Charger_TS_Circuit.png)
 
--   1 - 12V Supply
--   2 - 5V Supply (only chimera)
--   3 - CAN H
--   4 - TSMS
--   5 - RESET
--   6 - IMD LED
--   7 - Cockpit LED
--   8 - BMS LED
--   9 - TO TSMS
--   10 - CAN L
--   11 - SD
--   12 - GND
+The TS cable that goes from the BRUSA to the accumulator has a connector in order of being able to charge the Chimera accumulator and the Fenice one
 
-#### Chimera Evoluzione accumulator cable
-
-To the other side of the cable we have two connectors, LV-CAN and SD IMD BMS. They use the same connectors used for chimera’s CAN.
-LV-CAN pin mapping:
-
--   1 - RESET
--   2 - BMS LED
--   3 - empty
--   4 - TO TSMS
--   5 - SD
--   6 - empty
--   7 - IMD
--   8 - TSMS
-
-SD IMD BMS pin mapping:
-
--   As chimera can connectors standard
-
-#### Fenice accumulator cable
-
-As for chimera it has two connectors to the other end of the cable, this time, the connectors are TE 776273-1 for SD IMD BMS and CeeLok FAS-T for LV CAN.
-
-!!! tip
-Tip for the CeeLok FAS-T connector: if you ever want to build this connector, unless you have the dedicated crimper (M22520/2-01) (685€) (which you can ask to proM), do not attempt to crimp the pins (3€ each), my advice is to solder the cable inside, it is much more resistant than a bad crimp, which is what you’ll get if you take a piler and start squeezing the pin :)
-
-LV CAN pinout:
-
--   1 - 12V Supply
--   2 - Empty
--   3 - GND
--   4 - empty
--   5 - CAN H
--   6 - CAN L
--   7 - empty
--   8 - empty
-
-The other connector is much easier to work with.
-SD IMD BMS pinout:
-
--   6 - from TSMS
--   7 - to TSMS
--   8 - BMS LED
--   9 - IMD LED
--   10 - COCKPIT LED
--   11 - FROM SD
--   12 - RESET
-
-The mapping between the Amphenol connector and the others is self-explanatory,I’m not going to talk about it.
+![image](images/interlock_rule.png)
 
 ### The handcart wiring & PCB connectors
 All the Shutdown cables in the wiring have purple color.
@@ -261,8 +203,10 @@ The TSAL is used to get a visual feedback of the state of the handcart during ch
 - RED_LED = GPIO 12 #31
 - GREEN_LED = GPIO 13 #33
 - BLUE_LED = GPIO 16 #36
-Some cables has been routed from the back of the pcb to a weipu 6 pin female connector. Then, the male connector is connected to the TSAL. The pin assignment is:
-- 1 - GND
+
+Some cables has been routed from the back of the pcb to a weipu 6 pin female cable-to-cable connector. Then, the male connector is connected to the TSAL. The pin assignment is:
+
+-   1 - GND
 -   2 - 12V
 -   3 - Red signal
 -   4 - Green signal
@@ -270,10 +214,21 @@ Some cables has been routed from the back of the pcb to a weipu 6 pin female con
 
 ## The shutdown circuit
 
-The shutdown circuit is generated from the PSU, then it passes through the mushroom, to a relay which is controlled by the rasp, then TO_CHARGER, which is the interlock of the connector of the brusa, and then FROM_CHARGER to BMS’s SD, then out of the BMS, to the TSMS key, then in to the BMS again to the airs.
+The shutdown circuit is generated from the PSU, it passes trough a fuse, it passes through the mushroom, to a relay which is controlled by the rasp, then TO_CHARGER, which is the interlock of the connector of the brusa, and then FROM_CHARGER to BMS’s SD, then out of the BMS, to the TSMS key, then in to the BMS again to the airs.
 Note that the PON (Power ON) of the BRUSA is powered from the shutdown circuit, this way, if the shutdown is opened, the BRUSA is instantaneously disabled.
 
+![image](images/Charger_shutdown_circuit.png)
+
 ## Handcart PCB
+
+# Components list
+- Brusa NLG513 - HV charger
+- Anderson SB 165A-600V - Connector of TS from brusa to accumulator
+- Amphenol AT06-12S - Connector of communication cable to accumulator
+- CGS HSA25 15K G 1731 - TSMP resistors
+- Lapp Oflex FD 90 CV 16mm2 - TS cables
+- TE connector 770680-1 - Connector of brusa communciation
+- Lapp SKINTOP ST-M Cable restrain - Cable restrain for TS cables
 
 # BRUSA NLG5 Charger deep dive
 
@@ -375,10 +330,13 @@ If you need the handcart working as fast as possible, just download the [charge 
 - [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
 - [Charge state machine of BMS](https://github.com/eagletrt/chimera-bms/blob/sw-charging/src/Src/chg.c)
 
+
 ## Diagram links
 
-https://lucid.app/lucidchart/invitations/accept/dbc53a3d-c901-4d6a-a692-972de6713d43
-https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md
+- [Shutdown and TS diagrams](https://app.diagrams.net/#G1PoV4TUXfXMDfpv6tKxG6AgJC9CnskumK)
+
+- [1](https://lucid.app/lucidchart/invitations/accept/dbc53a3d-c901-4d6a-a692-972de6713d43)
+- [2](https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md)
 
 # Decisions and info
 
