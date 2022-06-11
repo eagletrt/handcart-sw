@@ -34,12 +34,13 @@ brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
-FAST_CHARGE_MAINS_AMPERE = 16
-STANDARD_CHARGE_MAINS_AMPERE = 6
-
+MAX_CHARGE_MAINS_AMPERE = 16
+DEFAULT_CHARGE_MAINS_AMPERE = 6
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
-STANDARD_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
-MAX_TARGET_V_ACC = 448  # Maximum charging voltage of accumulator
+DEFAULT_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
+
+DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
+MAX_TARGET_V_ACC = 455 # Maximum voltage to charge the accumulator to
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
@@ -133,6 +134,9 @@ class BRUSA:
     """
     lastupdated = 1  # bypass the check of brusa presence if set to 1
 
+    charged_capacity_ah = 0
+    charged_capacity_wh = 0
+
     act_NLG5_ST_values = {}
     act_NLG5_ACT_I = {'NLG5_OV_ACT': 0,
                       'NLG5_OC_ACT': 0.2}
@@ -183,6 +187,13 @@ class BRUSA:
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+
+        if self.act_NLG5_ACT_I["NLG5_OC_ACT"] != 0:
+            delta = (datetime.date(self.lastupdated)-self.last_hv_current).seconds * (1/3600)
+            self.charged_capacity_ah += self.act_current * delta
+            self.charged_capacity_wh += (self.act_NLG5_ACT_I["NLG5_OC_ACT"]
+                                         * self.act_NLG5_ACT_I["NLG5_OV_ACT"]) * delta
+
 
     def doNLG5_ACT_II(self, msg):
         """
@@ -240,6 +251,7 @@ class BMS_HV:
     hv_temps_act = [0 for i in range(36*6)]
 
     charged_capacity_ah = 0
+    charged_capacity_wh = 0
     act_pack_voltage = -1
     act_bus_voltage = -1
     act_current = -1
@@ -258,6 +270,7 @@ class BMS_HV:
     act_average_temp = -1
     min_temp = -1
     max_temp = -1
+    last_hv_current = datetime.now().isoformat()
 
     def isConnected(self):
         """
@@ -317,11 +330,11 @@ class BMS_HV:
 
         self.hv_current_history_index += 1
 
-        if actual_fsm_state == STATE.CHARGE.value:
-            delta_from_last = datetime.date(datetime.fromtimestamp(msg.timestamp).isoformat()) - \
-                              datetime.date(self.lastupdated)
-            self.charged_capacity_ah += self.act_current * delta_from_last
-            print(self.charged_capacity_ah)
+        if self.act_current != 0:
+            delta = (datetime.date(self.lastupdated)-self.last_hv_current).seconds * (1/3600)
+            self.charged_capacity_ah += self.act_current * delta
+            self.charged_capacity_wh += self.act_power * delta
+
 
     def doHV_TEMP(self, msg):
         """
@@ -470,11 +483,12 @@ class CanListener:
     """
     FSM_stat = STATE.IDLE  # The actual state of the FSM (mirror the main variable)
     FSM_entered_stat = ""  # The moment in time the FSM has entered that state
-    fast_charge = False
 
     generic_error = False
     can_err = False
-    target_v = MAX_TARGET_V_ACC
+    target_v = DEFAULT_TARGET_V_ACC
+    act_set_out_current = DEFAULT_ACC_CHG_AMPERE
+    act_set_in_current = DEFAULT_CHARGE_MAINS_AMPERE
 
     brusa = BRUSA()
     bms_hv = BMS_HV()
@@ -750,8 +764,6 @@ def doCharge():
             if canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= canread.target_v \
                     and canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
                 can_forward_enabled = False
-                print(canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'])
-                print(canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'])
                 return STATE.C_DONE
         except KeyError:
             print("Error in reading can message from brusa")
@@ -844,15 +856,9 @@ def checkCommands():
     if not com_queue.empty():
         act_com = com_queue.get()
         print(type(act_com))
-        if act_com['com-type'] == 'fast-charge':
-            if act_com['value'] is False:
-                canread.fast_charge = False
-            if act_com['value'] is True:
-                print("true")
-                canread.fast_charge = True
 
         if act_com['com-type'] == 'cutoff':
-            if int(act_com['value']) > 200 and int(act_com['value'] < 470):
+            if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
                 canread.target_v = int(act_com['value'])
             else:
                 print("cutoff command exceeds limits")
@@ -868,6 +874,18 @@ def checkCommands():
 
         if act_com['com-type'] == "shutdown" and act_com['value'] is True:
             shutdown_asked = True
+
+        if act_com['com-type'] == 'max-out-current':
+            if 0 < act_com['value'] < 12:
+                shared_data.act_set_out_current = act_com['value']
+            else:
+                print("max-out-current limits exceded")
+
+        if act_com['com-type'] == "max-in-current":
+            if 0 < act_com['value'] < 16:
+                shared_data.act_set_in_current = act_com['value']
+            else:
+                print("max-in-current limits exceded")
 
 
 def accumulator_sd():  # accumulator shutdown
@@ -1018,14 +1036,12 @@ def thread_2_CAN():
                 NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
-                        if 0 < shared_data.target_v <= 500:
-                            if shared_data.fast_charge:
-                                mains_ampere = FAST_CHARGE_MAINS_AMPERE
-                                out_ampere = MAX_ACC_CHG_AMPERE
-                            else:
-                                mains_ampere = STANDARD_CHARGE_MAINS_AMPERE
-                                out_ampere = STANDARD_ACC_CHG_AMPERE
+                        if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
+                                and 0 <= shared_data.act_set_in_current < 16 \
+                                and 0 <= shared_data.act_set_out_current < 12:
 
+                            mains_ampere = shared_data.act_set_out_current
+                            out_ampere = shared_data.act_set_in_current
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
                                 'NLG5_C_C_EL': 0,
@@ -1113,7 +1129,9 @@ def thread_3_WEB():
             data = {
                 "timestamp": datetime.now().isoformat(),
                 "state": str(shared_data.FSM_stat.name),
-                "entered": shared_data.FSM_entered_stat
+                "entered": shared_data.FSM_entered_stat,
+                "capacity-chaged-ah": shared_data.brusa.charged_capacity_ah,
+                "capacity-charged-wh": shared_data.brusa.charged_capacity_wh
             }
             resp = jsonify(data)
             resp.status_code = 200
@@ -1489,7 +1507,13 @@ def thread_3_WEB():
                 "value": shared_data.target_v
             }, {
                 "com-type": "fast-charge",
-                "value": shared_data.fast_charge
+                "value": False
+            }, {
+                "com-type": "max-in-current",
+                "value": shared_data.act_set_in_current
+            }, {
+                "com-type": "max-out-current",
+                "value": shared_data.act_set_out_current
             }]
 
             resp = jsonify(data)
