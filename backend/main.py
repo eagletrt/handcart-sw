@@ -189,8 +189,8 @@ class BRUSA:
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
         if self.act_NLG5_ACT_I["NLG5_OC_ACT"] != 0:
-            delta = (datetime.date(self.lastupdated)-self.last_hv_current).seconds * (1/3600)
-            self.charged_capacity_ah += self.act_current * delta
+            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_hv_current)).seconds * (1/3600)
+            self.charged_capacity_ah += self.act_NLG5_ACT_I["NLG5_OC_ACT"] * delta
             self.charged_capacity_wh += (self.act_NLG5_ACT_I["NLG5_OC_ACT"]
                                          * self.act_NLG5_ACT_I["NLG5_OV_ACT"]) * delta
 
@@ -295,10 +295,10 @@ class BMS_HV:
 
         converted = message_HV_VOLTAGE.deserialize(msg.data).convert()
 
-        self.act_pack_voltage = converted.pack_voltage
-        self.act_bus_voltage = converted.bus_voltage
-        self.max_cell_voltage = converted.max_cell_voltage
-        self.min_cell_voltage = converted.min_cell_voltage
+        self.act_pack_voltage = round(converted.pack_voltage, 2)
+        self.act_bus_voltage = round(converted.bus_voltage, 2)
+        self.max_cell_voltage = round(converted.max_cell_voltage, 2)
+        self.min_cell_voltage = round(converted.min_cell_voltage, 2)
 
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
                                         "pack_voltage": self.act_pack_voltage,
@@ -319,22 +319,21 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_current = converted.current
-        self.act_power = converted.power
+        self.act_current = round(converted.current,2)
+        self.act_power = round(converted.power,2)
 
         self.hv_current_history.append({
             "timestamp": self.lastupdated,
-            "current": converted.current,
-            "power": converted.power
+            "current": self.act_current,
+            "power": self.act_power
         })
 
         self.hv_current_history_index += 1
 
         if self.act_current != 0:
-            delta = (datetime.date(self.lastupdated)-self.last_hv_current).seconds * (1/3600)
+            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_hv_current)).seconds * (1/3600)
             self.charged_capacity_ah += self.act_current * delta
             self.charged_capacity_wh += self.act_power * delta
-
 
     def doHV_TEMP(self, msg):
         """
@@ -346,9 +345,9 @@ class BMS_HV:
         converted = message_HV_TEMP.deserialize(msg.data).convert()
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = converted.average_temp / 4
-        self.min_temp = converted.min_temp / 4
-        self.max_temp = converted.max_temp / 4
+        self.act_average_temp = round(converted.average_temp,2)
+        self.min_temp = round(converted.min_temp,2)
+        self.max_temp = round(converted.max_temp, 2)
 
         self.hv_temp_history.append({"timestamp": self.lastupdated,
                                      "average_temp": self.act_average_temp,
@@ -395,9 +394,9 @@ class BMS_HV:
 
         converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
 
-        self.hv_cells_act[converted.start_index:converted.start_index+4] = converted.voltage_0, \
-                                                                           converted.voltage_1, \
-                                                                           converted.voltage_2
+        self.hv_cells_act[converted.start_index:converted.start_index+4] = round(converted.voltage_0,3), \
+                                                                           round(converted.voltage_1,3), \
+                                                                           round(converted.voltage_2,3)
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -408,13 +407,13 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
-        self.hv_temps_act[converted.start_index:converted.start_index+8] = converted.temp_0/4, \
-                                                                converted.temp_1/4, \
-                                                                converted.temp_2/4, \
-                                                                converted.temp_3/4, \
-                                                                converted.temp_4/4, \
-                                                                converted.temp_5/4, \
-                                                                converted.temp_6/4
+        self.hv_temps_act[converted.start_index:converted.start_index+8] = round(converted.temp_0,3), \
+                                                                round(converted.temp_1,3), \
+                                                                round(converted.temp_2,3), \
+                                                                round(converted.temp_3,3), \
+                                                                round(converted.temp_4,3), \
+                                                                round(converted.temp_5,3), \
+                                                                round(converted.temp_6,3)
 
     def do_CHIMERA(self, msg):
         """
