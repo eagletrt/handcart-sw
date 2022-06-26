@@ -191,9 +191,25 @@ here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/140278
 The TS wiring is described in this diagram:
 ![image](images/Charger_TS_Circuit.png)
 
-The TS cable that goes from the BRUSA to the accumulator has a connector in order of being able to charge the Chimera accumulator and the Fenice one
+#### The junction box
+The TS cable that goes from the BRUSA to the accumulator has a connector in order of being able to charge both the Chimera's acc and the Fenice one. This is done by using a custom cable for each accumulator. The connector is inside a junction box. This box also have the TSMPs resistors.
 
 ![image](images/interlock_rule.png)
+![image](images/junction_box.jpg)
+
+The shields of the cables from the accumulator are connected to PE (protective earth) coming from the cable of the BRUSA trough a molex connector.
+
+![image](images/junction_box_2.jpg)
+![image](images/junction_box_3.jpg)
+
+All the cables exiting the junction box are restrained using some cable restrains from lapp.
+
+#### The TSMP
+The TS measurament points are connected to the TS+ and TS- in the junction box, having a proper resistor in series.
+
+![image](images/TSMP.jpg)
+![image](images/TSMP_3.jpg)
+
 
 ### The handcart wiring & PCB connectors
 All the Shutdown cables in the wiring have purple color.
@@ -211,6 +227,9 @@ Some cables has been routed from the back of the pcb to a weipu 6 pin female cab
 -   3 - Red signal
 -   4 - Green signal
 -   5 - Blue signal
+
+A view of the soldered cables of the fake TSAL and the fan.
+![image](images/PCB_back.jpg)
 
 ## The shutdown circuit
 
@@ -296,7 +315,7 @@ Turn off the PON switch
 Connect the accumulator and the brusa with the HV connector. With chimera make sure that it makes a good contact, sometimes the interlock will not be closed properly.
 Connect the two LV connectors to the accumulator, and the other end to the handcart.
 
-## Connecting brusa to 220
+## Connecting brusa to main power
 
 Once a good power source has been found, connect the brusa to it. You’ll hear a “click” from the BRUSA.
 
@@ -319,6 +338,7 @@ If you need the handcart working as fast as possible, just download the [charge 
 
 # Resources & Useful links
 
+- [Handcart drive folder](https://drive.google.com/drive/u/0/folders/1gseosQS0oFUHIKkmOtbPTiWpbAOVRIfS)
 - [Frontend REST API Documentation](handcartfrontend.docs.apiary.io)
 - [CAN messages reference](https://docs.google.com/spreadsheets/d/1_lV08HAnuSkv5-ramh94GRA4ftQi6S_ziCta-qIculQ/edit)
 - [here](https://www.brusa.biz/_files/drive/02_Energy/Chargers/NLG5/NLG5_BRUSA.html) you can find BRUSA's CAN messages
