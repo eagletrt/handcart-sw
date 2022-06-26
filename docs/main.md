@@ -23,6 +23,11 @@ The rasp is connected via CAN Bus with the BMS in the accumulator and with the B
 -   FSM -> Finite State Machine
 -   TS (on, off) -> Tractive system (HV) (on o off)
 
+## The old "carrellino"
+I want to remember the old handcart, that did his job during all these years.
+
+![image](images/old_handcart.jpg)
+
 # Software
 
 ## Overview
@@ -38,11 +43,12 @@ Basically it is a python script that becomes a process, then it splits itself in
 
 ### Threads
 
-The three threads are:
+The four threads are:
 
 -   The state machine, aka the main thread
 -   The flask webserver
 -   The CAN read/write process
+-   The thread to manage the leds
 
 The three threads have an class istance that they can access which is in shared memory, accessed with a lock.
 Other types of communication are two queues:
@@ -63,7 +69,9 @@ The FSM is based on multiple states:
 -   C_DONE: The charge is finished
 -   ERROR: An error state, the charge (if enabled) is stopped, the BMS is asked to TS OFF, the PON of brusa is set to OFF
 
-Note that in each state there's a check over errors from the can, if an error is found, the next state will be ERROR
+Note that in each state there's a check over errors from the can, if an error is found, the next state will be ERROR.
+
+Both the BRUSA and the BMS messages from the CAN have a timeout, that if reached makes the FSM to go back to CHECK
 
 #### STATE:CHECK
 
@@ -75,7 +83,7 @@ Both devices are connected and ready to rock, a precharge command is waited.
 
 #### STATE:PRECHARGE
 
-A TS ON can message is sent to BMS HV, which will do the precharge. In this state we will check if the bms will finish the precharge. Once it did so, the FSM willl go to READY state.
+A TS ON can message is sent to BMS HV, which will do the precharge. In this state we will check if the bms will finish the precharge. Once it did so, the FSM will go to READY state.
 
 #### STATE:READY
 
