@@ -133,6 +133,7 @@ class BRUSA:
     """Class to store and process all the Brusa data
     """
     lastupdated = 1  # bypass the check of brusa presence if set to 1
+    last_act_I = datetime.now().isoformat()
 
     charged_capacity_ah = 0
     charged_capacity_wh = 0
@@ -189,11 +190,12 @@ class BRUSA:
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
         if self.act_NLG5_ACT_I["NLG5_OC_ACT"] != 0:
-            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_hv_current)).seconds * (1/3600)
+            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_act_I)).microseconds\
+                    * (1/(3600*1000000))
             self.charged_capacity_ah += self.act_NLG5_ACT_I["NLG5_OC_ACT"] * delta
             self.charged_capacity_wh += (self.act_NLG5_ACT_I["NLG5_OC_ACT"]
                                          * self.act_NLG5_ACT_I["NLG5_OV_ACT"]) * delta
-
+        self.last_act_I = self.lastupdated
 
     def doNLG5_ACT_II(self, msg):
         """
@@ -289,7 +291,7 @@ class BMS_HV:
         :param msg: the HV_VOLTAGE CAN message
         """
 
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
@@ -313,7 +315,7 @@ class BMS_HV:
         Processes the HV_CURRENT CAN message from BMS_HV
         :param msg: the HV_CURRENT CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         converted = message_HV_CURRENT.deserialize(msg.data).convert()
 
@@ -340,7 +342,7 @@ class BMS_HV:
         Processes the HV_TEMP CAN message from BMS_HV
         :param msg: the HV_TEMP CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         converted = message_HV_TEMP.deserialize(msg.data).convert()
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
@@ -361,7 +363,7 @@ class BMS_HV:
         Processes the HV_ERRORS CAN message from BMS_HV
         :param msg: the HV_ERRORS CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
@@ -379,7 +381,7 @@ class BMS_HV:
         Processes the HV_STATUS CAN message from BMS_HV
         :param msg: the HV_STATUS CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = message_TS_STATUS.deserialize(msg.data).ts_status
@@ -389,7 +391,7 @@ class BMS_HV:
         Processes the
         :param msg: the CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
@@ -403,7 +405,7 @@ class BMS_HV:
         Processes the
         :param msg: the CAN message
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
@@ -889,20 +891,16 @@ def checkCommands():
 
 def accumulator_sd():  # accumulator shutdown
     if canread.bms_hv.status == TsStatus.ON:
-        if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
-            message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
-                                  data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value])
-            tx_can_queue.put(message)
-        elif canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-            if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
-                tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
-                message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
-                                                    data=tmp.serialize(),
-                                                    is_extended_id=False)
-                tx_can_queue.put(message)
-        else:
-            canread.generic_error = True
+        message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
+                              data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value])
+        tx_can_queue.put(message)
 
+        if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+            tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
+            message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
+                                                data=tmp.serialize(),
+                                                is_extended_id=False)
+        tx_can_queue.put(message)
 
 def resetGPIOs():
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
@@ -1128,9 +1126,21 @@ def thread_3_WEB():
             data = {
                 "timestamp": datetime.now().isoformat(),
                 "state": str(shared_data.FSM_stat.name),
-                "entered": shared_data.FSM_entered_stat,
-                "capacity-chaged-ah": shared_data.brusa.charged_capacity_ah,
-                "capacity-charged-wh": shared_data.brusa.charged_capacity_wh
+                "entered": shared_data.FSM_entered_stat
+            }
+            resp = jsonify(data)
+            resp.status_code = 200
+            return resp
+
+    @app.route('/handcart/charged', methods=['GET'])
+    def send_hc_charged():
+        with lock:
+            data = {
+                "timestamp": datetime.now().isoformat(),
+                "charged_brusa_wh": shared_data.brusa.charged_capacity_wh,
+                "charged_brusa_ah": shared_data.brusa.charged_capacity_ah,
+                "charged_bms_hv_ah": shared_data.bms_hv.charged_capacity_ah,
+                "charged_bms_hv_wh": shared_data.bms_hv.charged_capacity_wh
             }
             resp = jsonify(data)
             resp.status_code = 200
@@ -1146,7 +1156,7 @@ def thread_3_WEB():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
                     "status": shared_data.bms_hv.status.name,
-                    "accumulator": shared_data.bms_hv.ACC_CONNECTED.value
+                    "accumulator": str(shared_data.bms_hv.ACC_CONNECTED)
                 }
                 res = jsonify(res)
             else:
