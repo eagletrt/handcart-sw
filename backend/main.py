@@ -667,7 +667,11 @@ def doIdle():
     Do Idle status of the state machine
     :return:
     """
-    global precharge_command
+    global precharge_command, precharge_asked, precharge_done, precharge_asked_time
+
+    precharge_asked = False
+    precharge_done = False
+    precharge_asked_time = 0
 
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
     # Make sure that acc is in ts off
