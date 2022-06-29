@@ -993,7 +993,7 @@ def thread_1_FSM():
             next_stat = doState.get(act_stat)()
 
         if shutdown_asked:
-            next_stat = STATE.ERROR
+            next_stat = STATE.IDLE
             shutdown_asked = False
 
         if next_stat == STATE.EXIT:
