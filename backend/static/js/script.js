@@ -61,7 +61,7 @@ function deleteTimer(path) {
 
 function formListener(form, path) {
     form.addEventListener('submit', function (event) {
-        event.preventDefault();                 // prevent page from refreshing
+        event.preventDefault();                   // prevent page from refreshing
         //const formData = new FormData(form);    // grab the data inside the form fields
         let url = "command/" + path;
 
@@ -75,6 +75,17 @@ function formListener(form, path) {
 
         postRequest(url, JSON.stringify(j));
     });
+}
+
+function clearErrors() {
+    let url = "command/settings";
+
+    let json = {
+        "com-type": "latch-errors",
+        "value": true
+    }
+
+    postRequest(url, JSON.stringify(json));
 }
 
 function updateSessionValue(key, value) {
@@ -144,10 +155,6 @@ function updateHeader() {
 
     label: ---- the id of where you want to print the slider value
 */
-
-function clearErrors() {
-    
-}
 
 function changeValue(sliderName, label) {
     let slider = document.getElementById(sliderName);
