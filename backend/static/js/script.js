@@ -145,6 +145,10 @@ function updateHeader() {
     label: ---- the id of where you want to print the slider value
 */
 
+function clearErrors() {
+    
+}
+
 function changeValue(sliderName, label) {
     let slider = document.getElementById(sliderName);
     let output = document.getElementById(label);

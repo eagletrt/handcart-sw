@@ -421,11 +421,30 @@ setInterval(function () { // every 2 seconds
     })
         .then(json => {
             let cov = document.getElementById("COvolt");
+            let mcoSlider = document.getElementById("MCOSlider"); // sliders
+            let mciSlider = document.getElementById("MCISlider");
+            let covSlider = document.getElementById("COSlider");
+            // get the actual path to check if there sould be buttons or not
+            var href = window.location;
+            var page = href.pathname.substring(1); // to remove the "/" before the page's name
 
-            for (let i = 0; i < json.length; i++) {
-                if (json[i]["com-type"] == "cutoff") {
-                    cov.innerHTML = json[i]["value"];
-                    updateSessionValue("covValue", json[i]["value"]);
+            for(let i = 0; i < json.length; i++) {
+                let comType = json[i]["com-type"];
+                let value = json[i]["value"];
+                if(comType == "cutoff") {
+                    cov.innerHTML = value;  // in the header
+                    updateSessionValue("covValue", value);
+                }
+                if(page == "settings") {
+                    if(comType == "max-out-current") {
+                        mcoSlider.value = value;
+                        updateSessionValue("mocValue", value);
+                    } else if(comType == "max-in-current") {
+                        mciSlider.value = value;
+                        updateSessionValue("micValue", value)
+                    } else if(comType == "cutoff") {
+                        covSlider.value = value;
+                    }
                 }
             }
         })
