@@ -78,7 +78,7 @@ function formListener(form, path) {
 }
 
 function clearErrors() {
-    let url = "command/settings";
+    let url = "command/action";
 
     let json = {
         "com-type": "latch-errors",
