@@ -888,7 +888,7 @@ def checkCommands():
                 print("max-out-current limits exceded")
 
         if act_com['com-type'] == "max-in-current":
-            if 0 < act_com['value'] < 16:
+            if 0 < act_com['value'] <= 16:
                 shared_data.act_set_in_current = act_com['value']
             else:
                 print("max-in-current limits exceded")
@@ -1039,7 +1039,7 @@ def thread_2_CAN():
                 if can_forward_enabled:
                     with lock:
                         if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
-                                and 0 <= shared_data.act_set_in_current < 16 \
+                                and 0 <= shared_data.act_set_in_current <= 16 \
                                 and 0 <= shared_data.act_set_out_current < 12:
 
                             mains_ampere = shared_data.act_set_in_current
