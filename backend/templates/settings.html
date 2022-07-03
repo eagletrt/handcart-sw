@@ -39,15 +39,15 @@
                         <br><br>
                         <div class="row">
                             <div class="col-sm col-title">
-                                <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A - 5A</h1>
+                                <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A - 16A</h1>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-sm">
                                 <form method="POST" id="MCOForm"> <!-- Max Current Outlet Form -->
-                                    <input type="hidden" name="com-type" value="max-c-o">
+                                    <input type="hidden" name="com-type" value="max-in-current">
                                     <input type="range" oninput="changeValue('MCOSlider', 'MCOValue')"
-                                           min="1" max="10" value="" class="slider" id="MCOSlider"
+                                           min="1" max="16" value="" class="slider" id="MCOSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
                                 </form>
@@ -56,13 +56,13 @@
                         <br><br>
                         <div class="row">
                             <div class="col-sm col-title">
-                                <h1 class="h2">Max Input Current: <span id="MICValue"></span>A - 5A</h1>
+                                <h1 class="h2">Max (DC) output current: <span id="MICValue"></span>A - 10A</h1>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-sm">
-                                <form method="POST" id="MICForm"> <!-- Max Current Outlet Form -->
-                                    <input type="hidden" name="com-type" value="max-c-i">
+                                <form method="POST" id="MICForm">
+                                    <input type="hidden" name="com-type" value="max-out-current">
                                     <input type="range" oninput="changeValue('MICSlider', 'MICValue')"
                                            min="1" max="10" value="" class="slider" id="MICSlider"
                                            name="value"><br><br>
