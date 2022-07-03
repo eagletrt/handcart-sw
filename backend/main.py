@@ -798,6 +798,7 @@ def doError():
         can_forward_enabled = False
 
     GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+    GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
     # Send to BMS stacca stacca
     if not canread.bms_hv.status == TsStatus.OFF.value:
@@ -860,7 +861,7 @@ def checkCommands():
 
     if not com_queue.empty():
         act_com = com_queue.get()
-        print(type(act_com))
+        print(act_com)
 
         if act_com['com-type'] == 'cutoff':
             if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
@@ -1041,8 +1042,8 @@ def thread_2_CAN():
                                 and 0 <= shared_data.act_set_in_current < 16 \
                                 and 0 <= shared_data.act_set_out_current < 12:
 
-                            mains_ampere = shared_data.act_set_out_current
-                            out_ampere = shared_data.act_set_in_current
+                            mains_ampere = shared_data.act_set_in_current
+                            out_ampere = shared_data.act_set_out_current
                             data = NLG5_CTL.encode({
                                 'NLG5_C_C_EN': 1,
                                 'NLG5_C_C_EL': 0,
