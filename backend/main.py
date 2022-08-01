@@ -321,7 +321,7 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_current = round(converted.current,2)
+        self.act_current = abs(round(converted.current,2))
         self.act_power = round(converted.power,2)
 
         self.hv_current_history.append({
@@ -414,8 +414,7 @@ class BMS_HV:
                                                                 round(converted.temp_2,3), \
                                                                 round(converted.temp_3,3), \
                                                                 round(converted.temp_4,3), \
-                                                                round(converted.temp_5,3), \
-                                                                round(converted.temp_6,3)
+                                                                round(converted.temp_5,3)
 
     def do_CHIMERA(self, msg):
         """
