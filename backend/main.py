@@ -15,6 +15,7 @@ import queue
 import struct
 import threading
 import time
+from builtins import abs
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -55,6 +56,7 @@ CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2
+RETRANSMIT_INTERVAL = 0.5 # Time to wait before retransmitting a request message
 
 # BMS_HV_BYPASS = False # Use at your own risk
 
@@ -115,6 +117,7 @@ class STATE(Enum):
     READY = 3
     CHARGE = 4
     C_DONE = 5
+    BALANCING = 6
     ERROR = -1
     EXIT = -2
 
@@ -273,6 +276,9 @@ class BMS_HV:
     min_temp = -1
     max_temp = -1
     last_hv_current = datetime.now().isoformat()
+    is_balancing = Toggle.OFF
+    fans_override_status = Toggle.OFF
+    fans_override_speed = 0
 
     def isConnected(self):
         """
@@ -416,6 +422,27 @@ class BMS_HV:
                                                                 round(converted.temp_4,3), \
                                                                 round(converted.temp_5,3)
 
+    def doHV_BALANCING_STATUS(self, msg):
+        """
+        Updates the balancing status of the acc
+        """
+        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+
+        deserialized = message_HV_CELL_BALANCING_STATUS.deserialize(msg.data)
+        self.is_balancing = deserialized.balancing_status
+
+    def doHV_FANS_OVERRIDE_STATUS(self, msg):
+        """
+        Updates the fans override status of the acc
+        """
+        self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+
+        deserialized = message_HV_FANS_OVERRIDE_STATUS.deserialize(msg.data).convert()
+        self.fans_override_status = deserialized.fans_override
+        self.fans_override_speed = deserialized.fans_speed
+
     def do_CHIMERA(self, msg):
         """
         Processes a BMS HV message from CHIMERA accumulator
@@ -510,6 +537,8 @@ class CanListener:
         primary_ID_TS_STATUS: bms_hv.doHV_STATUS,
         primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
+        primary_ID_HV_CELL_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
+        primary_ID_HV_FANS_OVERRIDE_STATUS: bms_hv.doHV_FANS_OVERRIDE_STATUS,
 
         # BMS_HV Chimera
         CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
@@ -553,6 +582,10 @@ precharge_command = False  # True if received precharge command
 start_charge_command = False  # True if received start charge command
 stop_charge_command = False  # True if received stop charge command
 shutdown_asked = False
+
+balancing_asked_time = 0 # the time of the last precharge message has been sent
+balancing_stop_asked = False
+balancing_command = False
 
 # IPC (shared between threads)
 shared_data = canread  # Variable that holds a copy of canread, to get the information from web thread
@@ -666,7 +699,11 @@ def doIdle():
     Do Idle status of the state machine
     :return:
     """
-    global precharge_command, precharge_asked, precharge_done, precharge_asked_time
+    global precharge_command, \
+        precharge_asked, \
+        precharge_done, \
+        precharge_asked_time, \
+        balancing_command
 
     precharge_asked = False
     precharge_done = False
@@ -679,6 +716,10 @@ def doIdle():
     if precharge_command:
         precharge_command = False
         return STATE.PRECHARGE
+
+    if balancing_command:
+        balancing_command = False
+        return STATE.BALANCING
 
     return STATE.IDLE
 
@@ -787,6 +828,28 @@ def doC_done():
     return STATE.C_DONE
 
 
+def do_balancing():
+    global balancing_asked_time, balancing_stop_asked
+
+    if balancing_stop_asked:
+        balancing_stop_asked = False
+        return STATE.IDLE
+
+    if canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+        if not canread.bms_hv.is_balancing \
+                and (time.time() - balancing_asked_time) > RETRANSMIT_INTERVAL:
+
+            tmp = message_SET_CELL_BALANCING_STATUS(set_balancing_status=Toggle.ON)
+            message = can.Message(arbitration_id=primary_ID_SET_CELL_BALANCING_STATUS,
+                                  data=tmp.serialize(),
+                                  is_extended_id=False)
+            tx_can_queue.put(message)
+            balancing_asked_time = time.time()
+        return STATE.BALANCING
+
+    return STATE.IDLE
+
+
 def doError():
     """
     Do the error state of the state machine
@@ -856,7 +919,12 @@ def checkCommands():
     This function checks for commands in the queue shared between the FSM and the server,
     i.e. if an "fast charge" command is found, the value of that command is set in the fsm
     """
-    global precharge_command, start_charge_command, stop_charge_command, shutdown_asked
+    global precharge_command, \
+        start_charge_command, \
+        stop_charge_command, \
+        shutdown_asked, \
+        balancing_stop_asked, \
+        balancing_command
 
     if not com_queue.empty():
         act_com = com_queue.get()
@@ -879,6 +947,12 @@ def checkCommands():
 
         if act_com['com-type'] == "shutdown" and act_com['value'] is True:
             shutdown_asked = True
+
+        if act_com['com-type'] == "balancing":
+            if act_com['value'] is False:
+                balancing_stop_asked = True
+            if act_com['value'] is True:
+                balancing_command = True
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
@@ -904,6 +978,14 @@ def accumulator_sd():  # accumulator shutdown
             message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
                                                 data=tmp.serialize(),
                                                 is_extended_id=False)
+        tx_can_queue.put(message)
+
+def balancing_disabled_check():
+    if canread.bms_hv.is_balancing:
+        tmp = message_SET_CELL_BALANCING_STATUS(set_balancing_status=Toggle.OFF)
+        message = can.Message(arbitration_id=primary_ID_SET_CELL_BALANCING_STATUS,
+                              data=tmp.serialize(),
+                              is_extended_id=False)
         tx_can_queue.put(message)
 
 def resetGPIOs():
@@ -953,6 +1035,7 @@ doState = {
     STATE.READY: doReady,
     STATE.CHARGE: doCharge,
     STATE.C_DONE: doC_done,
+    STATE.BALANCING: do_balancing,
     STATE.ERROR: doError,
     STATE.EXIT: doExit
 }
@@ -985,6 +1068,10 @@ def thread_1_FSM():
                 next_stat = doState.get(STATE.CHECK)
             if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not canread.brusa.isConnected():
                 next_stat = doState.get(STATE.CHECK)
+
+        if act_stat != STATE.BALANCING:
+            # Check that balancing is disabled if not in balancing state
+            balancing_disabled_check()
 
         # Checks errors
         if canread.brusa.error or canread.bms_hv.error or canread.can_err:
@@ -1589,16 +1676,16 @@ def thread_led():
             tsal_actual_color = TSAL_COLOR.RED
         elif shared_data.FSM_stat == STATE.CHARGE:
             blinking = True
-            setLedColor(TSAL_COLOR.ORANGE)
-            tsal_actual_color = TSAL_COLOR.ORANGE
-        elif shared_data.FSM_stat == STATE.C_DONE:
-            blinking = True
             setLedColor(TSAL_COLOR.PURPLE)
             tsal_actual_color = TSAL_COLOR.PURPLE
+        elif shared_data.FSM_stat == STATE.C_DONE:
+            blinking = True
+            setLedColor(TSAL_COLOR.RED)
+            tsal_actual_color = TSAL_COLOR.RED
         elif shared_data.FSM_stat == STATE.ERROR:
             blinking = False
-            setLedColor(TSAL_COLOR.YELLOW)
-            tsal_actual_color = TSAL_COLOR.YELLOW
+            setLedColor(TSAL_COLOR.ORANGE)
+            tsal_actual_color = TSAL_COLOR.ORANGE
 
         if blinking:
             if is_tsal_on:
