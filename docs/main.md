@@ -35,6 +35,7 @@ I want to remember the old handcart, that did his job during all these years.
 ![General diagram](https://lucid.app/publicSegments/view/04f173a9-55f8-42e4-9aa7-747b02ec5147/image.jpeg)
 
 The software is written in python and javascript. It's divided in two parts, respectively frontend and backend. The backend is responsible to manage the charge and to communicate with the devices, and it also hosts a webserver for the frontend.
+The software can be started trough the main.py python script found in backend/ folder. By default, a service can be found in the raspi, namely handcart-backend.service. In the folder utils/ you can find a shell script to reset the service.
 
 ## Backend
 
