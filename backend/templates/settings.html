@@ -2,15 +2,15 @@
 <html lang="en">
 
 <head>
-    {% include 'include/head.html' %}
+    {% include "include/head.html" %}
 </head>
 
 <body>
-{% include 'include/header.html' %}
+{% include "include/header.html" %}
 
 <div class="container-fluid">
     <div class="row">
-        {% include 'include/sidebar.html' %}
+        {% include "include/sidebar.html" %}
 
         <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -29,14 +29,15 @@
                             <div class="col-sm">
                                 <form method="POST" id="COForm"> <!-- Cut-Off Form -->
                                     <input type="hidden" name="com-type" value="cutoff">
-                                    <input type="range" oninput="changeValue('COSlider', 'COValue')"
-                                           min="150" max="500" value="" class="slider" id="COSlider"
+                                    <input type="range" oninput="changeValue("COSlider", "COValue")"
+                                           min="150" max="452" value="" class="slider" id="COSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
                                 </form>
                             </div>
                         </div>
                         <br><br>
+
                         <div class="row">
                             <div class="col-sm col-title">
                                 <h1 class="h2">Max Current from Outlet: <span id="MCOValue"></span>A - 16A</h1>
@@ -46,7 +47,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="MCOForm"> <!-- Max Current Outlet Form -->
                                     <input type="hidden" name="com-type" value="max-in-current">
-                                    <input type="range" oninput="changeValue('MCOSlider', 'MCOValue')"
+                                    <input type="range" oninput="changeValue("MCOSlider", "MCOValue")"
                                            min="1" max="16" value="" class="slider" id="MCOSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
@@ -63,7 +64,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="MICForm">
                                     <input type="hidden" name="com-type" value="max-out-current">
-                                    <input type="range" oninput="changeValue('MICSlider', 'MICValue')"
+                                    <input type="range" oninput="changeValue("MICSlider", "MICValue")"
                                            min="1" max="10" value="" class="slider" id="MICSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
@@ -72,24 +73,42 @@
                         </div>
                     </div>
                     <div class="col-sm">
+                        <!-- Fan Form -->
                         <div class="row">
                             <div class="col-sm col-title">
-                                <h1 class="h2">Fast-Charge</h1>
+                                <h1 class="h2">Manual Fan:</h1>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-sm">
-                                <form method="POST" id="FCEForm"> <!-- FastCharge Enabled Form -->
-                                    <input type="hidden" name="com-type" value="fast-charge">
+                                <form method="POST" id="FOSSEForm"> <!-- Manual Fan Enabled Form -->
+                                    <input type="hidden" name="com-type" value="fan-override-set-status">
                                     <input type="hidden" name="value" value="true">
-                                    <input type="submit" onclick="enableDisable(true)" id="enable"
+                                    <input type="submit" id="enable" name="submit"
                                            class="btn btn-success btn-lg" value="Enable">
                                 </form>
-                                <form method="POST" id="FCDForm"> <!-- FastCharge Disabled Form -->
-                                    <input type="hidden" name="com-type" value="fast-charge">
+                                <form method="POST" id="FOSSDForm"> <!-- Manual Fan Disabled Form -->
+                                    <input type="hidden" name="com-type" value="fan-override-set-status">
                                     <input type="hidden" name="value" value="false">
-                                    <input type="submit" onclick="enableDisable(false)" id="disable"
+                                    <input type="submit" id="disable" name="submit"
                                            class="btn btn-danger btn-lg" value="Disable">
+                                </form>
+                            </div>
+                        </div>
+                        <br><br>
+                        <div class="row">
+                            <div class="col-sm col-title">
+                                <h1 class="h2">Manual Fan Speed: <span id="MFSValue"></span>%</h1>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm">
+                                <form method="POST" id="MFSForm"> <!-- Max Current Outlet Form -->
+                                    <input type="hidden" name="com-type" value="fan-override-set-speed">
+                                    <input type="range" oninput="changeValue("MFSSlider", "MFSValue")"
+                                           min="0" max="100" value="" class="slider" id="MFSSlider"
+                                           name="value"><br><br>
+                                    <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
                                 </form>
                             </div>
                         </div>
@@ -100,30 +119,43 @@
                     updateLineChartValue(null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
                     updateLineChartValue(null, "bms-hv/ampere/last", "current", NZ, "amp");
                     updateLineChartValue(null, "bms-hv/temp/last", "average_temp", NZ, "temp");
+
+                    // just update the slider"s value
+                    uploadSessionValue("COSlider", "covValue", 0, true);
+                    uploadSessionValue("MCOSlider", "mcoValue", 0, true);
+                    uploadSessionValue("MICSlider", "micValue", 0, true);
+                    uploadSessionValue("MFSSlider", "mfsValue", 0, true);
                     
-                    var COForm = document.getElementById("COForm");     // form cut-off voltage
-                    var MCOForm = document.getElementById("MCOForm");   // form maxcurrent outlet
-                    var MICForm = document.getElementById("MICForm");   // form maxcurrent input
-                    var FCEForm = document.getElementById("FCEForm");   // form fast charge enabled
-                    var FCDForm = document.getElementById("FCDForm");   // form fast charge disabled
+                    // set up the value on load
+                    
+                    var COForm = document.getElementById("COForm");         // form cut-off voltage
+                    var MCOForm = document.getElementById("MCOForm");       // form maxcurrent outlet
+                    var MICForm = document.getElementById("MICForm");       // form maxcurrent input
+
+                    var FOSSEForm = document.getElementById("FOSSEForm");   // form manual fan enabled
+                    var FOSSDForm = document.getElementById("FOSSDForm");   // form manual fan disabled
+                    var MFSForm = document.getElementById("MFSForm");       // form manual fan speed
 
                     path = "setting";
 
                     formListener(COForm, path);
                     formListener(MCOForm, path);
                     formListener(MICForm, path);
-                    formListener(FCEForm, path);
-                    formListener(FCDForm, path);
 
-                    changeValue('COSlider', 'COValue');
-                    changeValue('MCOSlider', 'MCOValue');
-                    changeValue('MICSlider', 'MICValue');
+                    formListener(FOSSEForm, path);
+                    formListener(FOSSDForm, path);
+                    formListener(MFSForm, path);
+
+                    changeValue("COSlider", "COValue");
+                    changeValue("MCOSlider", "MCOValue");
+                    changeValue("MICSlider", "MICValue");
+                    changeValue("MFSSlider", "MFSValue");
                 </script>
             </div>
         </main>
     </div>
 </div>
-{% include 'include/foot.html' %}
+{% include "include/foot.html" %}
 </body>
 
 </html>

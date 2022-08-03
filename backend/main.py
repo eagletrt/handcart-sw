@@ -675,7 +675,8 @@ def canSend(bus, msg_id, data):
         # print("Message sent on {}".format(canbus.channel_info))
         return True
     except can.CanError:
-        print("Can Error: Message not sent")
+        #print("Can Error: Message not sent")
+        #print(msg)
         with lock:
             shared_data.can_err = True
         # raise can.CanError
@@ -953,6 +954,15 @@ def checkCommands():
                 balancing_stop_asked = True
             if act_com['value'] is True:
                 balancing_command = True
+
+        if act_com['com-type'] == "fan-override-set-status":
+            if act_com['value'] is False:
+                canread.bms_hv.fans_override_status = False
+            if act_com['value'] is True:
+                canread.bms_hv.fans_override_status = True
+
+        if act_com['com-type'] == "fan-override-set-speed":
+            canread.bms_hv.fans_override_speed = act_com['value']
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
@@ -1247,14 +1257,18 @@ def thread_3_WEB():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
                     "status": shared_data.bms_hv.status.name,
-                    "accumulator": str(shared_data.bms_hv.ACC_CONNECTED)
+                    "accumulator": str(shared_data.bms_hv.ACC_CONNECTED),
+                    "fans_override_status": shared_data.bms_hv.fans_override_status,
+                    "fans_override_speed": shared_data.bms_hv.fans_override_speed
                 }
                 res = jsonify(res)
             else:
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
                     "status": "OFFLINE",
-                    "accumulator": -1
+                    "accumulator": -1,
+                    "fans_override_status": False,
+                    "fans_override_speed": 0
                 }
                 res = jsonify(res)
                 res.status_code = 450
@@ -1614,6 +1628,12 @@ def thread_3_WEB():
             }, {
                 "com-type": "max-out-current",
                 "value": shared_data.act_set_out_current
+            }, {
+                "com-type": "fan-override-set-status",
+                "value": shared_data.bms_hv.fans_override_status
+            }, {
+                "com-type": "fan-override-set-speed",
+                "value": shared_data.bms_hv.fans_override_speed
             }]
 
             resp = jsonify(data)

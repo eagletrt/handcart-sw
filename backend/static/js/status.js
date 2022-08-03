@@ -16,7 +16,7 @@ async function bmsStatus(path) {
                 updateSessionValue("bmsState", "OFFLINE");
                 updateSessionValue("car", null); // to hide cell and heat chart
 
-                deleteTimer(path);
+                //deleteTimer(path);
 
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
             }
@@ -386,19 +386,17 @@ setInterval(function () { // every 2 seconds
 
             for (let i = 0; i < json.length; i++) {
                 let com = json[i];
-                if (com["com-type"] == "fast-charge") {
+                if (com["com-type"] == "fan-override-set-status") {
                     let enabled = com["value"];
 
-                    updateSessionValue("fcState", enabled);
-
-                    uploadFCValue(fc, enabled);
+                    updateSessionValue("mfsValue", enabled);
 
                     let href = window.location;
 
                     let page = href.pathname.substring(1); // to remove the "/" before the page's name
 
                     if(page == "settings") {
-                        enableDisable(enabled);
+                        enableDisable(enabled, false);
                     }
                 }
             }
@@ -421,12 +419,7 @@ setInterval(function () { // every 2 seconds
     })
         .then(json => {
             let cov = document.getElementById("COvolt");
-            let mcoSlider = document.getElementById("MCOSlider"); // sliders
-            let mciSlider = document.getElementById("MCISlider");
-            let covSlider = document.getElementById("COSlider");
-            // get the actual path to check if there sould be buttons or not
-            var href = window.location;
-            var page = href.pathname.substring(1); // to remove the "/" before the page's name
+            let mfs = document.getElementById("MFspeed")
 
             for(let i = 0; i < json.length; i++) {
                 let comType = json[i]["com-type"];
@@ -434,17 +427,13 @@ setInterval(function () { // every 2 seconds
                 if(comType == "cutoff") {
                     cov.innerHTML = value;  // in the header
                     updateSessionValue("covValue", value);
-                }
-                if(page == "settings") {
-                    if(comType == "max-out-current") {
-                        mcoSlider.value = value;
-                        updateSessionValue("mocValue", value);
-                    } else if(comType == "max-in-current") {
-                        mciSlider.value = value;
-                        updateSessionValue("micValue", value)
-                    } else if(comType == "cutoff") {
-                        covSlider.value = value;
-                    }
+                } else if(comType == "fan-override-get-speed") {
+                    mfs.innerHTML = value;
+                    updateSessionValue("mfsValue", value);
+                } else if(comType == "max-in-current") {
+                    updateSessionValue("mcoValue", value);
+                } else if(comType == "max-out-current") {
+                    updateSessionValue("micValue", value);
                 }
             }
         })

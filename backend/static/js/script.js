@@ -61,8 +61,19 @@ function deleteTimer(path) {
 
 function formListener(form, path) {
     form.addEventListener('submit', function (event) {
-        event.preventDefault();                   // prevent page from refreshing
-        //const formData = new FormData(form);    // grab the data inside the form fields
+        event.preventDefault(); // prevent page from refreshing
+
+        let button = form.elements["submit"];
+        let text = button.value.substring(0, button.value.length - 1);
+
+        button.disabled = true;
+        button.value = text + "ing...";
+
+        setTimeout(function () {
+            button.disabled = false;
+            button.value = text + "e";
+        }, 2500);
+
         let url = "command/" + path;
 
         let v = form.elements["value"].value.toLowerCase();
@@ -102,13 +113,19 @@ function updateSessionValue(key, value) {
     value:  the default value if the session value is NULL
 */
 
-function uploadSessionValue(id, key, value) {
+function uploadSessionValue(id, key, value, slider) {
     let item = sessionStorage.getItem(key);
 
     if(item != null) {
         value = item;
     }
-    document.getElementById(id).innerHTML = value; // value is passed as a default value
+
+    let element = document.getElementById(id)
+    if(slider != null && slider) {
+        element.value = value;
+    } else {
+        element.innerHTML = value; // value is passed as a default value
+    }
 }
 
 /*
@@ -176,12 +193,11 @@ function changeValue(sliderName, label) {
 function enableDisable(enabled) {
     let enableButton = document.getElementById("enable");
     let disableButton = document.getElementById("disable");
-
-    // modify are sent by the formListener
-    if(enabled) {                               // if fast charge isn't enabled
+                 
+    if(enabled) {                               // if isn't enabled
         enableButton.style.display = "none";    // hide the enable button
         disableButton.style.display = "inline"; // and show the disable button
-    } else {                                    // if the fast charge has been enabled
+    } else {                                    // if has been enabled
         enableButton.style.display = "inline";  // show the enable button
         disableButton.style.display = "none";   // and hide the disabled button
     }
