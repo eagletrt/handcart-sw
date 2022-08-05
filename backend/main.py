@@ -957,12 +957,13 @@ def checkCommands():
 
         if act_com['com-type'] == "fan-override-set-status":
             if act_com['value'] is False:
-                canread.bms_hv.fans_override_status = False
+                pass
             if act_com['value'] is True:
-                canread.bms_hv.fans_override_status = True
+                pass
 
         if act_com['com-type'] == "fan-override-set-speed":
-            canread.bms_hv.fans_override_speed = act_com['value']
+            if act_com['value']:
+                pass
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
