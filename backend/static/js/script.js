@@ -131,43 +131,49 @@ function uploadSessionValue(id, key, value, slider) {
 }
 
 /*
-    fo: ---- the fan override button to update
+    element: --- is the HTML element to be changed
 
-    enabled: this parameter say if the Fan Override is either enabled or disabled
+    condition: - is the condition to bhe check in order to change the element's class
+
+    classTrue: - the className to be added in case the contition will be true
+
+    classFalse:  the className to be added in case the contition will be false
+
+    The function will replace the class only if the other class is in the classList otherwise nothing will change
 */
 
-function uploadFOValue(fo, enabled) {
-    if(enabled) {
-        if(fo.classList.contains("btn-danger")) {
-            console.log("TRUE: " + fo.classList)
-            fo.classList.remove("btn-danger");
-            fo.classList.add("btn-success");
-            console.log("AFTER-TRUE: " + fo.classList)
+function replaceClass(element, condition, classTrue, classFalse) {
+    if(condition) {
+        if(element.classList.contains(classFalse)) {
+            element.classList.remove(classFalse);
+            element.classList.add(classTrue);
         }
     } else {
-        if(fo.classList.contains("btn-success")) {
-            console.log("FALSE: " + fo.classList)
-            fo.classList.remove("btn-success");
-            fo.classList.add("btn-danger");
-            console.log("AFTER-FALSE: " + fo.classList)
+        if(element.classList.contains(classTrue)) {
+            element.classList.remove(classTrue);
+            element.classList.add(classFalse);
         }
     }
 }
 
 /*
-    fan: --- the fan icon to update
+    element: - is the HTML element to be changed
 
-    enabled: this parameter say if the Fan is either on or off
+    condition: is the condition to bhe check in order to toogle the element's class
+
+    className: the className to be added in case the contition will be true or to be removed if false
+
+    The function will add (remove) the class only if the class is (is not) in the classList otherwise nothing will change
 */
 
-function uploadFSValue(fan, enabled) {
-    if(enabled) {
-        if(!fan.classList.contains("fa-spin")) {
-            fan.classList.add("fa-spin");
+function toogleClass(element, condition, className) {
+    if(condition) {
+        if(!element.classList.contains(className)) {
+            element.classList.add(className);
         }
     } else {
-        if(fan.classList.contains("fa-spin")) {
-            fan.classList.remove("fa-spin");
+        if(element.classList.contains(className)) {
+            element.classList.remove(className);
         }
     }
 }
@@ -181,24 +187,19 @@ function updateHeader() {
         }
         if(key == "fan") {
             let fan = document.getElementById(key);
-            if(sessionStorage.getItem(states[key]) == true) {
-                if(!fan.classList.contains("fa-spin")) {
-                    fan.classList.add("fa-spin");
-                }
-            } else {
-                if(fan.classList.contains("fa-spin")) {
-                    fan.classList.remove("fa-spin");
-                }
-            }
-        } else if(key != "fo") {
-            uploadSessionValue(key, states[key], value);
-        } else {
-            let fo = document.getElementById(key);
-            let foValue = sessionStorage.getItem(states[key]);
+            let value = sessionStorage.getItem(states[key]);
+            value = value == "true"? true : false;
 
-            foValue = foValue == "true" ? true : false;
+            toogleClass(fan, value, "fa-spin");
+        } else if(key == "fo") {
+            let fo = document.getElementById(key);
+            let foState = sessionStorage.getItem(states[key]);
+
+            foState = foState == "true" ? true : false;
             
-            uploadFOValue(fo, foValue);
+            replaceClass(fo, foState, "btn-success", "btn-danger");
+        } else {
+            uploadSessionValue(key, states[key], value);
         }
     }
 }

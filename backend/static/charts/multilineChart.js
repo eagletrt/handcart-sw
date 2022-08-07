@@ -27,7 +27,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             request = getRequest(url, path);
 
             x++;
-            console.log("request number " + x + ": from " + from + " to " + (from+step));
+            //console.log("request number " + x + ": from " + from + " to " + (from+step));
             
             await fetch(request)
                 .then(response => {

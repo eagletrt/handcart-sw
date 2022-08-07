@@ -391,7 +391,7 @@ setInterval(function () { // every 2 seconds
                 let comType = json[i]["com-type"];
                 let value = json[i]["value"];
                 if(comType == "fan-override-set-status") {
-                    uploadFOValue(fo, value);
+                    replaceClass(fo, value, "btn-success", "btn-danger");
 
                     let href = window.location;
 
@@ -403,7 +403,7 @@ setInterval(function () { // every 2 seconds
 
                     updateSessionValue("foState", value);
                 } else if(comType == "fan-status") {    // ON/OFF
-                    uploadFSValue(fan, value);
+                    toogleClass(fan, value, "fa-spin");
 
                     updateSessionValue("fanOnOff", value);
                 } else if(comType == "cutoff") {
@@ -412,7 +412,7 @@ setInterval(function () { // every 2 seconds
                     updateSessionValue("covValue", value);
                 } else if(comType == "fan-override-get-speed") {
                     mfs.innerHTML = value;
-                    
+
                     updateSessionValue("mfsValue", value);
                 } else if(comType == "max-in-current") {
                     updateSessionValue("mcoValue", value);
