@@ -64,15 +64,17 @@ function formListener(form, path) {
         event.preventDefault(); // prevent page from refreshing
 
         let button = form.elements["submit"];
-        let text = button.value.substring(0, button.value.length - 1);
+        if(button != null && button != undefined) {
+            let text = button.value.substring(0, button.value.length - 1);
 
-        button.disabled = true;
-        button.value = text + "ing...";
+            button.disabled = true;
+            button.value = text + "ing...";
 
-        setTimeout(function () {
-            button.disabled = false;
-            button.value = text + "e";
-        }, 2500);
+            setTimeout(function () {
+                button.disabled = false;
+                button.value = text + "e";
+            }, 2500);
+        }
 
         let url = "command/" + path;
 
@@ -121,7 +123,7 @@ function uploadSessionValue(id, key, value, slider) {
     }
 
     let element = document.getElementById(id)
-    if(slider != null && slider) {
+    if(slider != null && slider != undefined && slider) {
         element.value = value;
     } else {
         element.innerHTML = value; // value is passed as a default value
@@ -129,21 +131,43 @@ function uploadSessionValue(id, key, value, slider) {
 }
 
 /*
-    fc: ---- the fast charge button to update
+    fo: ---- the fan override button to update
 
-    enabled: this parameter say if the Fast Charge is either enabled or disabled
+    enabled: this parameter say if the Fan Override is either enabled or disabled
 */
 
-function uploadFCValue(fc, enabled) {
+function uploadFOValue(fo, enabled) {
     if(enabled) {
-        if(fc.classList.contains("btn-danger")) {
-            fc.classList.remove("btn-danger");
-            fc.className += " btn-success";
+        if(fo.classList.contains("btn-danger")) {
+            console.log("TRUE: " + fo.classList)
+            fo.classList.remove("btn-danger");
+            fo.classList.add("btn-success");
+            console.log("AFTER-TRUE: " + fo.classList)
         }
     } else {
-        if(fc.classList.contains("btn-success")) {
-            fc.classList.remove("btn-success");
-            fc.className += " btn-danger";
+        if(fo.classList.contains("btn-success")) {
+            console.log("FALSE: " + fo.classList)
+            fo.classList.remove("btn-success");
+            fo.classList.add("btn-danger");
+            console.log("AFTER-FALSE: " + fo.classList)
+        }
+    }
+}
+
+/*
+    fan: --- the fan icon to update
+
+    enabled: this parameter say if the Fan is either on or off
+*/
+
+function uploadFSValue(fan, enabled) {
+    if(enabled) {
+        if(!fan.classList.contains("fa-spin")) {
+            fan.classList.add("fa-spin");
+        }
+    } else {
+        if(fan.classList.contains("fa-spin")) {
+            fan.classList.remove("fa-spin");
         }
     }
 }
@@ -155,14 +179,26 @@ function updateHeader() {
         if(key == "timeText") {
             value = "00:00";
         }
-        if(key != "fc") {
+        if(key == "fan") {
+            let fan = document.getElementById(key);
+            if(sessionStorage.getItem(states[key]) == true) {
+                if(!fan.classList.contains("fa-spin")) {
+                    fan.classList.add("fa-spin");
+                }
+            } else {
+                if(fan.classList.contains("fa-spin")) {
+                    fan.classList.remove("fa-spin");
+                }
+            }
+        } else if(key != "fo") {
             uploadSessionValue(key, states[key], value);
         } else {
-            let fc = document.getElementById(key);
-            let fcValue = sessionStorage.getItem("fcState");
+            let fo = document.getElementById(key);
+            let foValue = sessionStorage.getItem(states[key]);
 
-            fcValue = fcValue == "true" ? true : false;
-            uploadFCValue(fc, fcValue);
+            foValue = foValue == "true" ? true : false;
+            
+            uploadFOValue(fo, foValue);
         }
     }
 }

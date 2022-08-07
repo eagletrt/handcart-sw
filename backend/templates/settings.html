@@ -29,7 +29,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="COForm"> <!-- Cut-Off Form -->
                                     <input type="hidden" name="com-type" value="cutoff">
-                                    <input type="range" oninput="changeValue("COSlider", "COValue")"
+                                    <input type="range" oninput="changeValue('COSlider', 'COValue')"
                                            min="150" max="452" value="" class="slider" id="COSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
@@ -47,7 +47,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="MCOForm"> <!-- Max Current Outlet Form -->
                                     <input type="hidden" name="com-type" value="max-in-current">
-                                    <input type="range" oninput="changeValue("MCOSlider", "MCOValue")"
+                                    <input type="range" oninput="changeValue('MCOSlider', 'MCOValue')"
                                            min="1" max="16" value="" class="slider" id="MCOSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
@@ -64,7 +64,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="MICForm">
                                     <input type="hidden" name="com-type" value="max-out-current">
-                                    <input type="range" oninput="changeValue("MICSlider", "MICValue")"
+                                    <input type="range" oninput="changeValue('MICSlider', 'MICValue')"
                                            min="1" max="10" value="" class="slider" id="MICSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">
@@ -105,7 +105,7 @@
                             <div class="col-sm">
                                 <form method="POST" id="MFSForm"> <!-- Max Current Outlet Form -->
                                     <input type="hidden" name="com-type" value="fan-override-set-speed">
-                                    <input type="range" oninput="changeValue("MFSSlider", "MFSValue")"
+                                    <input type="range" oninput="changeValue('MFSSlider', 'MFSValue')"
                                            min="0" max="100" value="" class="slider" id="MFSSlider"
                                            name="value"><br><br>
                                     <input type="submit" id="send" value="Send" class="btn btn-success btn-lg">

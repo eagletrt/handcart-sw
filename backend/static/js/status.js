@@ -368,7 +368,7 @@ async function brusaWarnings(timer) {
     }, 2000);
 }
 //-END-GET-THE-BRUSA-STATUS-----------------------------------------------------
-//-GET-FASTCHARGE-STATUS--------------------------------------------------------
+//-GET-SETTINGS-STATUS----------------------------------------------------------
 setInterval(function () { // every 2 seconds
     let path = 'command/setting';
 
@@ -382,30 +382,50 @@ setInterval(function () { // every 2 seconds
             return response.json();
         })
         .then(json => {
-            var fc = document.getElementById("fc");
+            var fo = document.getElementById("fo");
+            let cov = document.getElementById("COvolt");
+            let mfs = document.getElementById("MFspeed");
+            let fan = document.getElementById("fan");
 
-            for (let i = 0; i < json.length; i++) {
-                let com = json[i];
-                if (com["com-type"] == "fan-override-set-status") {
-                    let enabled = com["value"];
-
-                    updateSessionValue("mfsValue", enabled);
+            for(let i = 0; i < json.length; i++) {
+                let comType = json[i]["com-type"];
+                let value = json[i]["value"];
+                if(comType == "fan-override-set-status") {
+                    uploadFOValue(fo, value);
 
                     let href = window.location;
 
                     let page = href.pathname.substring(1); // to remove the "/" before the page's name
 
                     if(page == "settings") {
-                        enableDisable(enabled, false);
+                        enableDisable(value);
                     }
+
+                    updateSessionValue("foState", value);
+                } else if(comType == "fan-status") {    // ON/OFF
+                    uploadFSValue(fan, value);
+
+                    updateSessionValue("fanOnOff", value);
+                } else if(comType == "cutoff") {
+                    cov.innerHTML = value;  // in the header
+
+                    updateSessionValue("covValue", value);
+                } else if(comType == "fan-override-get-speed") {
+                    mfs.innerHTML = value;
+                    
+                    updateSessionValue("mfsValue", value);
+                } else if(comType == "max-in-current") {
+                    updateSessionValue("mcoValue", value);
+                } else if(comType == "max-out-current") {
+                    updateSessionValue("micValue", value);
                 }
             }
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
 }, 2000);
-//-END-GET-FASTCHARGE-STATUS----------------------------------------------------
+//-END-GET-SETTINGS-------------------------------------------------------------
 //-GET-CUT-OFF-VOLTAGE----------------------------------------------------------
-setInterval(function () { // every 2 seconds
+/*setInterval(function () { // every 2 seconds
     let path = 'command/setting';
 
     request = getRequest(url, path);
@@ -438,5 +458,5 @@ setInterval(function () { // every 2 seconds
             }
         })
         .catch(error => console.log('Authorization failed : ' + error.message))
-}, 2000);
+}, 2000);*/
 //-END-GET-CUT-OFF-VOLTAGE------------------------------------------------------

@@ -108,11 +108,12 @@ main {
     margin-top: -8px;
 }
 
-.fc {
+#fo {
     margin-top: -5px;
     border-radius: 100%;
     border: none;
     width: auto;
+    cursor: default;
 }
 
 #start, #stop, #cancel, #chargeBtn, #ok, #disable {

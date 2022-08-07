@@ -1631,7 +1631,7 @@ def thread_3_WEB():
                 "value": shared_data.act_set_out_current
             }, {
                 "com-type": "fan-override-set-status",
-                "value": shared_data.bms_hv.fans_override_status
+                "value": bool(shared_data.bms_hv.fans_override_status)
             }, {
                 "com-type": "fan-override-set-speed",
                 "value": shared_data.bms_hv.fans_override_speed

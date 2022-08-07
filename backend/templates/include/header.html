@@ -35,12 +35,8 @@
                     </span>
                 </button>
             </div>
-            <div class="left">
-                <!-- fast-charge and precharge state -->
-                <span class="btn btn-success fc" id="fc">
-                    FC
-                </span>
-            </div>
+            <!--<div class="left">
+            </div>-->
             <div class="left">
                 <form method="POST" id="sdForm"> <!-- Shutdown Button Form -->
                     <input type="hidden" name="com-type" value="shutdown">
@@ -49,10 +45,15 @@
                 </form>
             </div>
             <div class="right">
+                <!-- fast-charge and precharge state -->
+                <span class="btn btn-success" id="fo" title="Fan Override">
+                    FO
+                </span>
+                <div class="status"><i id="fan" class="fa-solid fa-fan"></i><span id="fanSpeed"></span>%</div>
                 <div class="status"><span id="temp"></span>°</div>
-                <div class="status"><span id="volt">0</span>V/<span id="COvolt">0</span>V</div>
-                <div class="status"><span id="amp">0</span>A</div>
-                <div class="status"><span id="charge">0</span>%</div>
+                <div class="status"><span id="volt"></span>V/<span id="COvolt"></span>V</div>
+                <div class="status"><span id="amp"></span>A</div>
+                <div class="status"><span id="charge"></span>%</div>
             </div>
         </div>
     </nav>
