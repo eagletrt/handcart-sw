@@ -969,7 +969,8 @@ def checkCommands():
             if act_com['value'] != "":
                 speed = int(act_com['value'])
                 if (speed >= 0 and speed <=100):
-                    canread.bms_hv.fans_set_override_speed = speed
+                    canread.bms_hv.fans_set_override_speed = float(speed)
+                    
                 
 
         if act_com['com-type'] == 'max-out-current':
@@ -1265,7 +1266,7 @@ def thread_3_WEB():
                 res = {
                     "timestamp": shared_data.bms_hv.lastupdated,
                     "status": shared_data.bms_hv.status.name,
-                    "accumulator": str(shared_data.bms_hv.ACC_CONNECTED),
+                    "accumulator": shared_data.bms_hv.ACC_CONNECTED.value,
                     "fans_override_status": shared_data.bms_hv.fans_override_status,
                     "fans_override_speed": shared_data.bms_hv.fans_override_speed
                 }
@@ -1749,9 +1750,11 @@ def thread_fans():
                 tx_can_queue.put(msg)
             
             
+            print(shared_data.bms_hv.fans_override_speed)
+            print(shared_data.bms_hv.fans_set_override_speed)
             if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_override_speed)
+                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_set_override_speed)
                     msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                         data=data.serialize(),
                                         is_extended_id=False)
