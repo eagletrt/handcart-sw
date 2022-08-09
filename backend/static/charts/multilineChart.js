@@ -32,6 +32,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             await fetch(request)
                 .then(response => {
                     if(!response.ok) {
+                        exit = true;
                         document.getElementById(name + "Chart").innerHTML = errMsg;
                         throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)");
                     }

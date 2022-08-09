@@ -280,6 +280,9 @@ class BMS_HV:
     fans_override_status = Toggle.OFF
     fans_override_speed = 0
 
+    fans_set_override_speed = 0
+    fans_set_override_status = Toggle.OFF
+
     def isConnected(self):
         """
         Check if BMS_HV is connected
@@ -956,14 +959,18 @@ def checkCommands():
                 balancing_command = True
 
         if act_com['com-type'] == "fan-override-set-status":
-            if act_com['value'] is False:
-                pass
-            if act_com['value'] is True:
-                pass
+            if act_com['value'] == False:
+                canread.bms_hv.fans_set_override_status = Toggle.OFF
+                print("è falso")
+            if act_com['value'] == True:
+                canread.bms_hv.fans_set_override_status = Toggle.ON
 
         if act_com['com-type'] == "fan-override-set-speed":
-            if act_com['value']:
-                pass
+            if act_com['value'] != "":
+                speed = int(act_com['value'])
+                if (speed >= 0 and speed <=100):
+                    canread.bms_hv.fans_set_override_speed = speed
+                
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
@@ -1631,11 +1638,13 @@ def thread_3_WEB():
                 "value": shared_data.act_set_out_current
             }, {
                 "com-type": "fan-override-set-status",
-                "value": bool(shared_data.bms_hv.fans_override_status)
+                "value": shared_data.bms_hv.fans_set_override_status
             }, {
                 "com-type": "fan-override-set-speed",
-                "value": shared_data.bms_hv.fans_override_speed
+                "value": shared_data.bms_hv.fans_set_override_speed
             }]
+
+            print(shared_data.bms_hv.fans_set_override_status)
 
             resp = jsonify(data)
             resp.status_code = 200
@@ -1715,6 +1724,38 @@ def thread_led():
             else:
                 setLedColor(tsal_actual_color)
                 is_tsal_on = True
+        
+def thread_fans():
+    global shared_data
+    while 1:
+        time.sleep(.1)
+        with lock:
+            if actual_fsm_state == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
+                if shared_data.bms_hv.fans_override_status == Toggle.ON:
+                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.OFF,fans_speed=0)
+                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
+                                    data=data.serialize(),
+                                    is_extended_id=False)
+                    tx_can_queue.put(msg)
+                return
+
+            if (shared_data.bms_hv.fans_override_status !=
+                shared_data.bms_hv.fans_set_override_status):
+                # Ask to override or disable override
+                data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_override_speed)
+                msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
+                                    data=data.serialize(),
+                                    is_extended_id=False)
+                tx_can_queue.put(msg)
+            
+            
+            if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
+                if shared_data.bms_hv.fans_override_status == Toggle.ON:
+                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_override_speed)
+                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
+                                        data=data.serialize(),
+                                        is_extended_id=False)
+                    tx_can_queue.put(msg)
 
 
 # Usare le code tra FSM e CAN per invio e ricezione
@@ -1729,8 +1770,10 @@ t1 = threading.Thread(target=thread_1_FSM, args=())
 t2 = threading.Thread(target=thread_2_CAN, args=())
 t3 = threading.Thread(target=thread_3_WEB, args=())
 t4 = threading.Thread(target=thread_led, args=())
+t5 = threading.Thread(target=thread_fans, args=())
 
 t1.start()
 t2.start()
 t3.start()
 t4.start()
+t5.start()

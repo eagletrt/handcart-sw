@@ -64,6 +64,7 @@ function formListener(form, path) {
         event.preventDefault(); // prevent page from refreshing
 
         let button = form.elements["submit"];
+        console.log(button)
         if(button != null && button != undefined) {
             let text = button.value.substring(0, button.value.length - 1);
 
@@ -86,6 +87,7 @@ function formListener(form, path) {
             "value": value
         };
 
+        console.log(j)
         postRequest(url, JSON.stringify(j));
     });
 }

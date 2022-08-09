@@ -116,7 +116,7 @@ main {
     cursor: default;
 }
 
-#start, #stop, #cancel, #chargeBtn, #ok, #disable {
+#start, #stop, #cancel, #chargeBtn, #ok, #disable, #balancing {
     display: none;
 }
 
