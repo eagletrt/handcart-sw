@@ -129,6 +129,7 @@ setInterval(function () { // every 2 seconds
             let charge = document.getElementById("chargeBtn");
             let ok = document.getElementById("ok");
             let balance = document.getElementById("balancing");
+            let stop_bal = document.getElementById("stop_balancing");
 
             // if there's only one status message to read
             let key = "state";
@@ -166,6 +167,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "none";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
                     }
 
                     state.className = "orange";
@@ -178,6 +180,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "none";
                         balance.style.display = "inline";
+                        stop_bal.style.display = "none";
                     }
 
                     state.className = "green";
@@ -190,6 +193,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "none";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
                     }
 
                     state.className = "orange";
@@ -202,6 +206,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "inline";
                         ok.style.display = "none";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
                     }
 
                     state.className = "green";
@@ -214,6 +219,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "none";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
                     }
 
                     let timeText = document.getElementById("timeText");
@@ -230,6 +236,20 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "inline";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
+                    }
+
+                    state.className = "green";
+                    break;
+                case "BALANCING":
+                    if (buttons) {
+                        start.style.display = "none";
+                        stop.style.display = "none";
+                        cancel.style.display = "none";
+                        charge.style.display = "none";
+                        ok.style.display = "none";
+                        balance.style.display = "none";
+                        stop_bal.style.display = "inline";
                     }
 
                     state.className = "green";
@@ -242,6 +262,7 @@ setInterval(function () { // every 2 seconds
                         charge.style.display = "none";
                         ok.style.display = "none";
                         balance.style.display = "none";
+                        stop_bal.style.display = "none";
                     }
 
                     state.className = "red";

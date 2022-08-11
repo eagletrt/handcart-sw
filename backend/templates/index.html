@@ -47,6 +47,12 @@
                                     <input type="submit" value="Balance" id="balancing" class="btn btn-success btn-lg">
                                 </form>
 
+                                <form method="POST" id="balancingStopForm" style="margin-top: 20px;"> <!-- Balancing button form -->
+                                    <input type="hidden" name="com-type" value="balancing">
+                                    <input type="hidden" name="value" value="false">
+                                    <input type="submit" value="Stop balancing" id="stop_balancing" class="btn btn-success btn-lg">
+                                </form>
+
                                 <form method="POST" id="okForm"> <!-- OK Button Form -->
                                     <input type="hidden" name="com-type" value="charge">
                                     <input type="hidden" name="value" value="false">
@@ -59,6 +65,7 @@
                                     let chargeForm = document.getElementById("chargeForm");
                                     let okForm = document.getElementById("okForm");
                                     let balancingForm = document.getElementById("balancingForm");
+                                    let balancingStopForm = document.getElementById("balancingStopForm");
 
                                     path = "action";
 
@@ -67,6 +74,7 @@
                                     formListener(chargeForm, path);
                                     formListener(okForm, path);
                                     formListener(balancingForm, path);
+                                    formListener(balancingStopForm, path);
                                 </script>
                             </div>
                         </div>
