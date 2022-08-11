@@ -35,6 +35,8 @@ brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
+ENABLE_LED = True
+
 MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
 MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
@@ -961,7 +963,6 @@ def checkCommands():
         if act_com['com-type'] == "fan-override-set-status":
             if act_com['value'] == False:
                 canread.bms_hv.fans_set_override_status = Toggle.OFF
-                print("è falso")
             if act_com['value'] == True:
                 canread.bms_hv.fans_set_override_status = Toggle.ON
 
@@ -970,8 +971,6 @@ def checkCommands():
                 speed = int(act_com['value'])
                 if (speed >= 0 and speed <=100):
                     canread.bms_hv.fans_set_override_speed = float(speed)
-                    
-                
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
@@ -1645,8 +1644,6 @@ def thread_3_WEB():
                 "value": shared_data.bms_hv.fans_set_override_speed
             }]
 
-            print(shared_data.bms_hv.fans_set_override_status)
-
             resp = jsonify(data)
             resp.status_code = 200
             return resp
@@ -1667,7 +1664,6 @@ def thread_3_WEB():
     def recv_command_action():
         # print(request.get_json())
         action = request.get_json()
-        print(action)
         if type(action) != dict:
             action = json.loads(action)
 
@@ -1733,7 +1729,7 @@ def thread_fans():
         with lock:
             if actual_fsm_state == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.OFF,fans_speed=0)
+                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.OFF,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                     msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                     data=data.serialize(),
                                     is_extended_id=False)
@@ -1743,18 +1739,21 @@ def thread_fans():
             if (shared_data.bms_hv.fans_override_status !=
                 shared_data.bms_hv.fans_set_override_status):
                 # Ask to override or disable override
-                data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_override_speed)
+                set_status = Toggle.OFF
+                if shared_data.bms_hv.fans_set_override_status:
+                    set_status = Toggle.ON
+                data = message_HV_FANS_OVERRIDE_conversion(fans_override=set_status,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                 msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                     data=data.serialize(),
                                     is_extended_id=False)
                 tx_can_queue.put(msg)
             
             
-            print(shared_data.bms_hv.fans_override_speed)
-            print(shared_data.bms_hv.fans_set_override_speed)
+            #print(shared_data.bms_hv.fans_override_speed)
+            #print(shared_data.bms_hv.fans_set_override_speed)
             if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_set_override_speed)
+                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                     msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                         data=data.serialize(),
                                         is_extended_id=False)
@@ -1778,5 +1777,7 @@ t5 = threading.Thread(target=thread_fans, args=())
 t1.start()
 t2.start()
 t3.start()
-t4.start()
-t5.start()
+if ENABLE_LED:
+    setLedColor(TSAL_COLOR.OFF)
+    t4.start()
+#t5.start()
