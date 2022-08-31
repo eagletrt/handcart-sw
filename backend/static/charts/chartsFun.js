@@ -136,8 +136,10 @@ function updateCellValue(chart, series) {
             .then(response => response.json())
             .then(json => {
                 am4core.array.each(chart.data, function (item) {
-                    let i = parseInt(item["cell"]) - 1;
+                    let i = parseInt(item["cell"]);
                     let cells = json["cells"];
+                    console.log("Cell charge at index " + i + ": ")
+                    console.log(cells[i])
                     let voltage = cells[i]["voltage"];
 
                     item.voltage = voltage;
@@ -212,6 +214,9 @@ function updateHeatValue(chart, ncols) {
                     let i = (x * ncols) + y;
                     
                     let cells = json["cells"];
+
+                    console.log("Cell temp at index " + i + ": ")
+                    console.log(cells[i])
 
                     let value = cells[i]["temp"];
 

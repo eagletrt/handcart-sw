@@ -57,6 +57,8 @@ function createHeatChart(ncols) {
                 column.propertyFields.fill = "color";
 
                 let cells = json["cells"];
+                console.log("Cell temp: ")
+                console.log(json);
 
                 chart.data = getHeatData(cells, ncols);
 

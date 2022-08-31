@@ -116,8 +116,9 @@ main {
     cursor: default;
 }
 
-#start, #stop, #cancel, #chargeBtn, #ok, #disable, #balancing {
+#start, #stop, #cancel, #chargeBtn, #ok, #disable, #balancing, #stopBalancing {
     display: none;
+    margin-top: 20px;
 }
 
 .col-title {

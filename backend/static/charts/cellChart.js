@@ -26,6 +26,8 @@ function createCellChart() {
                 chart.scrollbarX = new am4core.Scrollbar();
 
                 chart.data = [];
+                console.log("Cell charge: ")
+                console.log(json)
                 let cells = json["cells"];
                 let ncells = cells.length;
 
