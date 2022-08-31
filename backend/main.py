@@ -407,7 +407,7 @@ class BMS_HV:
 
         converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
 
-        self.hv_cells_act[converted.start_index:converted.start_index+4] = round(converted.voltage_0,3), \
+        self.hv_cells_act[converted.start_index:converted.start_index+3] = round(converted.voltage_0,3), \
                                                                            round(converted.voltage_1,3), \
                                                                            round(converted.voltage_2,3)
 
@@ -420,12 +420,12 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
-        self.hv_temps_act[converted.start_index:converted.start_index+8] = round(converted.temp_0,3), \
-                                                                round(converted.temp_1,3), \
-                                                                round(converted.temp_2,3), \
-                                                                round(converted.temp_3,3), \
-                                                                round(converted.temp_4,3), \
-                                                                round(converted.temp_5,3)
+        self.hv_temps_act[converted.start_index:converted.start_index+6] = round(converted.temp_0,3), \
+                                                                            round(converted.temp_1,3), \
+                                                                            round(converted.temp_2,3), \
+                                                                            round(converted.temp_3,3), \
+                                                                            round(converted.temp_4,3), \
+                                                                            round(converted.temp_5,3)
 
     def doHV_BALANCING_STATUS(self, msg):
         """
@@ -446,7 +446,7 @@ class BMS_HV:
 
         deserialized = message_HV_FANS_OVERRIDE_STATUS.deserialize(msg.data).convert()
         self.fans_override_status = deserialized.fans_override
-        self.fans_override_speed = deserialized.fans_speed
+        self.fans_override_speed = round(deserialized.fans_speed, 2)
 
     def do_CHIMERA(self, msg):
         """
@@ -970,7 +970,7 @@ def checkCommands():
             if act_com['value'] != "":
                 speed = int(act_com['value'])
                 if (speed >= 0 and speed <=100):
-                    canread.bms_hv.fans_set_override_speed = float(speed)
+                    canread.bms_hv.fans_set_override_speed = int(speed)/100
 
         if act_com['com-type'] == 'max-out-current':
             if 0 < act_com['value'] < 12:
@@ -1729,7 +1729,8 @@ def thread_fans():
         with lock:
             if actual_fsm_state == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.OFF,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
+                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.OFF,
+                                                               fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                     msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                     data=data.serialize(),
                                     is_extended_id=False)
@@ -1742,18 +1743,17 @@ def thread_fans():
                 set_status = Toggle.OFF
                 if shared_data.bms_hv.fans_set_override_status:
                     set_status = Toggle.ON
-                data = message_HV_FANS_OVERRIDE_conversion(fans_override=set_status,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
+                data = message_HV_FANS_OVERRIDE_conversion(fans_override=set_status,
+                                                           fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                 msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                     data=data.serialize(),
                                     is_extended_id=False)
                 tx_can_queue.put(msg)
-            
-            
-            #print(shared_data.bms_hv.fans_override_speed)
-            #print(shared_data.bms_hv.fans_set_override_speed)
+
             if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.ON,fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
+                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.ON,
+                                                               fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
                     msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
                                         data=data.serialize(),
                                         is_extended_id=False)
@@ -1780,4 +1780,4 @@ t3.start()
 if ENABLE_LED:
     setLedColor(TSAL_COLOR.OFF)
     t4.start()
-#t5.start()
+t5.start()
