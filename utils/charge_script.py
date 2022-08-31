@@ -6,7 +6,7 @@ import re
 import time
 import can
 from can.listener import Listener
-from RPi.GPIO import GPIO
+import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.OUT)
