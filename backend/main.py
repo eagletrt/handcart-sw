@@ -28,9 +28,21 @@ from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
 
-from backend.common.methods.logging import log_error
+#from backend.common.methods.logging import log_error
 from can_eagle.lib.primary.python.ids import *
 from can_eagle.lib.primary.python.network import *
+
+ERROR_LOG_FILE_PATH = "errors.log"
+
+def log_error(error_string : str):
+    try:
+        f = open(ERROR_LOG_FILE_PATH, "a")
+        time_now = datetime.now()
+        error_msg = "[ERROR] " + str(time_now) + ": " + error_string
+        print(error_msg)
+        f.write(error_msg + "\n")
+    except:
+        pass
 
 brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
 
