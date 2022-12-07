@@ -28,6 +28,7 @@ from can.listener import Listener
 from flask import render_template
 from flask import request, jsonify
 
+from backend.common.methods.logging import log_error
 from can_eagle.lib.primary.python.ids import *
 from can_eagle.lib.primary.python.network import *
 
@@ -386,6 +387,7 @@ class BMS_HV:
 
         if self.errors != 0:
             self.error = True
+
 
     def doHV_STATUS(self, msg):
         """
@@ -873,7 +875,8 @@ def doError():
         staccastacca()
 
     if canread.brusa.error:
-        print("brusa error")
+        pass
+        #print("brusa error")
     if canread.bms_hv.error:
         print("bms error")
         pass
@@ -1159,6 +1162,10 @@ def thread_2_CAN():
                             })
                         else:
                             shared_data.generic_error = True
+                            log_error(f"Invalid settings to charge accumulator, got "
+                                      f"target volt:{shared_data.target_v}V, "
+                                      f"in_current:{shared_data.act_set_in_current}A,"
+                                      f"out_current:{shared_data.act_set_out_current}A")
                 else:
                     # Brusa need to constantly keep to receive this msg, otherwise it will go in error
                     data = NLG5_CTL.encode({
