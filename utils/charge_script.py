@@ -1,4 +1,4 @@
-# Can charge scritpt
+# Can charge script
 # Before use, pls run the script "start-can.sh"
 
 import os

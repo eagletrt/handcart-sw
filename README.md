@@ -1,3 +1,3 @@
-# Handcart - Fenice
+# Handcart - Fenice & Chimera
 
-see Docs folder
+Handcart documentation -> docs/ folder
