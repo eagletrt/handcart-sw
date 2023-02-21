@@ -67,6 +67,27 @@ class CanListener:
             self.doMsg.get(msg.arbitration_id)(msg)
 
 
+def canSend(bus, msg_id, data):
+    """
+    Function to send a CAN message
+    :param bus: the canbus object
+    :param msg_id: the msg id
+    :param data: the msg content
+    """
+    # doesn't check the msg before sending it
+    msg = can.Message(arbitration_id=msg_id, data=data, is_extended_id=False)
+    try:
+        bus.send(msg)
+        # print("Message sent on {}".format(canbus.channel_info))
+        return True
+    except can.CanError:
+        # print("Can Error: Message not sent")
+        # print(msg)
+        with lock:
+            shared_data.can_err = True
+        # raise can.CanError
+
+
 def canInit(listener):
     """
     Inits the canbus, connect to it, and links the canbus

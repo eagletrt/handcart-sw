@@ -1,9 +1,8 @@
 import json
+import logging
 from datetime import datetime, timedelta
 
 import flask
-import logging
-
 import pytz
 from flask import render_template, jsonify, request
 
@@ -159,7 +158,7 @@ def thread_3_WEB(shared_data, lock, com_queue):
         if shared_data.bms_hv.isConnected():
             timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
-            if f < 0 or f > t or t < 0 :
+            if f < 0 or f > t or t < 0:
                 resp = jsonify("JSON index error in request")
                 resp.status_code = 400
                 return resp
@@ -273,7 +272,7 @@ def thread_3_WEB(shared_data, lock, com_queue):
         if shared_data.bms_hv.isConnected():
             timestamp = datetime.now(pytz.timezone('Europe/Rome'))
 
-            if f < 0 or f > t or t < 0 :
+            if f < 0 or f > t or t < 0:
                 resp = jsonify("JSON index error in request")
                 resp.status_code = 400
                 return resp

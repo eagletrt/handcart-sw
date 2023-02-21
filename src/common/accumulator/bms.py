@@ -1,6 +1,5 @@
 import struct
 from datetime import datetime
-from enum import Enum
 
 from src.can_eagle.lib.primary.python.network import *
 from src.common.settings import *
@@ -28,7 +27,6 @@ class CAN_REQ_CHIMERA(Enum):
     REQ_TS_OFF = 0x0B
 
 
-
 class BMS_HV:
     """
     Class that stores and processes all the data of the BMS_HV
@@ -45,8 +43,8 @@ class BMS_HV:
     hv_temp_history = []
     hv_temp_history_index = 0
 
-    hv_cells_act = [0 for i in range(18*6)]
-    hv_temps_act = [0 for i in range(36*6)]
+    hv_cells_act = [0 for i in range(18 * 6)]
+    hv_temps_act = [0 for i in range(36 * 6)]
 
     charged_capacity_ah = 0
     charged_capacity_wh = 0
@@ -85,7 +83,7 @@ class BMS_HV:
             return False
         else:
             return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
-                       < CAN_BMS_PRESENCE_TIMEOUT
+                < CAN_BMS_PRESENCE_TIMEOUT
 
     def doHV_VOLTAGE(self, msg):
         """
@@ -93,7 +91,7 @@ class BMS_HV:
         :param msg: the HV_VOLTAGE CAN message
         """
 
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
@@ -117,14 +115,14 @@ class BMS_HV:
         Processes the HV_CURRENT CAN message from BMS_HV
         :param msg: the HV_CURRENT CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         converted = message_HV_CURRENT.deserialize(msg.data).convert()
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_current = abs(round(converted.current,2))
-        self.act_power = round(converted.power,2)
+        self.act_current = abs(round(converted.current, 2))
+        self.act_power = round(converted.power, 2)
 
         self.hv_current_history.append({
             "timestamp": self.lastupdated,
@@ -135,7 +133,8 @@ class BMS_HV:
         self.hv_current_history_index += 1
 
         if self.act_current != 0:
-            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_hv_current)).seconds * (1/3600)
+            delta = (datetime.fromisoformat(self.lastupdated) - datetime.fromisoformat(
+                self.last_hv_current)).seconds * (1 / 3600)
             self.charged_capacity_ah += self.act_current * delta
             self.charged_capacity_wh += self.act_power * delta
 
@@ -144,13 +143,13 @@ class BMS_HV:
         Processes the HV_TEMP CAN message from BMS_HV
         :param msg: the HV_TEMP CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         converted = message_HV_TEMP.deserialize(msg.data).convert()
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = round(converted.average_temp,2)
-        self.min_temp = round(converted.min_temp,2)
+        self.act_average_temp = round(converted.average_temp, 2)
+        self.min_temp = round(converted.min_temp, 2)
         self.max_temp = round(converted.max_temp, 2)
 
         self.hv_temp_history.append({"timestamp": self.lastupdated,
@@ -165,7 +164,7 @@ class BMS_HV:
         Processes the HV_ERRORS CAN message from BMS_HV
         :param msg: the HV_ERRORS CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
@@ -178,13 +177,12 @@ class BMS_HV:
         if self.errors != 0:
             self.error = True
 
-
     def doHV_STATUS(self, msg):
         """
         Processes the HV_STATUS CAN message from BMS_HV
         :param msg: the HV_STATUS CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.status = message_TS_STATUS.deserialize(msg.data).ts_status
@@ -194,30 +192,30 @@ class BMS_HV:
         Processes the
         :param msg: the CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
 
-        self.hv_cells_act[converted.start_index:converted.start_index+3] = round(converted.voltage_0,3), \
-                                                                           round(converted.voltage_1,3), \
-                                                                           round(converted.voltage_2,3)
+        self.hv_cells_act[converted.start_index:converted.start_index + 3] = round(converted.voltage_0, 3), \
+            round(converted.voltage_1, 3), \
+            round(converted.voltage_2, 3)
 
     def doHV_CELLS_TEMP(self, msg):
         """
         Processes the
         :param msg: the CAN message
         """
-        #self.ACC_CONNECTED = ACCUMULATOR.FENICE
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
-        self.hv_temps_act[converted.start_index:converted.start_index+6] = round(converted.temp_0,3), \
-                                                                            round(converted.temp_1,3), \
-                                                                            round(converted.temp_2,3), \
-                                                                            round(converted.temp_3,3), \
-                                                                            round(converted.temp_4,3), \
-                                                                            round(converted.temp_5,3)
+        self.hv_temps_act[converted.start_index:converted.start_index + 6] = round(converted.temp_0, 3), \
+            round(converted.temp_1, 3), \
+            round(converted.temp_2, 3), \
+            round(converted.temp_3, 3), \
+            round(converted.temp_4, 3), \
+            round(converted.temp_5, 3)
 
     def doHV_BALANCING_STATUS(self, msg):
         """

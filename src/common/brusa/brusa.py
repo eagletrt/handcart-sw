@@ -42,7 +42,7 @@ class BRUSA:
             return False
         else:
             return True
-        #elif self.lastupdated != 1:
+        # elif self.lastupdated != 1:
         #    return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
         #           < CAN_BRUSA_PRESENCE_TIMEOUT
 
@@ -75,8 +75,8 @@ class BRUSA:
         self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
 
         if self.act_NLG5_ACT_I["NLG5_OC_ACT"] != 0:
-            delta = (datetime.fromisoformat(self.lastupdated)-datetime.fromisoformat(self.last_act_I)).microseconds\
-                    * (1/(3600*1000000))
+            delta = (datetime.fromisoformat(self.lastupdated) - datetime.fromisoformat(self.last_act_I)).microseconds \
+                    * (1 / (3600 * 1000000))
             self.charged_capacity_ah += self.act_NLG5_ACT_I["NLG5_OC_ACT"] * delta
             self.charged_capacity_wh += (self.act_NLG5_ACT_I["NLG5_OC_ACT"]
                                          * self.act_NLG5_ACT_I["NLG5_OV_ACT"]) * delta
