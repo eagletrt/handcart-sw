@@ -9,87 +9,24 @@ Notes:
 
 import atexit
 import datetime
-import json
-import logging
 import queue
-import struct
 import threading
 import time
-from builtins import abs
-from datetime import datetime, timedelta
-from enum import Enum
+from datetime import datetime
 
-import RPi.GPIO as GPIO
 import can
-import cantools
-import flask
-import pytz
-from can.listener import Listener
-from flask import render_template
-from flask import request, jsonify
 
 # from backend.common.methods.logging import log_error
 from can_eagle.lib.primary.python.ids import *
 from can_eagle.lib.primary.python.network import *
-
-from can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
-from can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion
-from src.common.accumulator import BMS_HV, CAN_REQ_CHIMERA, ACCUMULATOR
+from src.common.accumulator.bms import CAN_REQ_CHIMERA, ACCUMULATOR
+from src.common.accumulator.fans import thread_fans
 from src.common.can import CanListener, thread_2_CAN
+from src.common.fsm import STATE
+from src.common.leds import TSAL_COLOR, setLedColor, thread_led
+from src.common.rasp import GPIO_setup, resetGPIOs
 from src.common.server.server import thread_3_WEB
 from src.common.settings import *
-
-
-def log_error(error_string: str):
-    try:
-        f = open(ERROR_LOG_FILE_PATH, "a")
-        time_now = datetime.now()
-        error_msg = "[ERROR] " + str(time_now) + ": " + error_string
-        print(error_msg)
-        f.write(error_msg + "\n")
-    except:
-        pass
-
-
-class PIN(Enum):
-    RED_LED = 12  # 31
-    GREEN_LED = 13  # 33
-    BLUE_LED = 16  # 36
-    SD_RELAY = 20
-    PON_CONTROL = 21
-    BUT_0 = 22
-    BUT_1 = 23
-    BUT_2 = 24
-    BUT_3 = 26
-    BUT_4 = 27
-    BUT_5 = 19
-    ROT_A = 18
-    ROT_B = 17
-
-
-class TSAL_COLOR(Enum):
-    OFF = -1
-    RED = 0
-    GREEN = 1
-    ORANGE = 2
-    PURPLE = 3
-    WHITE = 4
-    YELLOW = 5
-
-
-class STATE(Enum):
-    """Enum containing the states of the backend's state-machine
-    """
-    CHECK = 0
-    IDLE = 1
-    PRECHARGE = 2
-    READY = 3
-    CHARGE = 4
-    C_DONE = 5
-    BALANCING = 6
-    ERROR = -1
-    EXIT = -2
-
 
 # FSM vars
 canread = CanListener()  # Access it ONLY with the FSM
@@ -107,7 +44,7 @@ balancing_stop_asked = False
 balancing_command = False
 
 # IPC (shared between threads)
-shared_data : CanListener = canread  # Variable that holds a copy of canread, to get the information from web thread
+shared_data: CanListener = canread  # Variable that holds a copy of canread, to get the information from web thread
 rx_can_queue = queue.Queue()  # Queue for incoming can messages
 tx_can_queue = queue.Queue()  # Queue for outgoing can messages
 com_queue = queue.Queue()  # Command queue
@@ -133,26 +70,6 @@ def clrErr():
     canread.bms_err_str = ""
     canread.brusa_err_str_list = []
     canread.can_err = False
-
-
-def GPIO_setup():
-    """
-    This function is used to set-up the GPIO pins
-    """
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PIN.BUT_0.value, GPIO.OUT)
-    GPIO.setup(PIN.BUT_1.value, GPIO.OUT)
-    GPIO.setup(PIN.BUT_2.value, GPIO.OUT)
-    GPIO.setup(PIN.BUT_3.value, GPIO.OUT)
-    GPIO.setup(PIN.BUT_4.value, GPIO.OUT)
-    GPIO.setup(PIN.BUT_5.value, GPIO.OUT)
-    GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
-    GPIO.setup(PIN.ROT_A.value, GPIO.OUT)
-    GPIO.setup(PIN.ROT_B.value, GPIO.OUT)
-    GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
-    GPIO.setup(PIN.GREEN_LED.value, GPIO.OUT)
-    GPIO.setup(PIN.BLUE_LED.value, GPIO.OUT)
-    GPIO.setup(PIN.RED_LED.value, GPIO.OUT)
 
 
 def canSend(bus, msg_id, data):
@@ -497,45 +414,6 @@ def balancing_disabled_check():
         tx_can_queue.put(message)
 
 
-def resetGPIOs():
-    GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
-    GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
-    GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
-    GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-    GPIO.output(PIN.RED_LED.value, GPIO.LOW)
-
-
-def setLedColor(color):
-    if color == TSAL_COLOR.OFF:
-        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
-    if color == TSAL_COLOR.RED:  # TSON
-        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
-    elif color == TSAL_COLOR.ORANGE:  # ERROR
-        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
-    elif color == TSAL_COLOR.PURPLE:  # TSON and CHARGING
-        GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
-    elif color == TSAL_COLOR.GREEN:  # TS OFF
-        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-        GPIO.output(PIN.RED_LED.value, GPIO.LOW)
-    elif color == TSAL_COLOR.WHITE:
-        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
-    elif color == TSAL_COLOR.YELLOW:
-        GPIO.output(PIN.GREEN_LED.value, GPIO.HIGH)
-        GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
-        GPIO.output(PIN.RED_LED.value, GPIO.HIGH)
-
-
 # Maps state to it's function
 doState = {
     STATE.CHECK: doCheck,
@@ -557,7 +435,7 @@ def thread_1_FSM():
     Pls read the documentation about the state machine
     """
 
-    global shared_data, shutdown_asked, actual_fsm_state
+    global shared_data, shutdown_asked
 
     act_stat = STATE.CHECK
     canread.FSM_entered_stat = datetime.now().isoformat()
@@ -605,98 +483,9 @@ def thread_1_FSM():
             print("STATE: " + str(next_stat))
 
         act_stat = next_stat
-        actual_fsm_state = next_stat
 
         with lock:
             shared_data = canread
-
-def thread_led():
-    global shared_data
-
-    actual_state = STATE.IDLE
-    blinking = False
-    is_tsal_on = False
-    tsal_actual_color = TSAL_COLOR.OFF
-
-    while 1:
-        time.sleep(.1)
-        # if actual_state != shared_data.FSM_stat:
-        actual_state = shared_data.FSM_stat
-        if shared_data.FSM_stat == STATE.CHECK:
-            blinking = False
-            setLedColor(TSAL_COLOR.WHITE)
-            tsal_actual_color = TSAL_COLOR.WHITE
-        elif shared_data.FSM_stat == STATE.IDLE:
-            blinking = False
-            setLedColor(TSAL_COLOR.GREEN)
-            tsal_actual_color = TSAL_COLOR.GREEN
-        elif shared_data.FSM_stat == STATE.PRECHARGE or \
-                shared_data.FSM_stat == STATE.READY:
-            blinking = True
-            setLedColor(TSAL_COLOR.RED)
-            tsal_actual_color = TSAL_COLOR.RED
-        elif shared_data.FSM_stat == STATE.CHARGE:
-            blinking = True
-            setLedColor(TSAL_COLOR.PURPLE)
-            tsal_actual_color = TSAL_COLOR.PURPLE
-        elif shared_data.FSM_stat == STATE.C_DONE:
-            blinking = True
-            setLedColor(TSAL_COLOR.RED)
-            tsal_actual_color = TSAL_COLOR.RED
-        elif shared_data.FSM_stat == STATE.ERROR:
-            blinking = False
-            setLedColor(TSAL_COLOR.ORANGE)
-            tsal_actual_color = TSAL_COLOR.ORANGE
-
-        if blinking:
-            if is_tsal_on:
-                setLedColor(TSAL_COLOR.OFF)
-                is_tsal_on = False
-            else:
-                setLedColor(tsal_actual_color)
-                is_tsal_on = True
-
-
-def thread_fans():
-    global shared_data
-    while 1:
-        time.sleep(.1)
-        with lock:
-            if actual_fsm_state == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
-                if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.OFF,
-                                                               fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                      data=data.serialize(),
-                                      is_extended_id=False)
-                    tx_can_queue.put(msg)
-                return
-
-            if (shared_data.bms_hv.fans_override_status !=
-                    shared_data.bms_hv.fans_set_override_status):
-                # Ask to override or disable override
-                set_status = Toggle.OFF
-                if shared_data.bms_hv.fans_set_override_status:
-                    set_status = Toggle.ON
-                data = message_HV_FANS_OVERRIDE_conversion(fans_override=set_status,
-                                                           fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                  data=data.serialize(),
-                                  is_extended_id=False)
-                tx_can_queue.put(msg)
-
-            if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
-                if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(fans_override=Toggle.ON,
-                                                               fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                      data=data.serialize(),
-                                      is_extended_id=False)
-                    tx_can_queue.put(msg)
-
-
-# Usare le code tra FSM e CAN per invio e ricezione
-# Processare i messaggi nella FSM e inoltrarli gia a posto
 
 if __name__ == "__main__":
     GPIO_setup()
@@ -707,7 +496,7 @@ if __name__ == "__main__":
     t1 = threading.Thread(target=thread_1_FSM, args=())
     t2 = threading.Thread(target=thread_2_CAN, args=())
     t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
-    t4 = threading.Thread(target=thread_led, args=())
+    t4 = threading.Thread(target=thread_led, args=(shared_data, lock))
     t5 = threading.Thread(target=thread_fans, args=())
 
     t1.start()
@@ -716,4 +505,6 @@ if __name__ == "__main__":
     if ENABLE_LED:
         setLedColor(TSAL_COLOR.OFF)
         t4.start()
-    t5.start()
+    if ENABLE_FAN_CONTROL:
+        print("Warning, starting without fan control")
+        t5.start()

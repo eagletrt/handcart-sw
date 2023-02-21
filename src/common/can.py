@@ -2,12 +2,10 @@ import queue
 from datetime import time
 
 import can
-from ..can_eagle.lib.primary.python.ids import *
 from can import Listener
 
 from src.can_eagle.lib.primary.python.ids import *
 from src.common.accumulator import BMS_HV, ACCUMULATOR
-from src.common.brusa import *
 from src.common.brusa.brusa import BRUSA, CAN_BRUSA_MSG_ID
 from src.common.settings import *
 from ..can_eagle.lib.primary.python.network import message_HANDCART_STATUS
@@ -94,9 +92,10 @@ def canInit(listener):
         canread.can_err = True
         return False
 
-def thread_2_CAN(shared_data : CanListener,
-                 rx_can_queue : queue,
-                 tx_can_queue : queue,
+
+def thread_2_CAN(shared_data: CanListener,
+                 rx_can_queue: queue,
+                 tx_can_queue: queue,
                  forward_lock,
                  lock):
     """

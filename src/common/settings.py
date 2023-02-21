@@ -1,3 +1,5 @@
+from enum import Enum
+
 import cantools
 from RPi import GPIO
 
@@ -13,13 +15,11 @@ MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
 DEFAULT_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
 
 DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
-MAX_TARGET_V_ACC = 455 # Maximum voltage to charge the accumulator to
+MAX_TARGET_V_ACC = 455  # Maximum voltage to charge the accumulator to
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 CAN_ID_BMS_HV_CHIMERA = 0xAA
 CAN_ID_ECU_CHIMERA = 0x55
-
-actual_fsm_state = 0  # Read only
 
 led_blink = False
 
@@ -29,6 +29,24 @@ CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2
-RETRANSMIT_INTERVAL = 0.5 # Time to wait before retransmitting a request message
+RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
+
+ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
+
 
 # BMS_HV_BYPASS = False # Use at your own risk
+
+class PIN(Enum):
+    RED_LED = 12  # 31
+    GREEN_LED = 13  # 33
+    BLUE_LED = 16  # 36
+    SD_RELAY = 20
+    PON_CONTROL = 21
+    BUT_0 = 22
+    BUT_1 = 23
+    BUT_2 = 24
+    BUT_3 = 26
+    BUT_4 = 27
+    BUT_5 = 19
+    ROT_A = 18
+    ROT_B = 17

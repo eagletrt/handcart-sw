@@ -2,7 +2,7 @@ import struct
 from datetime import datetime
 from enum import Enum
 
-from backend.can_eagle.lib.primary.python.network import *
+from src.can_eagle.lib.primary.python.network import *
 from src.common.settings import *
 
 
