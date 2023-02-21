@@ -36,21 +36,21 @@
             let actualChart = "{{c}}";
             // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
             // update lineCharts parameters: chart, series, path, parameter, zoom, the header label's id, the unit of measure of the value
-            if(actualChart == "volt") {
+            if (actualChart == "volt") {
                 createMultilineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt");
             } else {
-                updateLineChartValue(null,"bms-hv/volt/last", "bus_voltage", NZ, "volt");
+                updateLineChartValue(null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
             }
 
             createChargeChart();
 
-            if(actualChart == "ampere") {
+            if (actualChart == "ampere") {
                 createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp");
             } else {
                 updateLineChartValue(null, "bms-hv/ampere/last", "current", NZ, "amp");
             }
 
-            if(actualChart == "temp") {
+            if (actualChart == "temp") {
                 createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp");
             } else {
                 updateLineChartValue(null, "bms-hv/temp/last", "average_temp", NZ, "temp");

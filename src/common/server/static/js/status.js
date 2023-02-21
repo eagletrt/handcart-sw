@@ -7,7 +7,7 @@ async function bmsStatus(path) {
 
     await fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 let state = document.getElementById("bmsState");
 
                 state.innerHTML = "OFFLINE";
@@ -29,7 +29,7 @@ async function bmsStatus(path) {
 
             let car = json["accumulator"];
 
-            if(car == 1) {
+            if (car == 1) {
                 car = "Chimera";
             } else if (car == 2) {
                 car = "Fenice";
@@ -88,7 +88,7 @@ async function bmsEW(path, field, timer) { // function to read the number of err
 
     await fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
             }
@@ -115,7 +115,7 @@ setInterval(function () { // every 2 seconds
 
     fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 throw new Error("Error code " + response.status + ": " + errMsg + " (HANDCART)");
             }
             return response.json();
@@ -282,7 +282,7 @@ async function brusaErrors(timer) {
 
     await fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
@@ -309,7 +309,7 @@ async function brusaWarnings(timer) {
 
     await fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 //deleteTimer(timer);
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)\n" + hintMsg);
             }
@@ -318,9 +318,9 @@ async function brusaWarnings(timer) {
         .then(json => {
             let status = json["status"];
 
-            if(status[IS_WARNING] == 1) {
-                for(let w in WARNINGS) {
-                    if(status[w] == 1) {
+            if (status[IS_WARNING] == 1) {
+                for (let w in WARNINGS) {
+                    if (status[w] == 1) {
                         warnings++;
                     }
                 }
@@ -405,7 +405,7 @@ setInterval(function () { // every 2 seconds
 
     fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 throw new Error("Error code " + response.status + ": " + errMsg + " (can't read settings)");
             }
             return response.json();
@@ -416,36 +416,36 @@ setInterval(function () { // every 2 seconds
             let mfs = document.getElementById("MFspeed");
             let fan = document.getElementById("fan");
 
-            for(let i = 0; i < json.length; i++) {
+            for (let i = 0; i < json.length; i++) {
                 let comType = json[i]["com-type"];
                 let value = json[i]["value"];
-                if(comType == "fan-override-set-status") {
+                if (comType == "fan-override-set-status") {
                     replaceClass(fo, value, "btn-success", "btn-danger");
 
                     let href = window.location;
 
                     let page = href.pathname.substring(1); // to remove the "/" before the page's name
 
-                    if(page == "settings") {
+                    if (page == "settings") {
                         enableDisable(value);
                     }
 
                     updateSessionValue("foState", value);
-                } else if(comType == "fan-status") {    // ON/OFF
+                } else if (comType == "fan-status") {    // ON/OFF
                     toogleClass(fan, value, "fa-spin");
 
                     updateSessionValue("fanOnOff", value);
-                } else if(comType == "cutoff") {
+                } else if (comType == "cutoff") {
                     cov.innerHTML = value;  // in the header
 
                     updateSessionValue("covValue", value);
-                } else if(comType == "fan-override-get-speed") {
+                } else if (comType == "fan-override-get-speed") {
                     mfs.innerHTML = value;
 
                     updateSessionValue("mfsValue", value);
-                } else if(comType == "max-in-current") {
+                } else if (comType == "max-in-current") {
                     updateSessionValue("mcoValue", value);
-                } else if(comType == "max-out-current") {
+                } else if (comType == "max-out-current") {
                     updateSessionValue("micValue", value);
                 }
             }

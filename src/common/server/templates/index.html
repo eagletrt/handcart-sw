@@ -33,7 +33,8 @@
                                     <input type="submit" value="Stop" id="stop" class="btn btn-danger btn-lg">
                                 </form>
 
-                                <input type="submit" value="Precharging" id="cancel" class="btn btn-danger btn-lg" disabled>
+                                <input type="submit" value="Precharging" id="cancel" class="btn btn-danger btn-lg"
+                                       disabled>
 
                                 <form method="POST" id="chargeForm"> <!-- Charge Button Form -->
                                     <input type="hidden" name="com-type" value="charge">
@@ -50,7 +51,8 @@
                                 <form method="POST" id="balancingStopForm"> <!-- Stop Balancing button form -->
                                     <input type="hidden" name="com-type" value="balancing">
                                     <input type="hidden" name="value" value="false">
-                                    <input type="submit" value="Stop balancing" id="stopBalancing" class="btn btn-danger btn-lg">
+                                    <input type="submit" value="Stop balancing" id="stopBalancing"
+                                           class="btn btn-danger btn-lg">
                                 </form>
 
                                 <form method="POST" id="okForm"> <!-- OK Button Form -->
@@ -106,7 +108,7 @@
     </div>
     <script>
         let car = sessionStorage.getItem("car");
-        if(car == "Fenice") {
+        if (car == "Fenice") {
             document.getElementById("hidden").style.display = "block";
         }
 

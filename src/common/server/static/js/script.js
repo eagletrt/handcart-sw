@@ -65,7 +65,7 @@ function formListener(form, path) {
 
         let button = form.elements["submit"];
         console.log(button)
-        if(button != null && button != undefined) {
+        if (button != null && button != undefined) {
             let text = button.value.substring(0, button.value.length - 1);
 
             button.disabled = true;
@@ -80,7 +80,7 @@ function formListener(form, path) {
         let url = "command/" + path;
 
         let v = form.elements["value"].value.toLowerCase();
-        let value = v == "true"? true : v == "false"? false : parseInt(v);
+        let value = v == "true" ? true : v == "false" ? false : parseInt(v);
 
         j = {
             "com-type": form.elements["com-type"].value,
@@ -104,7 +104,7 @@ function clearErrors() {
 }
 
 function updateSessionValue(key, value) {
-    if(sessionStorage.getItem(key) == null || sessionStorage.getItem(key) != value) {
+    if (sessionStorage.getItem(key) == null || sessionStorage.getItem(key) != value) {
         sessionStorage.setItem(key, value);
     }
 }
@@ -120,12 +120,12 @@ function updateSessionValue(key, value) {
 function uploadSessionValue(id, key, value, slider) {
     let item = sessionStorage.getItem(key);
 
-    if(item != null) {
+    if (item != null) {
         value = item;
     }
 
     let element = document.getElementById(id)
-    if(slider != null && slider != undefined && slider) {
+    if (slider != null && slider != undefined && slider) {
         element.value = value;
     } else {
         element.innerHTML = value; // value is passed as a default value
@@ -145,13 +145,13 @@ function uploadSessionValue(id, key, value, slider) {
 */
 
 function replaceClass(element, condition, classTrue, classFalse) {
-    if(condition) {
-        if(element.classList.contains(classFalse)) {
+    if (condition) {
+        if (element.classList.contains(classFalse)) {
             element.classList.remove(classFalse);
             element.classList.add(classTrue);
         }
     } else {
-        if(element.classList.contains(classTrue)) {
+        if (element.classList.contains(classTrue)) {
             element.classList.remove(classTrue);
             element.classList.add(classFalse);
         }
@@ -169,12 +169,12 @@ function replaceClass(element, condition, classTrue, classFalse) {
 */
 
 function toogleClass(element, condition, className) {
-    if(condition) {
-        if(!element.classList.contains(className)) {
+    if (condition) {
+        if (!element.classList.contains(className)) {
             element.classList.add(className);
         }
     } else {
-        if(element.classList.contains(className)) {
+        if (element.classList.contains(className)) {
             element.classList.remove(className);
         }
     }
@@ -182,29 +182,30 @@ function toogleClass(element, condition, className) {
 
 // this function update the header's value when the page is loaded, reading data from session attributes
 function updateHeader() {
-    for(let key in states) {
+    for (let key in states) {
         let value = "0";
-        if(key == "timeText") {
+        if (key == "timeText") {
             value = "00:00";
         }
-        if(key == "fan") {
+        if (key == "fan") {
             let fan = document.getElementById(key);
             let value = sessionStorage.getItem(states[key]);
-            value = value == "true"? true : false;
+            value = value == "true" ? true : false;
 
             toogleClass(fan, value, "fa-spin");
-        } else if(key == "fo") {
+        } else if (key == "fo") {
             let fo = document.getElementById(key);
             let foState = sessionStorage.getItem(states[key]);
 
             foState = foState == "true" ? true : false;
-            
+
             replaceClass(fo, foState, "btn-success", "btn-danger");
         } else {
             uploadSessionValue(key, states[key], value);
         }
     }
 }
+
 //-SETTINGS-FUNCTIONS-----------------------------------------------------------
 /*
     sliderName: the id of the slider
@@ -232,8 +233,8 @@ function changeValue(sliderName, label) {
 function enableDisable(enabled) {
     let enableButton = document.getElementById("enable");
     let disableButton = document.getElementById("disable");
-                 
-    if(enabled) {                               // if isn't enabled
+
+    if (enabled) {                               // if isn't enabled
         enableButton.style.display = "none";    // hide the enable button
         disableButton.style.display = "inline"; // and show the disable button
     } else {                                    // if has been enabled
@@ -241,6 +242,7 @@ function enableDisable(enabled) {
         disableButton.style.display = "none";   // and hide the disabled button
     }
 }
+
 //-END-SETTINGS-FUNCTIONS-------------------------------------------------------
 //-TIME-FUNCTIONS---------------------------------------------------------------
 
@@ -307,9 +309,9 @@ var timeAndDateHandling = {
     }
 }
 
-Number.prototype.padLeft = function(base,chr) {
-    var  len = (String(base || 10).length - String(this).length)+1;
-    return len > 0? new Array(len).join(chr || '0')+this : this;
+Number.prototype.padLeft = function (base, chr) {
+    var len = (String(base || 10).length - String(this).length) + 1;
+    return len > 0 ? new Array(len).join(chr || '0') + this : this;
 }
 // usage
 //=> 3..padLeft() => '03'
@@ -317,7 +319,8 @@ Number.prototype.padLeft = function(base,chr) {
 
 function getDateFormat(date) {
     let timestamp = [(date.getMonth() + 1).padLeft(), date.getDate().padLeft(), date.getFullYear()].join("/") + " " +
-                    [date.getHours().padLeft(), date.getMinutes().padLeft(), date.getSeconds().padLeft()].join(":");
+        [date.getHours().padLeft(), date.getMinutes().padLeft(), date.getSeconds().padLeft()].join(":");
     return timestamp;
 }
+
 //-END-TIME-FUNCTIONS-----------------------------------------------------------

@@ -21,17 +21,17 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
 
         var x = 0;
 
-        while(!exit) {
+        while (!exit) {
             path = basicPath + "?from=" + from + "&to=" + (from + step);
             //console.log(url + path)
             request = getRequest(url, path);
 
             x++;
             //console.log("request number " + x + ": from " + from + " to " + (from+step));
-            
+
             await fetch(request)
                 .then(response => {
-                    if(!response.ok) {
+                    if (!response.ok) {
                         exit = true;
                         document.getElementById(name + "Chart").innerHTML = errMsg;
                         throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)");
@@ -42,16 +42,16 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
                     let jdata = json["data"];
                     let n = jdata.length;
 
-                    if(zoom == NZ) {
-                        for(let i = 0; i < n; i++) {
+                    if (zoom == NZ) {
+                        for (let i = 0; i < n; i++) {
                             let element = {};
-                            for(let key in jdata[i]) {
+                            for (let key in jdata[i]) {
                                 let d = jdata[i][key];
-                                if(key != "timestamp") {
-                                    if(i == 0 && firstItem) {
+                                if (key != "timestamp") {
+                                    if (i == 0 && firstItem) {
                                         keys.push(key);
-                                    } else if(key == param) {
-                                        if(previousValue <= d) {
+                                    } else if (key == param) {
+                                        if (previousValue <= d) {
                                             data[from + i - 1].color = am4core.color("green");
                                         } else {
                                             data[from + i - 1].color = am4core.color("red");
@@ -65,8 +65,8 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
                             }
                             data.push(element);
                         }
-                        
-                        if(json["remaining"] == 0) {
+
+                        if (json["remaining"] == 0) {
                             exit = true;
                         } else {
                             from += step;
@@ -75,14 +75,14 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
                         exit = true;
                     }
 
-                    if(data.length == 0) {
+                    if (data.length == 0) {
                         for (let i = 0; i <= 30; i++) {
                             let element = {};
-                            for(let key in jdata[i]) {
-                                if(key != "timestamp") {
-                                    if(i == 0) {
+                            for (let key in jdata[i]) {
+                                if (key != "timestamp") {
+                                    if (i == 0) {
                                         keys.push(key);
-                                    } else if(key == param) {
+                                    } else if (key == param) {
                                         element.color = am4core.color("green");
                                     }
                                     element[key] = 0;
@@ -95,7 +95,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
                     }
                     firstItem = false;
                 })
-            .catch(error => console.log('Authorization failed : ' + error.message))
+                .catch(error => console.log('Authorization failed : ' + error.message))
         }
 
         chart.data = data;
@@ -118,7 +118,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             dateAxis.zoom({start: 1 / zoom, end: 1.1}, false, true);
         });
 
-        for(let key in keys) {
+        for (let key in keys) {
             let k = keys[key];
 
             let valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
@@ -146,7 +146,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             series.fillOpacity = 0.25;
             let tooltipName = k.split("_");
             let str = ""
-            for(let i in tooltipName) {
+            for (let i in tooltipName) {
                 str += tooltipName[i] + " ";
             }
             series.tooltipText = str[0].toUpperCase() + str.substring(1) + ": {valueY}\nChange: {valueY.previousChange}";
@@ -154,7 +154,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             series.tooltip.background.fill = "rgba(255, 0, 0, 0.5)";
             series.interpolationDuration = 500;
             series.defaultState.transitionDuration = 0;
-            if(k == param) {
+            if (k == param) {
                 series.propertyFields.stroke = "color";
             } else {
                 valueAxis.renderer.opposite = true;
@@ -165,13 +165,13 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
             }
 
             let lastPath = basicPath + "/last";  // must be called to update headers values
-            if(zoom != NZ) {
-                if(basicPath.includes("?")) {       // check if there are parameters
+            if (zoom != NZ) {
+                if (basicPath.includes("?")) {       // check if there are parameters
                     let matches = path.match(/(.*)(\?.*)/); // create a new string to ask latest data
                     lastPath = matches[1] + "/last" + matches[2];
                 }
 
-                if(keys[key] == param) {
+                if (keys[key] == param) {
                     valueAxis.title.text = nameChart + " (" + u + ")";
                 }
 
@@ -203,7 +203,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
         dateAxis.start = 0;
         dateAxis.keepSelection = true;
 
-        if(zoom != NZ) {
+        if (zoom != NZ) {
             // this makes date axis labels to fade out
             dateAxis.renderer.labels.template.adapter.add("fillOpacity", function (fillOpacity, target) {
                 var dataItem = target.dataItem;
@@ -227,7 +227,7 @@ function createMultilineChart(basicPath, name, param, zoom, label, u) {
         // this makes date axis labels which are at equal minutes to be rotated
         dateAxis.renderer.labels.template.adapter.add("rotation", function (rotation, target) {
             let dataItem = target.dataItem;
-            if(dataItem.date && dataItem.date.getTime() == am4core.time.round(new Date(dataItem.date.getTime()), "minute").getTime()) {
+            if (dataItem.date && dataItem.date.getTime() == am4core.time.round(new Date(dataItem.date.getTime()), "minute").getTime()) {
                 target.verticalCenter = "middle";
                 target.horizontalCenter = "left";
                 return -90;

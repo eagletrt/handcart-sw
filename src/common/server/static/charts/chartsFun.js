@@ -5,7 +5,7 @@ function updateLineChartValue(chart, path, param, zoom, label) {
 
         fetch(request)
             .then(response => {
-                if(!response.ok) {
+                if (!response.ok) {
                     //deleteTimer(path);
                     throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
@@ -15,7 +15,7 @@ function updateLineChartValue(chart, path, param, zoom, label) {
                 let timestamp = json["timestamp"];
                 let d = json[param];
 
-                if(zoom != NZ) {
+                if (zoom != NZ) {
                     let prevItem = chart.data[chart.data.length - 1];
 
                     let element = {
@@ -36,7 +36,7 @@ function updateLineChartValue(chart, path, param, zoom, label) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = d == undefined? 0 : d;
+                    lbl.innerHTML = d == undefined ? 0 : d;
                     updateSessionValue(param, d);
                 }
             })
@@ -56,7 +56,7 @@ function updateMultilineChartValue(chart, path, param, zoom, label) {
 
         fetch(request)
             .then(response => {
-                if(!response.ok) {
+                if (!response.ok) {
                     //deleteTimer(path);
                     throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)\n" + hintMsg);
                 }
@@ -67,14 +67,14 @@ function updateMultilineChartValue(chart, path, param, zoom, label) {
                 let prevItem = chart.data[chart.data.length - 1][param];
                 let mainData;
 
-                for(let key in json) {
-                    if(key != "pack_voltage") {
+                for (let key in json) {
+                    if (key != "pack_voltage") {
                         let d = json[key];
-                        if(key != "timestamp") {
+                        if (key != "timestamp") {
                             element[key] = d;
-                            if(key == param) {
+                            if (key == param) {
                                 mainData = d;
-                                if(element[key] >= prevItem[key]) {
+                                if (element[key] >= prevItem[key]) {
                                     prevItem.color = am4core.color("green");
                                 } else {
                                     prevItem.color = am4core.color("red");
@@ -92,7 +92,7 @@ function updateMultilineChartValue(chart, path, param, zoom, label) {
                 let lbl = document.getElementById(label);
 
                 if (lbl != null) {
-                    lbl.innerHTML = mainData == undefined? 0 : mainData;
+                    lbl.innerHTML = mainData == undefined ? 0 : mainData;
                     updateSessionValue(param, mainData);
                 }
             })
@@ -105,6 +105,7 @@ function updateMultilineChartValue(chart, path, param, zoom, label) {
     }
     timer.push(element);
 }
+
 //-END-AMPERE-CHART-and-TEMP-CHART-and-VOLT-CHART-------------------------------
 //-CELL-CHART-------------------------------------------------------------------
 function setColor(chart, series, max) {
@@ -154,6 +155,7 @@ function updateCellValue(chart, series) {
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 }
+
 //-END-CELL-CHART---------------------------------------------------------------
 //-HEAT-CHART-------------------------------------------------------------------
 function setHeatColor(value) {
@@ -212,7 +214,7 @@ function updateHeatValue(chart, ncols) {
                     let y = item.y;
 
                     let i = (x * ncols) + y;
-                    
+
                     let cells = json["cells"];
 
                     console.log("Cell temp at index " + i + ": ")
@@ -230,6 +232,7 @@ function updateHeatValue(chart, ncols) {
             .catch(error => console.log('Authorization failed : ' + error.message))
     }, 2000);
 }
+
 //-END-HEAT-CHART---------------------------------------------------------------
 //-CHART-PAGE-------------------------------------------------------------------
 function getCell(c) {
@@ -309,4 +312,5 @@ function reset(id) {
         alert("You shouldn't see the button...\nReport it!")
     }
 }
+
 //-END-CHART-PAGE---------------------------------------------------------------

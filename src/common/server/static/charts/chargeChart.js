@@ -80,7 +80,7 @@ function createChargeChart() {
             let minCOVolt = 330;
             let coVolt = parseInt(document.getElementById("COvolt").innerHTML);
 
-            let value = Math.max(0, (100 * (volt-minCOVolt) / (coVolt-minCOVolt)));
+            let value = Math.max(0, (100 * (volt - minCOVolt) / (coVolt - minCOVolt)));
             value = Math.min(value, 100); // should never happen, but it's just a check
 
             let roundedValue = Math.round(value);

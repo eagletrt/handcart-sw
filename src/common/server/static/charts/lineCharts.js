@@ -19,17 +19,17 @@ async function createLineChart(basicPath, name, param, zoom, label, u) {
 
         var x = 0;
 
-        while(!exit) {
+        while (!exit) {
             path = basicPath + "?from=" + from + "&to=" + (from + step);
             //console.log(url + path)
             request = getRequest(url, path);
 
             x++;
             //console.log("request number " + x + ": from " + from + " to " + (from+step));
-            
+
             await fetch(request)
                 .then(response => {
-                    if(!response.ok) {
+                    if (!response.ok) {
                         exit = true;
                         document.getElementById(name + "Chart").innerHTML = errMsg;
                         throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)");
@@ -40,14 +40,14 @@ async function createLineChart(basicPath, name, param, zoom, label, u) {
                     let jdata = json["data"];
                     let n = jdata.length;
 
-                    if(zoom == NZ) {
-                        for(let i = 0; i < n; i++) {
+                    if (zoom == NZ) {
+                        for (let i = 0; i < n; i++) {
                             let d = jdata[i][param];
                             let timestamp = new Date(jdata[i]["timestamp"]);
 
-                            if(i > 0) {
+                            if (i > 0) {
                                 // add color to previous data item depending on whether current value is less or more than previous value
-                                if(previousValue <= d) {
+                                if (previousValue <= d) {
                                     data[i - 1].color = am4core.color("green");
                                 } else {
                                     data[i - 1].color = am4core.color("red");
@@ -64,14 +64,14 @@ async function createLineChart(basicPath, name, param, zoom, label, u) {
                         }
                     }
 
-                    if(json["remaining"] == 0 || zoom != NZ) {
+                    if (json["remaining"] == 0 || zoom != NZ) {
                         exit = true;
                     } else {
                         from += step;
                     }
 
-                    if(data.length == 0) {
-                        for(let i = 0; i <= 10; i++) {
+                    if (data.length == 0) {
+                        for (let i = 0; i <= 10; i++) {
                             let element = {
                                 date: new Date().setSeconds(i - 30),
                                 value: 0
@@ -154,7 +154,7 @@ async function createLineChart(basicPath, name, param, zoom, label, u) {
         dateAxis.keepSelection = true;
 
         let lastPath = basicPath + "/last";  // must be called to update headers values
-        if(zoom != NZ) {
+        if (zoom != NZ) {
             chart.zoomOutButton.disabled = true;
 
             if (basicPath.includes("?")) { // check if there are parameters

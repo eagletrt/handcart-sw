@@ -2,7 +2,7 @@ var href = window.location;
 
 var page = href.pathname.substring(1); // to remove the "/" before the page's name
 
-switch(page) {
+switch (page) {
     case "":
     default:
         document.getElementById("home").classList.add("active");

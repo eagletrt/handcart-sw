@@ -18,7 +18,7 @@ function createInfoTable(container) {
 
         fetch(request)
             .then(response => {
-                if(!response.ok) {
+                if (!response.ok) {
                     container.innerHTML = errMsg;
                     throw new Error("Error code " + response.status + ": " + errMsg + " (BRUSA)");
                 }
@@ -28,14 +28,14 @@ function createInfoTable(container) {
                 let id = "info-table";
                 let table = document.getElementById(id);                // try to get the table
 
-                if(table == null) {                                     // if the table doesn't exists
+                if (table == null) {                                     // if the table doesn't exists
                     table = document.createElement("table");    // create a table
                     table.setAttribute("id", id);           // set its id as the "searched" id
                     table.className += "table table-striped";           // set the classes
 
                     let tbody = table.createTBody();
-                    for(let k in json) {                                    // for every key in the json
-                        if(k != "timestamp") {
+                    for (let k in json) {                                    // for every key in the json
+                        if (k != "timestamp") {
                             let tr = tbody.insertRow(-1);
                             let td = document.createElement("td");
                             td.innerHTML = "<b>" + bInfo[k] + "</b>";       // print the key name in first column
@@ -48,8 +48,8 @@ function createInfoTable(container) {
                         }
                     }
                 } else {                                            // if the table exists (already created)
-                    for(let k in json) {
-                        if(k != "timestamp") {
+                    for (let k in json) {
+                        if (k != "timestamp") {
                             let td = document.getElementById(k);
                             td.innerHTML = json[k];                 // refresh the values with new ones
                         }
@@ -132,7 +132,7 @@ function errorTable(path, id, msg) {
 
     fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 container.innerHTML = errMsg;
                 throw new Error("Error code " + response.status + ": " + errMsg);
             }
@@ -166,7 +166,7 @@ function bmsWarningTable(path, container, msg) {
 
     fetch(request)
         .then(response => {
-            if(!response.ok) {
+            if (!response.ok) {
                 container.innerHTML = errMsg;
                 throw new Error("Error code " + response.status + ": " + errMsg + " (BMS-HV)");
             }
@@ -201,9 +201,9 @@ function brusaWarningTable(path, container, msg) {
         .then(json => {
             let status = json["status"];
             let warnings = [];
-            if(status[IS_WARNING] == 1) {
-                for(let w in WARNINGS) {
-                    if(status[w] == 1) {
+            if (status[IS_WARNING] == 1) {
+                for (let w in WARNINGS) {
+                    if (status[w] == 1) {
                         warnings.push(status[w]);
                     }
                 }
