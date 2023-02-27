@@ -141,16 +141,16 @@ class FSM(threading.Thread):
                     print("cutoff command exceeds limits")
 
             if act_com['com-type'] == "precharge" and act_com['value'] is True:
-                precharge_command = True
+                self.precharge_command = True
 
             if act_com['com-type'] == "charge" and act_com['value'] is True:
-                start_charge_command = True
+                self.start_charge_command = True
 
             if act_com['com-type'] == "charge" and act_com['value'] is False:
                 self.stop_charge_command = True
 
             if act_com['com-type'] == "shutdown" and act_com['value'] is True:
-                shutdown_asked = True
+                self.shutdown_asked = True
 
             if act_com['com-type'] == "balancing":
                 if act_com['value'] is False:
@@ -167,7 +167,7 @@ class FSM(threading.Thread):
             if act_com['com-type'] == "fan-override-set-speed":
                 if act_com['value'] != "":
                     speed = int(act_com['value'])
-                    if (speed >= 0 and speed <= 100):
+                    if 0 <= speed <= 100:
                         self.canread.bms_hv.fans_set_override_speed = int(speed) / 100
 
             if act_com['com-type'] == 'max-out-current':
@@ -209,7 +209,7 @@ class FSM(threading.Thread):
         self.accumulator_sd()
 
         if self.precharge_command:
-            precharge_command = False
+            self.precharge_command = False
             return STATE.PRECHARGE
 
         if self.balancing_command:
@@ -272,7 +272,7 @@ class FSM(threading.Thread):
         self.precharge_asked = False
 
         if self.start_charge_command:
-            start_charge_command = False
+            self.start_charge_command = False
             return STATE.CHARGE
         else:
             return STATE.READY
@@ -288,16 +288,16 @@ class FSM(threading.Thread):
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
         with self.forward_lock:
-            can_forward_enabled = True
+            self.can_forward_enabled = True
 
             if self.stop_charge_command:
-                can_forward_enabled = False
+                self.can_forward_enabled = False
                 self.stop_charge_command = False
                 return STATE.READY
             try:
                 if self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
                         and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
-                    can_forward_enabled = False
+                    self.can_forward_enabled = False
                     return STATE.C_DONE
             except KeyError:
                 print("Error in reading can message from brusa")
@@ -339,7 +339,7 @@ class FSM(threading.Thread):
         """
 
         with self.forward_lock:
-            can_forward_enabled = False
+            self.can_forward_enabled = False
 
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
@@ -425,9 +425,9 @@ class FSM(threading.Thread):
             else:
                 next_stat = self.doState.get(act_stat)()
 
-            if shutdown_asked:
+            if self.shutdown_asked:
                 next_stat = STATE.IDLE
-                shutdown_asked = False
+                self.shutdown_asked = False
 
             if next_stat == STATE.EXIT:
                 print("Exiting")

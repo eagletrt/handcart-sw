@@ -1,15 +1,17 @@
 import queue
+import threading
 from datetime import time
 
 import can
 from can import Listener
 
 from src.can_eagle.lib.primary.python.ids import *
-from src.common.accumulator import BMS_HV, ACCUMULATOR
+from src.common.accumulator.bms import BMS_HV, ACCUMULATOR
 from src.common.brusa.brusa import BRUSA, CAN_BRUSA_MSG_ID
 from src.common.settings import *
+from .fsm import STATE
+from .logging import log_error
 from ..can_eagle.lib.primary.python.network import message_HANDCART_STATUS
-from ..main import STATE
 
 
 class CanListener:
@@ -67,7 +69,7 @@ class CanListener:
             self.doMsg.get(msg.arbitration_id)(msg)
 
 
-def canSend(bus, msg_id, data):
+def canSend(bus, msg_id, data, lock : threading.Lock, shared_data):
     """
     Function to send a CAN message
     :param bus: the canbus object
@@ -102,23 +104,24 @@ def canInit(listener):
         return canbus
     except ValueError:
         print("Can channel not recognized")
-        canread.can_err = True
+        #canread.can_err = True
         return False
     except can.CanError:
         # print("Can Error")
-        canread.can_err = True
+        #canread.can_err = True
         return False
     except NotImplementedError:
         print("Can interface not recognized")
-        canread.can_err = True
+        #canread.can_err = True
         return False
 
 
 def thread_2_CAN(shared_data: CanListener,
                  rx_can_queue: queue,
                  tx_can_queue: queue,
-                 forward_lock,
-                 lock):
+                 can_forward_enabled: bool,
+                 forward_lock: threading.Lock,
+                 lock: threading.Lock):
     """
     Thread managing the can connection, getting and sending messages
     """
@@ -139,6 +142,11 @@ def thread_2_CAN(shared_data: CanListener,
 
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
+
+    with lock:
+        if canbus == False:
+            shared_data.can_err = True
+
     last_brusa_ctl_sent = 0
     last_hc_presence_sent = 0
 

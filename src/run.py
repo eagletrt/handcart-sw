@@ -20,8 +20,6 @@ from src.common.rasp import GPIO_setup, resetGPIOs
 from src.common.server.server import thread_3_WEB
 from src.common.settings import *
 
-# FSM vars
-
 
 # IPC (shared between threads)
 shared_data: CanListener = CanListener()  # Variable that holds a copy of canread, to get the information from web thread
@@ -55,7 +53,13 @@ if __name__ == "__main__":
         shared_data,
         forward_lock
     )
-    t2 = threading.Thread(target=thread_2_CAN, args=())
+    t2 = threading.Thread(target=thread_2_CAN,
+                          args=(shared_data,
+                                rx_can_queue,
+                                tx_can_queue,
+                                can_forward_enabled,
+                                forward_lock,
+                                lock))
     t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
     t4 = threading.Thread(target=thread_led, args=(shared_data, lock))
     t5 = threading.Thread(target=thread_fans, args=())
