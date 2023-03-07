@@ -12,10 +12,11 @@ import queue
 import threading
 
 # from backend.common.methods.logging import log_error
-import common.accumulator.fans as fans
-from common.handcart_can import CanListener, thread_2_CAN
-from common.fsm import FSM
 from common.leds import TSAL_COLOR, setLedColor, thread_led
+from common.fsm import FSM
+from common.handcart_can import CanListener, thread_2_CAN
+import common.accumulator.fans as fans
+
 from common.rasp import GPIO_setup, resetGPIOs
 from common.server.server import thread_3_WEB
 from common.settings import *

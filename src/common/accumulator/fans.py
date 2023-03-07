@@ -6,11 +6,11 @@ import can
 
 from can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
 from can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion, Toggle
-from common.can import CanListener
-from common.fsm import STATE
+import common.handcart_can
+from ..settings import STATE
 
 
-def thread_fans(shared_data: CanListener,
+def thread_fans(shared_data: common.handcart_can.CanListener,
                 tx_can_queue: queue,
                 lock: threading.Lock):
     while 1:

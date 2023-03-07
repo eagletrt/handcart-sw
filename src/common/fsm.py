@@ -8,23 +8,9 @@ import can
 from can_eagle.lib.primary.python.ids import primary_ID_SET_TS_STATUS_HANDCART, primary_ID_SET_CELL_BALANCING_STATUS
 from can_eagle.lib.primary.python.network import TsStatus, message_SET_TS_STATUS, Toggle, \
     message_SET_CELL_BALANCING_STATUS
-from accumulator.bms import CAN_REQ_CHIMERA, ACCUMULATOR
-from can import CanListener
-from settings import *
-
-
-class STATE(Enum):
-    """Enum containing the states of the backend's state-machine
-    """
-    CHECK = 0
-    IDLE = 1
-    PRECHARGE = 2
-    READY = 3
-    CHARGE = 4
-    C_DONE = 5
-    BALANCING = 6
-    ERROR = -1
-    EXIT = -2
+from common.handcart_can import CanListener
+from common.settings import *
+import common.accumulator.bms as bms
 
 
 class FSM(threading.Thread):
@@ -78,10 +64,10 @@ class FSM(threading.Thread):
     def accumulator_sd(self):  # accumulator shutdown
         if self.canread.bms_hv.status == TsStatus.ON:
             message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
-                                  data=[CAN_REQ_CHIMERA.REQ_TS_OFF.value])
+                                  data=[bms.CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             self.tx_can_queue.put(message)
 
-            if self.canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
                 tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
                 message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
                                       data=tmp.serialize(),
@@ -226,14 +212,14 @@ class FSM(threading.Thread):
         # Send req to bms "TS_ON"
 
         if self.canread.bms_hv.status == TsStatus.OFF and not self.precharge_asked:
-            if self.canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
                 data = message_SET_TS_STATUS(ts_status_set=Toggle.ON)
                 ts_on_msg = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
                                         data=data.serialize(),
                                         is_extended_id=False)
             else:
                 ts_on_msg = can.Message(arbitration_id=0x55,
-                                        data=[CAN_REQ_CHIMERA.REQ_TS_ON.value, 0x01, 0x00, 0x00],
+                                        data=[bms.CAN_REQ_CHIMERA.REQ_TS_ON.value, 0x01, 0x00, 0x00],
                                         is_extended_id=False)
 
             self.tx_can_queue.put(ts_on_msg)
@@ -249,7 +235,7 @@ class FSM(threading.Thread):
         if self.precharge_done:
             return STATE.READY
         else:
-            if self.canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE and \
+            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE and \
                     time.time() - self.precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
                 if self.precharge_asked and self.canread.bms_hv.status == TsStatus.PRECHARGE:
                     return STATE.PRECHARGE
@@ -320,7 +306,7 @@ class FSM(threading.Thread):
             self.balancing_stop_asked = False
             return STATE.IDLE
 
-        if self.canread.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+        if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
             if not self.canread.bms_hv.is_balancing \
                     and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL:
                 tmp = message_SET_CELL_BALANCING_STATUS(set_balancing_status=Toggle.ON)

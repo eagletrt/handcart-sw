@@ -6,10 +6,10 @@ import can
 from can import Listener
 
 from can_eagle.lib.primary.python.ids import *
-from accumulator.bms import BMS_HV, ACCUMULATOR
-from brusa.brusa import BRUSA, CAN_BRUSA_MSG_ID
-from settings import *
-import fsm
+import common.accumulator.bms as bms
+from common.brusa.brusa import *
+from common.settings import *
+import common.fsm as fsm
 from .logging import log_error
 from can_eagle.lib.primary.python.network import message_HANDCART_STATUS
 
@@ -19,7 +19,7 @@ class CanListener:
     based on the msg ID, processes it, and save on itself the msg info.
     This class also stores all the data recived from the devices
     """
-    FSM_stat = fsm.STATE.IDLE  # The actual state of the FSM (mirror the main variable)
+    FSM_stat = STATE.IDLE  # The actual state of the FSM (mirror the main variable)
     FSM_entered_stat = ""  # The moment in time the FSM has entered that state
 
     generic_error = False
@@ -29,7 +29,7 @@ class CanListener:
     act_set_in_current = DEFAULT_CHARGE_MAINS_AMPERE
 
     brusa = BRUSA()
-    bms_hv = BMS_HV()
+    bms_hv = bms.BMS_HV()
 
     # Maps the incoming can msgs to relative function
     doMsg = {

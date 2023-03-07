@@ -1,6 +1,6 @@
 from RPi import GPIO
 
-from src.common.settings import PIN
+from common.settings import PIN
 
 
 def GPIO_setup():
