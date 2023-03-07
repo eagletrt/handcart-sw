@@ -7,7 +7,7 @@ import pytz
 from flask import render_template, jsonify, request
 
 from can_eagle.lib.primary.python.network import HvErrors
-from common.common.accumulator.bms import ACCUMULATOR
+from common.accumulator.bms import ACCUMULATOR
 
 
 def thread_3_WEB(shared_data, lock, com_queue):

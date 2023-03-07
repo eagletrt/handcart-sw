@@ -5,12 +5,12 @@ from datetime import datetime
 
 import can
 
+import common.accumulator.bms as bms
 from can_eagle.lib.primary.python.ids import primary_ID_SET_TS_STATUS_HANDCART, primary_ID_SET_CELL_BALANCING_STATUS
 from can_eagle.lib.primary.python.network import TsStatus, message_SET_TS_STATUS, Toggle, \
     message_SET_CELL_BALANCING_STATUS
 from common.handcart_can import CanListener
 from common.settings import *
-import common.accumulator.bms as bms
 
 
 class FSM(threading.Thread):

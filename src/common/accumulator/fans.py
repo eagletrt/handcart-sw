@@ -4,9 +4,9 @@ import time
 
 import can
 
+import common.handcart_can
 from can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
 from can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion, Toggle
-import common.handcart_can
 from ..settings import STATE
 
 

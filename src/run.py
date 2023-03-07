@@ -11,16 +11,14 @@ import atexit
 import queue
 import threading
 
-# from backend.common.methods.logging import log_error
-from common.leds import TSAL_COLOR, setLedColor, thread_led
+import common.accumulator.fans as fans
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
-import common.accumulator.fans as fans
-
+# from backend.common.methods.logging import log_error
+from common.leds import TSAL_COLOR, setLedColor, thread_led
 from common.rasp import GPIO_setup, resetGPIOs
 from common.server.server import thread_3_WEB
 from common.settings import *
-
 
 # IPC (shared between threads)
 shared_data: CanListener = CanListener()  # Variable that holds a copy of canread, to get the information from web thread

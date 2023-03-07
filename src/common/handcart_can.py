@@ -5,13 +5,13 @@ import time
 import can
 from can import Listener
 
-from can_eagle.lib.primary.python.ids import *
 import common.accumulator.bms as bms
+from can_eagle.lib.primary.python.ids import *
+from can_eagle.lib.primary.python.network import message_HANDCART_STATUS
 from common.brusa.brusa import *
 from common.settings import *
-import common.fsm as fsm
 from .logging import log_error
-from can_eagle.lib.primary.python.network import message_HANDCART_STATUS
+
 
 class CanListener:
     """
