@@ -62,8 +62,8 @@ if __name__ == "__main__":
                                 forward_lock,
                                 lock))
     t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
-    t4 = threading.Thread(target=thread_led, args=(shared_data, lock))
-    t5 = threading.Thread(target=fans.thread_fans, args=())
+    t4 = threading.Thread(target=thread_led, args=(shared_data,))
+    t5 = threading.Thread(target=fans.thread_fans, args=(shared_data, tx_can_queue, lock))
 
     t1.start()
     t2.start()

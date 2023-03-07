@@ -1,6 +1,6 @@
 import queue
 import threading
-from datetime import time
+import time
 
 import can
 from can import Listener
@@ -154,7 +154,7 @@ def thread_2_CAN(shared_data: CanListener,
         # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
-            canSend(canbus, act.arbitration_id, act.data)
+            canSend(canbus, act.arbitration_id, act.data, lock, shared_data)
 
         # Handles the brusa ctl messages
         with forward_lock:
@@ -200,7 +200,7 @@ def thread_2_CAN(shared_data: CanListener,
                 tx_can_queue.put(NLG5_CTL_message)
                 last_brusa_ctl_sent = time.time()
             if time.time() - last_hc_presence_sent > 0.5:
-                if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
+                if shared_data.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
                     tmp = message_HANDCART_STATUS(connected=True)
                     status_message = can.Message(arbitration_id=primary_ID_HANDCART_STATUS,
                                                  data=tmp.serialize(),

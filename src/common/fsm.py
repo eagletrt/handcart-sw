@@ -397,9 +397,9 @@ class FSM(threading.Thread):
 
             if act_stat != STATE.CHECK:
                 if not self.canread.bms_hv.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
                 if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not self.canread.brusa.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
 
             if act_stat != STATE.BALANCING:
                 # Check that balancing is disabled if not in balancing state
@@ -407,9 +407,9 @@ class FSM(threading.Thread):
 
             # Checks errors
             if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
-                next_stat = self.doState.get(STATE.ERROR)()
+                next_stat = self.doState.get(STATE.ERROR)(self)
             else:
-                next_stat = self.doState.get(act_stat)()
+                next_stat = self.doState.get(act_stat)(self)
 
             if self.shutdown_asked:
                 next_stat = STATE.IDLE
