@@ -12,13 +12,13 @@ import queue
 import threading
 
 # from backend.common.methods.logging import log_error
-from src.common.accumulator.fans import thread_fans
-from src.common.can import CanListener, thread_2_CAN
-from src.common.fsm import FSM
-from src.common.leds import TSAL_COLOR, setLedColor, thread_led
-from src.common.rasp import GPIO_setup, resetGPIOs
-from src.common.server.server import thread_3_WEB
-from src.common.settings import *
+import common.accumulator.fans as fans
+from common.handcart_can import CanListener, thread_2_CAN
+from common.fsm import FSM
+from common.leds import TSAL_COLOR, setLedColor, thread_led
+from common.rasp import GPIO_setup, resetGPIOs
+from common.server.server import thread_3_WEB
+from common.settings import *
 
 
 # IPC (shared between threads)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
                                 lock))
     t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
     t4 = threading.Thread(target=thread_led, args=(shared_data, lock))
-    t5 = threading.Thread(target=thread_fans, args=())
+    t5 = threading.Thread(target=fans.thread_fans, args=())
 
     t1.start()
     t2.start()

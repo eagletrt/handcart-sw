@@ -2,8 +2,10 @@ from enum import Enum
 
 import cantools
 from RPi import GPIO
+from os.path import dirname, realpath, join
 
-brusa_dbc = cantools.database.load_file('NLG5_BRUSA.dbc')
+brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
+brusa_dbc = cantools.database.load_file(brusa_dbc_file)
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
