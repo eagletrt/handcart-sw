@@ -5,12 +5,12 @@ from datetime import datetime
 
 import can
 
-from src.can_eagle.lib.primary.python.ids import primary_ID_SET_TS_STATUS_HANDCART, primary_ID_SET_CELL_BALANCING_STATUS
-from src.can_eagle.lib.primary.python.network import TsStatus, message_SET_TS_STATUS, Toggle, \
+from can_eagle.lib.primary.python.ids import primary_ID_SET_TS_STATUS_HANDCART, primary_ID_SET_CELL_BALANCING_STATUS
+from can_eagle.lib.primary.python.network import TsStatus, message_SET_TS_STATUS, Toggle, \
     message_SET_CELL_BALANCING_STATUS
-from src.common.accumulator.bms import CAN_REQ_CHIMERA, ACCUMULATOR
-from src.common.can import CanListener
-from src.common.settings import *
+from accumulator.bms import CAN_REQ_CHIMERA, ACCUMULATOR
+from can import CanListener
+from settings import *
 
 
 class STATE(Enum):

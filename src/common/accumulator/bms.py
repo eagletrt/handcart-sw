@@ -1,8 +1,8 @@
 import struct
 from datetime import datetime
 
-from src.can_eagle.lib.primary.python.network import *
-from src.common.settings import *
+from can_eagle.lib.primary.python.network import *
+from ..settings import *
 
 
 class ACCUMULATOR(Enum):

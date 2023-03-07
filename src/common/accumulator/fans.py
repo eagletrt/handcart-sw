@@ -4,10 +4,10 @@ import time
 
 import can
 
-from src.can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
-from src.can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion, Toggle
-from src.common.can import CanListener
-from src.common.fsm import STATE
+from can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
+from can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion, Toggle
+from common.can import CanListener
+from common.fsm import STATE
 
 
 def thread_fans(shared_data: CanListener,

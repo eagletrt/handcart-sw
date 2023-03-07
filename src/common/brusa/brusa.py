@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from src.common.settings import brusa_dbc
+from ..settings import brusa_dbc
 
 
 class CAN_BRUSA_MSG_ID(Enum):
