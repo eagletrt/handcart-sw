@@ -34,7 +34,7 @@ BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2
 RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-
+ENABLE_CLI = False  # Set to true to enable USB cli
 
 # BMS_HV_BYPASS = False # Use at your own risk
 

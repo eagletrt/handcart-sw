@@ -4,9 +4,10 @@
 import os
 import re
 import time
+
+import RPi.GPIO as GPIO
 import can
 from can.listener import Listener
-import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.OUT)
@@ -16,8 +17,9 @@ bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-ts_status = False
-BYPASS_TS_CHECK = True  # True
+ts_status = False # Status of the tractive system (only works with chimera acc)
+BYPASS_TS_CHECK = True  # Warning, set to true if you want to avoid any check on the activation of the TS
+                        # note that you should do the precharge to the accumulator manually
 
 nlg5_ctl = can.Message(arbitration_id=0x618, data=[
     0, 0x00, 0x0A, 0x10, 0x68, 0, 0x0A], is_extended_id=False)
@@ -37,11 +39,9 @@ class Can_rx_Listener(Listener):
 l = Can_rx_Listener()
 notif = can.Notifier(bus, [l])
 
-CHG_V = int(443 / 0.1)
-CHG_A = int(9 / 0.1)
-MAX_C_O = int(16 / 0.1)
-# ts_status = False # TS status, true if precharge done False otherwise
-# BYPASS_TS_CHECK = False
+CHG_V = int(443 / 0.1)  # Default battery target charging volts
+CHG_A = int(9 / 0.1)  # Default battery charging current
+MAX_C_O = int(16 / 0.1)  # Max current absorbed by the grid
 
 os.system('clear')
 r_CHG_V = input("Charging voltage (Default=" + str(CHG_V * 0.1) + "): ")

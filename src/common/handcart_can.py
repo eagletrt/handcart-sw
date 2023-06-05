@@ -116,11 +116,12 @@ def canInit(listener):
 
 
 def thread_2_CAN(shared_data: CanListener,
-                 rx_can_queue: queue,
-                 tx_can_queue: queue,
+                 rx_can_queue: queue.Queue,
+                 tx_can_queue: queue.Queue,
                  can_forward_enabled: bool,
                  forward_lock: threading.Lock,
-                 lock: threading.Lock):
+                 lock: threading.Lock,
+                 tele_can_queue: queue.Queue):
     """
     Thread managing the can connection, getting and sending messages
     """
@@ -138,6 +139,7 @@ def thread_2_CAN(shared_data: CanListener,
             :param msg: the incoming message
             """
             rx_can_queue.put(msg)
+            tele_can_queue.put(msg)
 
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
