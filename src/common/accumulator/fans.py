@@ -3,11 +3,10 @@ import threading
 import time
 
 import can
+import cantools.database.can
 
 import common.handcart_can
-from can_eagle.lib.primary.python.ids import primary_ID_HV_FANS_OVERRIDE
-from can_eagle.lib.primary.python.network import message_HV_FANS_OVERRIDE_conversion, Toggle
-from ..settings import STATE
+from settings import *
 
 
 def thread_fans(shared_data: common.handcart_can.CanListener,
@@ -18,11 +17,17 @@ def thread_fans(shared_data: common.handcart_can.CanListener,
         with lock:
             if shared_data.FSM_stat == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(
-                        fans_override=Toggle.OFF,
-                        fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                      data=data.serialize(),
+                    m: cantools.database.can.message = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE")
+
+                    data = m.encode(
+                        {
+                            "fans_override": Toggle.OFF.value,
+                            "fans_speed": shared_data.bms_hv.fans_set_override_speed
+                        }
+                    )
+
+                    msg = can.Message(arbitration_id=m.frame_id,
+                                      data=data,
                                       is_extended_id=False)
                     tx_can_queue.put(msg)
                 return
@@ -33,20 +38,33 @@ def thread_fans(shared_data: common.handcart_can.CanListener,
                 set_status = Toggle.OFF
                 if shared_data.bms_hv.fans_set_override_status:
                     set_status = Toggle.ON
-                data = message_HV_FANS_OVERRIDE_conversion(
-                    fans_override=set_status,
-                    fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                  data=data.serialize(),
+
+                m: cantools.database.can.message = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE")
+
+                data = m.encode(
+                    {
+                        "fans_override": set_status.value,
+                        "fans_speed": shared_data.bms_hv.fans_set_override_speed
+                    }
+                )
+
+                msg = can.Message(arbitration_id=m.frame_id,
+                                  data=data,
                                   is_extended_id=False)
                 tx_can_queue.put(msg)
 
             if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    data = message_HV_FANS_OVERRIDE_conversion(
-                        fans_override=Toggle.ON,
-                        fans_speed=shared_data.bms_hv.fans_set_override_speed).convert_to_raw()
-                    msg = can.Message(arbitration_id=primary_ID_HV_FANS_OVERRIDE,
-                                      data=data.serialize(),
+                    m: cantools.database.can.message = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE")
+
+                    data = m.encode(
+                        {
+                            "fans_override": Toggle.ON.value,
+                            "fans_speed": shared_data.bms_hv.fans_set_override_speed
+                        }
+                    )
+
+                    msg = can.Message(arbitration_id=m.frame_id,
+                                      data=data,
                                       is_extended_id=False)
                     tx_can_queue.put(msg)

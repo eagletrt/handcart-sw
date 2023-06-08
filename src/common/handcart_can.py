@@ -6,10 +6,8 @@ import can
 from can import Listener
 
 import common.accumulator.bms as bms
-from can_eagle.lib.primary.python.ids import *
-from can_eagle.lib.primary.python.network import message_HANDCART_STATUS
 from common.brusa.brusa import *
-from common.settings import *
+from settings import *
 from .logging import log_error
 
 
@@ -48,7 +46,7 @@ class CanListener:
         primary_ID_TS_STATUS: bms_hv.doHV_STATUS,
         primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
-        primary_ID_HV_CELL_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
+        primary_ID_HV_CELL_BALANCING_STATUS: bms_hv.doHV_CELL_BALANCING_STATUS,
         primary_ID_HV_FANS_OVERRIDE_STATUS: bms_hv.doHV_FANS_OVERRIDE_STATUS,
 
         # BMS_HV Chimera
@@ -63,9 +61,14 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        # print(msg.arbitration_id)
+        #print(f"[DEBUG] {msg}")
         if self.doMsg.get(msg.arbitration_id) is not None:
-            self.doMsg.get(msg.arbitration_id)(msg)
+            try:
+                message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+                print(f"[DEBUG] received message: {message}")
+                self.doMsg.get(msg.arbitration_id)(msg)
+            except KeyError:
+                self.can_err = True
 
 
 def canSend(bus, msg_id, data, lock: threading.Lock, shared_data):
@@ -161,7 +164,7 @@ def thread_2_CAN(shared_data: CanListener,
         # Handles the brusa ctl messages
         with forward_lock:
             if time.time() - last_brusa_ctl_sent > 0.15:  # every tot time send a message
-                NLG5_CTL = brusa_dbc.get_message_by_name('NLG5_CTL')
+                NLG5_CTL = dbc_brusa.get_message_by_name('NLG5_CTL')
                 if can_forward_enabled:
                     with lock:
                         if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
@@ -203,9 +206,14 @@ def thread_2_CAN(shared_data: CanListener,
                 last_brusa_ctl_sent = time.time()
             if time.time() - last_hc_presence_sent > 0.5:
                 if shared_data.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                    tmp = message_HANDCART_STATUS(connected=True)
-                    status_message = can.Message(arbitration_id=primary_ID_HANDCART_STATUS,
-                                                 data=tmp.serialize(),
+                    m: cantools.database.can.message = dbc_primary.get_message_by_name('HANDCART_STATUS')
+
+                    data = m.encode({
+                        "connected": Toggle.ON.value
+                    })
+
+                    status_message = can.Message(arbitration_id=m.frame_id,
+                                                 data=data,
                                                  is_extended_id=False)
                     tx_can_queue.put(status_message)
                     last_hc_presence_sent = time.time()

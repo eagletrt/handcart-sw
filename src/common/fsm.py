@@ -6,11 +6,8 @@ from datetime import datetime
 import can
 
 import common.accumulator.bms as bms
-from can_eagle.lib.primary.python.ids import primary_ID_SET_TS_STATUS_HANDCART, primary_ID_SET_CELL_BALANCING_STATUS
-from can_eagle.lib.primary.python.network import TsStatus, message_SET_TS_STATUS, Toggle, \
-    message_SET_CELL_BALANCING_STATUS
 from common.handcart_can import CanListener
-from common.settings import *
+from settings import *
 
 
 class FSM(threading.Thread):
@@ -68,9 +65,15 @@ class FSM(threading.Thread):
             self.tx_can_queue.put(message)
 
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                tmp = message_SET_TS_STATUS(ts_status_set=Toggle.OFF)
-                message = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
-                                      data=tmp.serialize(),
+                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+
+                data = m.encode(
+                    {
+                        "ts_status_set": Toggle.OFF.value,
+                    }
+                )
+                message = can.Message(arbitration_id=m.frame_id,
+                                      data=data,
                                       is_extended_id=False)
             self.tx_can_queue.put(message)
 
@@ -104,9 +107,16 @@ class FSM(threading.Thread):
 
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing:
-            tmp = message_SET_CELL_BALANCING_STATUS(set_balancing_status=Toggle.OFF)
-            message = can.Message(arbitration_id=primary_ID_SET_CELL_BALANCING_STATUS,
-                                  data=tmp.serialize(),
+            m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+
+            data = m.encode(
+                {
+                    "set_balancing_status": Toggle.OFF.value,
+                }
+            )
+
+            message = can.Message(arbitration_id=m.frame_id,
+                                  data=data,
                                   is_extended_id=False)
             self.tx_can_queue.put(message)
 
@@ -213,9 +223,16 @@ class FSM(threading.Thread):
 
         if self.canread.bms_hv.status == TsStatus.OFF and not self.precharge_asked:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                data = message_SET_TS_STATUS(ts_status_set=Toggle.ON)
-                ts_on_msg = can.Message(arbitration_id=primary_ID_SET_TS_STATUS_HANDCART,
-                                        data=data.serialize(),
+                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+
+                data = m.encode(
+                    {
+                        "ts_status_set": Toggle.ON.value,
+                    }
+                )
+
+                ts_on_msg = can.Message(arbitration_id=m.frame_id,
+                                        data=data,
                                         is_extended_id=False)
             else:
                 ts_on_msg = can.Message(arbitration_id=0x55,
@@ -309,9 +326,16 @@ class FSM(threading.Thread):
         if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
             if not self.canread.bms_hv.is_balancing \
                     and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL:
-                tmp = message_SET_CELL_BALANCING_STATUS(set_balancing_status=Toggle.ON)
-                message = can.Message(arbitration_id=primary_ID_SET_CELL_BALANCING_STATUS,
-                                      data=tmp.serialize(),
+                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+
+                data = m.encode(
+                    {
+                        "set_balancing_status": Toggle.ON.value,
+                    }
+                )
+
+                message = can.Message(arbitration_id=m.frame_id,
+                                      data=data,
                                       is_extended_id=False)
                 self.tx_can_queue.put(message)
                 self.balancing_asked_time = time.time()
@@ -397,9 +421,9 @@ class FSM(threading.Thread):
 
             if act_stat != STATE.CHECK:
                 if not self.canread.bms_hv.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)(self)
+                    next_stat = self.doState.get(STATE.CHECK)
                 if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not self.canread.brusa.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)(self)
+                    next_stat = self.doState.get(STATE.CHECK)
 
             if act_stat != STATE.BALANCING:
                 # Check that balancing is disabled if not in balancing state
@@ -407,9 +431,9 @@ class FSM(threading.Thread):
 
             # Checks errors
             if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
-                next_stat = self.doState.get(STATE.ERROR)(self)
+                next_stat = self.doState.get(STATE.ERROR)
             else:
-                next_stat = self.doState.get(act_stat)(self)
+                next_stat = self.doState.get(act_stat)
 
             if self.shutdown_asked:
                 next_stat = STATE.IDLE

@@ -8,7 +8,7 @@ from enum import Enum
 import requests
 
 from common.handcart_can import CanListener
-from common.settings import STATE
+from settings import STATE
 
 
 class Tab(Enum):
@@ -16,14 +16,9 @@ class Tab(Enum):
     ERRORS = 1
 
 class Cli(threading.Thread):
-    TTY = "/dev/tty1"
+    TTY = "/dev/serial0"
     DEFAULT_WIDTH = 80
     DEFAULT_HEIGHT = 24
-    # SERVER_ADDRESS = 'http://127.0.0.1:5000/'
-    SERVER_ADDRESS = 'http://192.168.1.51:8080/'
-    handcart_connected = False
-    brusa_connected = False
-    bms_connected = False
 
     THIRD = int(DEFAULT_WIDTH / 3)
     FIRST_COLUMN_INDEX = 0

@@ -1,11 +1,15 @@
-from enum import Enum
 from os.path import dirname, realpath, join
 
 import cantools
 from RPi import GPIO
+from cantools.database import Database
 
-brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
-brusa_dbc = cantools.database.load_file(brusa_dbc_file)
+brusa_dbc_file = join(dirname(dirname(realpath(__file__))), "NLG5_BRUSA.dbc")
+BMS_DBC_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "bms", "bms.dbc")
+DBC_PRIMARY_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "primary", "primary.dbc")
+dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
+dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
+dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
@@ -25,7 +29,7 @@ CAN_ID_ECU_CHIMERA = 0x55
 
 led_blink = False
 
-CAN_INTERFACE = "can0"
+CAN_INTERFACE = "can1"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
@@ -37,6 +41,9 @@ ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
 ENABLE_CLI = False  # Set to true to enable USB cli
 
 # BMS_HV_BYPASS = False # Use at your own risk
+
+from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
+
 
 class PIN(Enum):
     RED_LED = 12  # 31

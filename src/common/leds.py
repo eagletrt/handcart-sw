@@ -3,8 +3,8 @@ from enum import Enum
 
 from RPi import GPIO
 
-from common.settings import PIN
-from common.settings import STATE
+from settings import PIN
+from settings import STATE
 
 
 class TSAL_COLOR(Enum):

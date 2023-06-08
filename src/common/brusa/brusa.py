@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from ..settings import brusa_dbc
+from settings import dbc_brusa
 
 
 class CAN_BRUSA_MSG_ID(Enum):
@@ -53,11 +53,11 @@ class BRUSA:
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_NLG5_ST_values = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_ST_values = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
         for key in self.act_NLG5_ST_values:
             value = self.act_NLG5_ST_values[key]
             if (value == 1):
-                signals = brusa_dbc.get_message_by_name('NLG5_ST').signals
+                signals = dbc_brusa.get_message_by_name('NLG5_ST').signals
                 for s in signals:
                     if s.name == key:
                         self.act_NLG5_ST_srt.append(s.comment)
@@ -72,7 +72,7 @@ class BRUSA:
         :param msg: the ACT_I can message
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.act_NLG5_ACT_I = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_ACT_I = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
 
         if self.act_NLG5_ACT_I["NLG5_OC_ACT"] != 0:
             delta = (datetime.fromisoformat(self.lastupdated) - datetime.fromisoformat(self.last_act_I)).microseconds \
@@ -88,7 +88,7 @@ class BRUSA:
         :param msg: the ACT_II can message
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.act_NLG5_ACT_II = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_ACT_II = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_TEMP(self, msg):
         """
@@ -96,7 +96,7 @@ class BRUSA:
         :param msg: the TEMP can message
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.act_NLG5_TEMP = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_TEMP = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
 
     def doNLG5_ERR(self, msg):
         """
@@ -104,14 +104,14 @@ class BRUSA:
         :param msg: the ERR can message
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.act_NLG5_ERR = brusa_dbc.decode_message(msg.arbitration_id, msg.data)
+        self.act_NLG5_ERR = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
         self.act_NLG5_ERR_str = []
 
         for key in self.act_NLG5_ERR:
             value = self.act_NLG5_ERR[key]
             if value == 1:
                 self.error = True
-                signals = brusa_dbc.get_message_by_name('NLG5_ERR').signals
+                signals = dbc_brusa.get_message_by_name('NLG5_ERR').signals
                 for s in signals:
                     if s.name == key:
                         self.act_NLG5_ERR_str.append(s.comment)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from common.settings import ERROR_LOG_FILE_PATH
+from settings import ERROR_LOG_FILE_PATH
 
 
 def log_error(error_string: str):

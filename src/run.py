@@ -8,6 +8,8 @@ Notes:
 """
 
 import atexit
+import getpass
+import os
 import queue
 import threading
 
@@ -19,17 +21,17 @@ from common.handcart_can import CanListener, thread_2_CAN
 from common.leds import TSAL_COLOR, setLedColor, thread_led
 from common.rasp import GPIO_setup, resetGPIOs
 from common.server.server import thread_3_WEB
-from common.settings import *
+from settings import *
 
-import os, getpass
 print("[DEBUG] Env thinks the user is [%s]" % (os.getlogin()))
 print("[DEBUG] Effective user is [%s]" % (getpass.getuser()))
 
 # IPC (shared between threads)
-shared_data: CanListener = CanListener()  # Variable that holds a copy of canread, to get the information from web thread
+shared_data: CanListener = CanListener()  # Variable that holds a copy of canread, to get the information from web
+# thread
 rx_can_queue = queue.Queue()  # Queue for incoming can messages
 tx_can_queue = queue.Queue()  # Queue for outgoing can messages
-tele_can_queue = queue.Queue() # Queue used to send can messages to telemetry thread
+tele_can_queue = queue.Queue()  # Queue used to send can messages to telemetry thread
 com_queue = queue.Queue()  # Command queue
 lock = threading.Lock()
 can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
@@ -69,11 +71,11 @@ if __name__ == "__main__":
     t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
     t4 = threading.Thread(target=thread_led, args=(shared_data,))
     t5 = threading.Thread(target=fans.thread_fans, args=(shared_data, tx_can_queue, lock))
-    t6 = Cli(
-        com_queue,
-        lock,
-        shared_data
-    )
+    #t6 = Cli(
+    #    com_queue,
+    #    lock,
+    #    shared_data
+    #)
 
     t1.start()
     t2.start()
@@ -84,5 +86,5 @@ if __name__ == "__main__":
     if ENABLE_FAN_CONTROL:
         print("Warning, starting without fan control")
         t5.start()
-    if ENABLE_CLI:
-        t6.start()
+    #if ENABLE_CLI:
+    #    t6.start()

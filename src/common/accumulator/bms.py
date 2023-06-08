@@ -1,8 +1,7 @@
 import struct
 from datetime import datetime
 
-from can_eagle.lib.primary.python.network import *
-from ..settings import *
+from settings import *
 
 
 class ACCUMULATOR(Enum):
@@ -55,8 +54,8 @@ class BMS_HV:
     max_cell_voltage = -1
     min_cell_voltage = -1
     error = False
-    errors = 0
-    warnings = None
+    errors = HvErrors.copy()
+    warnings = HvWarnings.copy()
     error_str = ""
     error_list_chimera = []
     status = TsStatus.OFF
@@ -95,12 +94,12 @@ class BMS_HV:
         # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        converted = message_HV_VOLTAGE.deserialize(msg.data).convert()
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.act_pack_voltage = round(converted.pack_voltage, 2)
-        self.act_bus_voltage = round(converted.bus_voltage, 2)
-        self.max_cell_voltage = round(converted.max_cell_voltage, 2)
-        self.min_cell_voltage = round(converted.min_cell_voltage, 2)
+        self.act_pack_voltage = round(message.get("pack_voltage"), 2)
+        self.act_bus_voltage = round(message.get("bus_voltage"), 2)
+        self.max_cell_voltage = round(message.get("cell_voltage"), 2)
+        self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
 
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
                                         "pack_voltage": self.act_pack_voltage,
@@ -117,12 +116,11 @@ class BMS_HV:
         """
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        converted = message_HV_CURRENT.deserialize(msg.data).convert()
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
-        self.act_current = abs(round(converted.current, 2))
-        self.act_power = round(converted.power, 2)
+        self.act_current = abs(round(message.get("current"), 2))
+        self.act_power = round(message.get("power"), 2)
 
         self.hv_current_history.append({
             "timestamp": self.lastupdated,
@@ -145,12 +143,12 @@ class BMS_HV:
         """
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
-        converted = message_HV_TEMP.deserialize(msg.data).convert()
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = round(converted.average_temp, 2)
-        self.min_temp = round(converted.min_temp, 2)
-        self.max_temp = round(converted.max_temp, 2)
+        self.act_average_temp = round(message.get("average_temp"), 2)
+        self.min_temp = round(message.get("min_temp"), 2)
+        self.max_temp = round(message.get("max_temp"), 2)
 
         self.hv_temp_history.append({"timestamp": self.lastupdated,
                                      "average_temp": self.act_average_temp,
@@ -168,14 +166,17 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = message_HV_ERRORS.deserialize(msg.data)
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.errors = HvErrors(deserialized.errors)
-
-        self.warnings = deserialized.warnings
-
-        if self.errors != 0:
-            self.error = True
+        for i in message.keys():
+            try:
+                self.errors[i] = message[i]
+                if message[i] != 0:
+                    self.error = True
+            except KeyError:
+                # Could be that it is not an error but a warning
+                self.warnings[i] = message[i]
+                # if it is not both of these, raises key error
 
     def doHV_STATUS(self, msg):
         """
@@ -185,7 +186,9 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.status = message_TS_STATUS.deserialize(msg.data).ts_status
+
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        self.status = message.get("ts_status")
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """
@@ -195,11 +198,12 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        converted = message_HV_CELLS_VOLTAGE.deserialize(msg.data).convert()
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.hv_cells_act[converted.start_index:converted.start_index + 3] = round(converted.voltage_0, 3), \
-            round(converted.voltage_1, 3), \
-            round(converted.voltage_2, 3)
+        self.hv_cells_act[message.get("start_index"):message.get("start_index") + 3] = \
+            round(message.get("voltage_0"), 3), \
+                round(message.get("voltage_1"), 3), \
+                round(message.get("voltage_2"), 3)
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -209,23 +213,26 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        converted = message_HV_CELLS_TEMP.deserialize(msg.data).convert()
-        self.hv_temps_act[converted.start_index:converted.start_index + 6] = round(converted.temp_0, 3), \
-            round(converted.temp_1, 3), \
-            round(converted.temp_2, 3), \
-            round(converted.temp_3, 3), \
-            round(converted.temp_4, 3), \
-            round(converted.temp_5, 3)
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-    def doHV_BALANCING_STATUS(self, msg):
+        self.hv_temps_act[message.get("start_index"):message.get("start_index") + 6] = \
+            round(message.get("temp_0"), 3), \
+                round(message.get("temp_1"), 3), \
+                round(message.get("temp_2"), 3), \
+                round(message.get("temp_3"), 3), \
+                round(message.get("temp_4"), 3), \
+                round(message.get("temp_5"), 3)
+
+    def doHV_CELL_BALANCING_STATUS(self, msg):
         """
         Updates the balancing status of the acc
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = message_HV_CELL_BALANCING_STATUS.deserialize(msg.data)
-        self.is_balancing = deserialized.balancing_status
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+        self.is_balancing = message.get("balancing_status")
 
     def doHV_FANS_OVERRIDE_STATUS(self, msg):
         """
@@ -234,16 +241,16 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        deserialized = message_HV_FANS_OVERRIDE_STATUS.deserialize(msg.data).convert()
-        self.fans_override_status = deserialized.fans_override
-        self.fans_override_speed = round(deserialized.fans_speed, 2)
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+        self.fans_override_status = message.get("fans_override")
+        self.fans_override_speed = round(message.get("fans_speed"), 2)
 
     def do_CHIMERA(self, msg):
         """
         Processes a BMS HV message from CHIMERA accumulator
         """
         self.ACC_CONNECTED = ACCUMULATOR.CHIMERA
-
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:

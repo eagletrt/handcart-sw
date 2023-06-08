@@ -6,8 +6,8 @@ import flask
 import pytz
 from flask import render_template, jsonify, request
 
-from can_eagle.lib.primary.python.network import HvErrors
 from common.accumulator.bms import ACCUMULATOR
+from settings import HvErrors
 
 
 def thread_3_WEB(shared_data, lock, com_queue):
@@ -116,7 +116,7 @@ def thread_3_WEB(shared_data, lock, com_queue):
                 if shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.FENICE:
                     for i in HvErrors:
                         if HvErrors(i) in HvErrors(shared_data.bms_hv.errors):
-                            error_list.append(HvErrors(i).name)
+                            error_list.append(HvErrors(i).name) # TODO CHECK
                 elif shared_data.bms_hv.ACC_CONNECTED == ACCUMULATOR.CHIMERA:
                     error_list = shared_data.bms_hv.error_list_chimera
 
