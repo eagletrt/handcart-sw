@@ -1,6 +1,8 @@
+import json
 import struct
 from datetime import datetime
 
+from common.logging import tprint, P_TYPE
 from settings import *
 
 
@@ -190,7 +192,13 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        self.status = message.get("ts_status")
+        tprint(f"ts status is {message.get('ts_status').value}", P_TYPE.DEBUG)
+        #message.get("ts_status")
+        tprint(f"ts status type is {type(message.get('ts_status').value)}", P_TYPE.DEBUG)
+        tprint(f"ts status is {int(message.get('ts_status').value)}", P_TYPE.DEBUG)
+        tprint(f"ts status type is {type(int(message.get('ts_status').value))}", P_TYPE.DEBUG)
+
+        self.status = TsStatus(int(message.get('ts_status').value))
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """

@@ -64,8 +64,8 @@ class CanListener:
         #print(f"[DEBUG] {msg}")
         if self.doMsg.get(msg.arbitration_id) is not None:
             try:
-                message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-                print(f"[DEBUG] received message: {message}")
+                #message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+                #print(f"[DEBUG] received message: {message}")
                 self.doMsg.get(msg.arbitration_id)(msg)
             except KeyError:
                 self.can_err = True

@@ -1,12 +1,14 @@
 import json
 import os
 import queue
+import sys
 import threading
 import curses
 from enum import Enum
 
 import requests
 
+from common.can_classes import Toggle
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
 from settings import STATE
@@ -15,6 +17,15 @@ from settings import STATE
 class Tab(Enum):
     MAIN = 0
     ERRORS = 1
+    LOG = 2
+
+class StdOutWrapper:
+    text = ""
+    def write(self,txt):
+        self.text += txt
+        self.text = '\n'.join(self.text.split('\n')[-30:])
+    def get_text(self,beg=0):
+        return '\n'.join(self.text.split('\n')[beg:])
 
 class Cli(threading.Thread):
     TTY = "/dev/tty1"
@@ -66,8 +77,11 @@ class Cli(threading.Thread):
 
         tprint(f"CLI linked to {self.TTY}", P_TYPE.DEBUG)
 
-        self.stdscr = curses.initscr()
+        self.stdout_buffer = StdOutWrapper()
+        sys.stdout = self.stdout_buffer
+        sys.stderr = self.stdout_buffer
 
+        self.stdscr = curses.initscr()
         curses.noecho()
         self.stdscr.keypad(True)
         curses.halfdelay(5)
@@ -190,9 +204,24 @@ class Cli(threading.Thread):
                     10, self.SECOND_COLUMN_INDEX, "Warning:\t" + str(False))
 
                 # HANDCART
-                actual_tab.addstr(3, self.THIRD_COLUMN_INDEX, "Status:\t" + str(self.shared_data.FSM_stat.name))
-                actual_tab.addstr(4, self.THIRD_COLUMN_INDEX, "cutoff v:\t" + str(self.shared_data.target_v))
-                actual_tab.addstr(5, self.THIRD_COLUMN_INDEX, "fastcharge:\t" + str(self.fast_charge))
+                actual_tab.addstr(
+                    3, self.THIRD_COLUMN_INDEX, "Status:\t" + str(self.shared_data.FSM_stat.name))
+                actual_tab.addstr(
+                    4, self.THIRD_COLUMN_INDEX, "cutoff v:\t" + str(self.shared_data.target_v))
+                actual_tab.addstr(
+                    5, self.THIRD_COLUMN_INDEX, "fastcharge:\t" + str(self.fast_charge))
+                actual_tab.addstr(
+                    6, self.THIRD_COLUMN_INDEX, "max-cur-out:\t" + str(self.shared_data.act_set_out_current))
+                actual_tab.addstr(
+                    7, self.THIRD_COLUMN_INDEX, "max-in-curr:\t" + str(self.shared_data.act_set_in_current))
+                actual_tab.addstr(
+                    8,
+                    self.THIRD_COLUMN_INDEX, "fan_override:\t" +
+                                             str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled"))
+                actual_tab.addstr(
+                    9,
+                    self.THIRD_COLUMN_INDEX, "fan_override_speed:\t" +
+                                             str(self.shared_data.bms_hv.fans_set_override_speed))
 
             for y in range(2, self.DEFAULT_HEIGHT - 6):
                 if y == 2:
@@ -225,6 +254,11 @@ class Cli(threading.Thread):
 
             actual_tab.refresh(self.scroll, 0, 3, 0, self.DEFAULT_HEIGHT - 4, self.DEFAULT_WIDTH)
 
+        elif tab == Tab.LOG.value:
+            actual_tab.addstr(0, int(self.DEFAULT_WIDTH / 2) - 5, "Log view")
+            actual_tab.addstr(1, 0, self.stdout_buffer.get_text())
+            actual_tab.refresh(self.scroll, 0, 3, 0, self.DEFAULT_HEIGHT - 4, self.DEFAULT_WIDTH)
+
     def run(self):
         self.input_cutoff = False
         self.awaiting_input = False
@@ -235,7 +269,7 @@ class Cli(threading.Thread):
             self.intro()
             key = self.stdscr.getch()
 
-        while (key != ord('q')):
+        while key != ord('q'):
             self.header()
             self.bottom()
             self.actual_tab(selected_tab)
@@ -243,7 +277,7 @@ class Cli(threading.Thread):
             if not self.awaiting_input:
                 key = self.stdscr.getch()
                 if key == ord('w'):
-                    if selected_tab == 1:
+                    if selected_tab == 2:
                         selected_tab = 0
                     else:
                         selected_tab += 1
@@ -257,8 +291,10 @@ class Cli(threading.Thread):
                     self.input_cutoff = True
                 elif key == ord('f'):
                     self.fast_charge = not self.fast_charge
-                    j = {"com-type": "fast-charge", "value": self.fast_charge}
-                    requests.post(self.SERVER_ADDRESS + "command/setting", json=json.dumps(j))
+                    j = {"com-type": "max-in-current", "value": 16 if self.fast_charge else 8}
+                    self.com_queue.put(j)
+                    j = {"com-type": "max-out-current", "value": 10 if self.fast_charge else 7}
+                    self.com_queue.put(j)
                 elif key == ord('c'):
                     with self.lock:
                         if self.shared_data.FSM_stat == STATE.IDLE:
@@ -275,3 +311,6 @@ class Cli(threading.Thread):
                 curses.echo()
 
         curses.endwin()
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        sys.stdout.write(self.stdout_buffer.get_text())
