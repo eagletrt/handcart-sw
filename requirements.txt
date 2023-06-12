@@ -3,3 +3,5 @@ RPi.GPIO
 Flask
 pytz
 cantools
+paho-mqtt
+protobuf

@@ -20,7 +20,7 @@ TELE_MQTT_TOPIC = "handcart"
 # https://github.com/eagletrt/telemetry-json-loader
 # Aggiungere un file json per ogni comando da mandare all'handcart
 
-TELE_MQTT_SERVER_ADDR = "167.99.136.159"
+TELE_MQTT_SERVER_ADDR = 
 TELE_MQTT_SERVER_PORT = 1883
 TELE_MAX_LOCKED_QUEUE_GET = 10
 
@@ -76,7 +76,7 @@ class Tele(threading.Thread):
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.connect("167.99.136.159", 1883, 60)
+        self.client.connect(TELE_MQTT_SERVER_ADDR, 1883, 60)
         self.client.on_publish = self.on_publish
 
 
