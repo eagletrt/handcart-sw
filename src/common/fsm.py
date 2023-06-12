@@ -1,12 +1,15 @@
+import copy
 import queue
 import threading
 import time
 from datetime import datetime
 
 import can
+from RPi import GPIO
 
 import common.accumulator.bms as bms
 from common.handcart_can import CanListener
+from common.logging import P_TYPE, tprint
 from settings import *
 
 
@@ -30,7 +33,7 @@ class FSM(threading.Thread):
     com_queue: queue.Queue
     can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
     lock: threading.Lock
-    shared_data: CanListener
+    shared_data: CanListener = None
     forward_lock: threading.Lock  # Lock to manage the access to the can_forward_enabled variable
 
     def __init__(self,
@@ -60,7 +63,7 @@ class FSM(threading.Thread):
 
     def accumulator_sd(self):  # accumulator shutdown
         if self.canread.bms_hv.status == TsStatus.ON:
-            message = can.Message(arbitration_id=CAN_ID_ECU_CHIMERA, is_extended_id=False,
+            message = can.Message(arbitration_id=bms.CAN_ID_ECU_CHIMERA, is_extended_id=False,
                                   data=[bms.CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             self.tx_can_queue.put(message)
 
@@ -128,7 +131,7 @@ class FSM(threading.Thread):
 
         if not self.com_queue.empty():
             act_com = self.com_queue.get()
-            print(act_com)
+            tprint(str(act_com), P_TYPE.DEBUG)
 
             if act_com['com-type'] == 'cutoff':
                 if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
@@ -408,8 +411,8 @@ class FSM(threading.Thread):
 
         act_stat = STATE.CHECK
         self.canread.FSM_entered_stat = datetime.now().isoformat()
-        print("Backend started")
-        print("STATE: " + str(act_stat))
+        tprint("Backend started", P_TYPE.INFO)
+        tprint("STATE: " + str(act_stat), P_TYPE.DEBUG)
 
         while 1:
             time.sleep(0.001)
@@ -421,9 +424,9 @@ class FSM(threading.Thread):
 
             if act_stat != STATE.CHECK:
                 if not self.canread.bms_hv.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
                 if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not self.canread.brusa.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
 
             if act_stat != STATE.BALANCING:
                 # Check that balancing is disabled if not in balancing state
@@ -431,16 +434,16 @@ class FSM(threading.Thread):
 
             # Checks errors
             if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
-                next_stat = self.doState.get(STATE.ERROR)
+                next_stat = self.doState.get(STATE.ERROR)(self)
             else:
-                next_stat = self.doState.get(act_stat)
+                next_stat = self.doState.get(act_stat)(self)
 
             if self.shutdown_asked:
                 next_stat = STATE.IDLE
                 self.shutdown_asked = False
 
             if next_stat == STATE.EXIT:
-                print("Exiting")
+                tprint("Exiting", P_TYPE.INFO)
                 return
 
             self.checkCommands()
@@ -449,9 +452,12 @@ class FSM(threading.Thread):
             if act_stat != next_stat:
                 self.canread.FSM_entered_stat = datetime.now().isoformat()
                 # print(self.canread.FSM_entered_stat)
-                print("STATE: " + str(next_stat))
+                tprint("STATE: " + str(next_stat), P_TYPE.DEBUG)
 
             act_stat = next_stat
 
             with self.lock:
-                self.shared_data = self.canread
+                # https://stackoverflow.com/questions/243836/how-to-copy-all-properties-of-an-object-to-another-object-in-python
+                # Magic
+                self.shared_data.__dict__.update(self.canread.__dict__)
+                # tprint(f"FSM shared data addr: {self.shared_data}", P_TYPE.DEBUG)

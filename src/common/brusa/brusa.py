@@ -31,7 +31,7 @@ class BRUSA:
     act_NLG5_ERR = {}
 
     error = False
-    act_NLG5_ERR_str = []
+    act_NLG5_ERR_list = []
     act_NLG5_ST_srt = []
 
     def isConnected(self):
@@ -105,7 +105,7 @@ class BRUSA:
         """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_NLG5_ERR = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
-        self.act_NLG5_ERR_str = []
+        self.act_NLG5_ERR_list = []
 
         for key in self.act_NLG5_ERR:
             value = self.act_NLG5_ERR[key]
@@ -114,5 +114,5 @@ class BRUSA:
                 signals = dbc_brusa.get_message_by_name('NLG5_ERR').signals
                 for s in signals:
                     if s.name == key:
-                        self.act_NLG5_ERR_str.append(s.comment)
+                        self.act_NLG5_ERR_list.append(s.comment)
                         break

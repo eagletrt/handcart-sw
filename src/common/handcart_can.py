@@ -50,7 +50,7 @@ class CanListener:
         primary_ID_HV_FANS_OVERRIDE_STATUS: bms_hv.doHV_FANS_OVERRIDE_STATUS,
 
         # BMS_HV Chimera
-        CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
+        bms.CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
     }
 
     # Function called when a new message arrive, maps it to
@@ -69,7 +69,6 @@ class CanListener:
                 self.doMsg.get(msg.arbitration_id)(msg)
             except KeyError:
                 self.can_err = True
-
 
 def canSend(bus, msg_id, data, lock: threading.Lock, shared_data):
     """

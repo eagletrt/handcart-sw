@@ -1,19 +1,16 @@
 from os.path import dirname, realpath, join
 
 import cantools
-from RPi import GPIO
 from cantools.database import Database
 
+# Import the dbc files -------------------------------------------------------------------------------------------------
 brusa_dbc_file = join(dirname(dirname(realpath(__file__))), "NLG5_BRUSA.dbc")
 BMS_DBC_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "bms", "bms.dbc")
 DBC_PRIMARY_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "primary", "primary.dbc")
 dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
 dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
-
-GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
-
-ENABLE_LED = True
+# ----------------------------------------------------------------------------------------------------------------------
 
 MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
@@ -24,23 +21,20 @@ DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
 MAX_TARGET_V_ACC = 455  # Maximum voltage to charge the accumulator to
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
-CAN_ID_BMS_HV_CHIMERA = 0xAA
-CAN_ID_ECU_CHIMERA = 0x55
 
-led_blink = False
+CAN_INTERFACE = "vcan0"
 
-CAN_INTERFACE = "can1"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
 
-BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2
+BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-ENABLE_CLI = False  # Set to true to enable USB cli
-
-# BMS_HV_BYPASS = False # Use at your own risk
+ENABLE_CLI = True  # Set to true to enable USB cli
+ENABLE_WEB = False
+ENABLE_LED = True
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 

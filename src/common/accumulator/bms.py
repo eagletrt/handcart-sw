@@ -20,6 +20,8 @@ class CAN_CHIMERA_MSG_ID(Enum):
     ERROR = 0x08
     WARNING = 0x09
 
+CAN_ID_BMS_HV_CHIMERA = 0xAA
+CAN_ID_ECU_CHIMERA = 0x55
 
 class CAN_REQ_CHIMERA(Enum):
     REQ_TS_ON = 0x0A  # Remember to ask charge state with byte 1 set to 0x01

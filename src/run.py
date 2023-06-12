@@ -19,12 +19,16 @@ from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
 # from backend.common.methods.logging import log_error
 from common.leds import TSAL_COLOR, setLedColor, thread_led
+from common.logging import tprint, P_TYPE
 from common.rasp import GPIO_setup, resetGPIOs
 from common.server.server import thread_3_WEB
+from RPi import GPIO
 from settings import *
 
-print("[DEBUG] Env thinks the user is [%s]" % (os.getlogin()))
-print("[DEBUG] Effective user is [%s]" % (getpass.getuser()))
+tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
+tprint("Effective user is [%s]" % (getpass.getuser()), P_TYPE.DEBUG)
+
+GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
 # IPC (shared between threads)
 shared_data: CanListener = CanListener()  # Variable that holds a copy of canread, to get the information from web
@@ -68,23 +72,29 @@ if __name__ == "__main__":
                                 forward_lock,
                                 lock,
                                 tele_can_queue))
-    t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
-    t4 = threading.Thread(target=thread_led, args=(shared_data,))
-    t5 = threading.Thread(target=fans.thread_fans, args=(shared_data, tx_can_queue, lock))
-    #t6 = Cli(
-    #    com_queue,
-    #    lock,
-    #    shared_data
-    #)
 
     t1.start()
     t2.start()
-    t3.start()
+
+    if ENABLE_WEB:
+        t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
+        t3.start()
+
     if ENABLE_LED:
         setLedColor(TSAL_COLOR.OFF)
+        t4 = threading.Thread(target=thread_led, args=(shared_data,))
         t4.start()
+
     if ENABLE_FAN_CONTROL:
-        print("Warning, starting without fan control")
+        t5 = threading.Thread(target=fans.thread_fans, args=(shared_data, tx_can_queue, lock))
         t5.start()
-    #if ENABLE_CLI:
-    #    t6.start()
+    else:
+        tprint("starting without fan control", P_TYPE.WARNING)
+
+    if ENABLE_CLI:
+        t6 = Cli(
+           com_queue,
+           lock,
+           shared_data
+        )
+        t6.start()
