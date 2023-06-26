@@ -1,17 +1,14 @@
-import json
+import curses
 import os
 import queue
 import sys
 import threading
-import curses
 from enum import Enum
-
-import requests
 
 from common.can_classes import Toggle
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
-from settings import STATE
+from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY
 
 
 class Tab(Enum):
@@ -19,20 +16,20 @@ class Tab(Enum):
     ERRORS = 1
     LOG = 2
 
+
 class StdOutWrapper:
     text = ""
-    def write(self,txt):
+
+    def write(self, txt):
         self.text += txt
         self.text = '\n'.join(self.text.split('\n')[-30:])
-    def get_text(self,beg=0):
+
+    def get_text(self, beg=0):
         return '\n'.join(self.text.split('\n')[beg:])
 
-class Cli(threading.Thread):
-    TTY = "/dev/tty1"
-    DEFAULT_WIDTH = 80
-    DEFAULT_HEIGHT = 24
 
-    THIRD = int(DEFAULT_WIDTH / 3)
+class Cli(threading.Thread):
+    THIRD = int(CLI_DEFAULT_WIDTH / 3)
     FIRST_COLUMN_INDEX = 0
     SECOND_COLUMN_INDEX = THIRD
     THIRD_COLUMN_INDEX = THIRD * 2
@@ -67,16 +64,17 @@ class Cli(threading.Thread):
         os.environ['TERM'] = 'linux'
 
         # Used to connect to a tty and expose the CLI
-        #with open(self.TTY, 'rb') as inf, open(self.TTY, 'wb') as outf:
-        #    os.dup2(inf.fileno(), 0)
-        #    tprint(f"Setted 0", P_TYPE.DEBUG)
-        #    os.dup2(outf.fileno(), 1)
-        #    tprint(f"Setted 1", P_TYPE.DEBUG)
-        #    os.dup2(outf.fileno(), 2)
-        #    tprint(f"Setted 2", P_TYPE.DEBUG)
+        with open(CLI_TTY, 'rb') as inf, open(CLI_TTY, 'wb') as outf:
+            os.dup2(inf.fileno(), 0)
+            tprint(f"Setted 0", P_TYPE.DEBUG)
+            os.dup2(outf.fileno(), 1)
+            tprint(f"Setted 1", P_TYPE.DEBUG)
+            os.dup2(outf.fileno(), 2)
+            tprint(f"Setted 2", P_TYPE.DEBUG)
 
-        tprint(f"CLI linked to {self.TTY}", P_TYPE.DEBUG)
+        tprint(f"CLI linked to {CLI_TTY}", P_TYPE.DEBUG)
 
+        # This wrapper holds the stdout things while the cli is displayed, then it prints back them at the end
         self.stdout_buffer = StdOutWrapper()
         sys.stdout = self.stdout_buffer
         sys.stderr = self.stdout_buffer
@@ -86,7 +84,7 @@ class Cli(threading.Thread):
         self.stdscr.keypad(True)
         curses.halfdelay(5)
 
-        tprint(f"Curses inited {self.TTY}", P_TYPE.DEBUG)
+        tprint(f"Curses inited {CLI_TTY}", P_TYPE.DEBUG)
 
     def intro(self):
         """
@@ -94,18 +92,31 @@ class Cli(threading.Thread):
         """
         begin_x = 0
         begin_y = 0
-        height = self.DEFAULT_HEIGHT
-        width = self.DEFAULT_WIDTH
+        height = CLI_DEFAULT_HEIGHT
+        width = CLI_DEFAULT_WIDTH
         intro = curses.newwin(height, width, begin_y, begin_x)
 
-        intro.addstr(1, int(self.DEFAULT_WIDTH / 2) - 22, "███████╗███████╗███╗   ██╗██╗ ██████╗███████╗")
-        intro.addstr(2, int(self.DEFAULT_WIDTH / 2) - 22, "██╔════╝██╔════╝████╗  ██║██║██╔════╝██╔════╝")
-        intro.addstr(3, int(self.DEFAULT_WIDTH / 2) - 22, "█████╗  █████╗  ██╔██╗ ██║██║██║     █████╗")
-        intro.addstr(4, int(self.DEFAULT_WIDTH / 2) - 22, "██╔══╝  ██╔══╝  ██║╚██╗██║██║██║     ██╔══╝")
-        intro.addstr(5, int(self.DEFAULT_WIDTH / 2) - 22, "██║     ███████╗██║ ╚████║██║╚██████╗███████╗")
-        intro.addstr(6, int(self.DEFAULT_WIDTH / 2) - 22, "╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝")
-        intro.addstr(7, int(self.DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
-        intro.addstr(10, int(self.DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
+        intro.addstr(1, int(CLI_DEFAULT_WIDTH / 2) - 22, "███████╗███████╗███╗   ██╗██╗ ██████╗███████╗")
+        intro.addstr(2, int(CLI_DEFAULT_WIDTH / 2) - 22, "██╔════╝██╔════╝████╗  ██║██║██╔════╝██╔════╝")
+        intro.addstr(3, int(CLI_DEFAULT_WIDTH / 2) - 22, "█████╗  █████╗  ██╔██╗ ██║██║██║     █████╗")
+        intro.addstr(4, int(CLI_DEFAULT_WIDTH / 2) - 22, "██╔══╝  ██╔══╝  ██║╚██╗██║██║██║     ██╔══╝")
+        intro.addstr(5, int(CLI_DEFAULT_WIDTH / 2) - 22, "██║     ███████╗██║ ╚████║██║╚██████╗███████╗")
+        intro.addstr(6, int(CLI_DEFAULT_WIDTH / 2) - 22, "╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝")
+        intro.addstr(7, int(CLI_DEFAULT_WIDTH / 2) - 22, "__/\\\\\\\\\\\\\\\\__/\\\\________/\\\\_______/\\\\\\______")
+        intro.addstr(8, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\///////////__\/\\\\_______\/\\\\_____/\\\///\\\\____")
+        intro.addstr(9, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\_____________\//\\\\______/\\\\____/\\\/__\///\\\\__")
+        intro.addstr(10, int(CLI_DEFAULT_WIDTH / 2) - 22,
+                     "_\/\\\\\\\\\\\\______\//\\\\____/\\\\____/\\\\______\//\\\\_")
+        intro.addstr(11, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\///////________\//\\\\__/\\\\____\/\\\\_______\/\\\\_")
+        intro.addstr(12, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\________________\//\\\/\\\\_____\//\\\\______/\\\\__")
+        intro.addstr(13, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\_________________\//\\\\\\_______\///\\\\__/\\\\____")
+        intro.addstr(14, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\\\\\\\\\\\\\______\//\\\\__________\///\\\\\/_____")
+        intro.addstr(15, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\///////////////________\///_____________\/////_______")
+
+        intro.addstr(17, int(CLI_DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
+
+        intro.addstr(19, int(CLI_DEFAULT_WIDTH / 2) - 12, "Is telemetry dead? ;)")
+        intro.addstr(20, int(CLI_DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
 
         intro.refresh()
 
@@ -113,10 +124,10 @@ class Cli(threading.Thread):
         begin_x = 0
         begin_y = 0
         height = 3
-        width = self.DEFAULT_WIDTH
+        width = CLI_DEFAULT_WIDTH
         header = curses.newwin(height, width, begin_y, begin_x)
 
-        header.addstr(1, int(self.DEFAULT_WIDTH / 2) - 4, "Handcart")
+        header.addstr(1, int(CLI_DEFAULT_WIDTH / 2) - 4, "Handcart")
         with self.lock:
             handcart_status_str = f"STATUS: {self.shared_data.FSM_stat.name}"
         header.addstr(1, 3, handcart_status_str)
@@ -125,7 +136,7 @@ class Cli(threading.Thread):
         header.refresh()
 
     def bottom(self):
-        bottom = curses.newwin(3, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT - 3, 0)
+        bottom = curses.newwin(3, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT - 3, 0)
 
         if self.input_cutoff:
             bottom.addstr(1, 2, "set cutoff voltage: ")
@@ -156,13 +167,13 @@ class Cli(threading.Thread):
 
         bottom.border()
         bottom.refresh()
-        # TODO: continue
 
     def actual_tab(self, tab):
-        actual_tab = curses.newpad(100, self.DEFAULT_WIDTH)
+        # TODO: add tab for voltages and temperatures
+        actual_tab = curses.newpad(100, CLI_DEFAULT_WIDTH)
 
         if tab == Tab.MAIN.value:
-            actual_tab.addstr(0, int(self.DEFAULT_WIDTH / 2) - 4, "Main view")
+            actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 4, "Main view")
 
             actual_tab.addstr(1, self.FIRST_COLUMN_INDEX, "bms HV")
             actual_tab.addstr(1, self.SECOND_COLUMN_INDEX, "Brusa")
@@ -189,17 +200,23 @@ class Cli(threading.Thread):
                 actual_tab.addstr(
                     3, self.SECOND_COLUMN_INDEX, "status:\t" + str(self.shared_data.brusa.isConnected()))
                 actual_tab.addstr(
-                    4, self.SECOND_COLUMN_INDEX, "main in V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT")))
+                    4, self.SECOND_COLUMN_INDEX,
+                    "main in V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT")))
                 actual_tab.addstr(
-                    5, self.SECOND_COLUMN_INDEX, "main in A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT")))
+                    5, self.SECOND_COLUMN_INDEX,
+                    "main in A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT")))
                 actual_tab.addstr(
-                    6, self.SECOND_COLUMN_INDEX, "out V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT")))
+                    6, self.SECOND_COLUMN_INDEX,
+                    "out V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT")))
                 actual_tab.addstr(
-                    7, self.SECOND_COLUMN_INDEX, "out A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT")))
+                    7, self.SECOND_COLUMN_INDEX,
+                    "out A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT")))
                 actual_tab.addstr(
-                    8, self.SECOND_COLUMN_INDEX, "mainIN lim A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_S_MC_M_CP")))
+                    8, self.SECOND_COLUMN_INDEX,
+                    "mainIN lim A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_S_MC_M_CP")))
                 actual_tab.addstr(
-                    9, self.SECOND_COLUMN_INDEX, "temperature:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_P_TMP")))
+                    9, self.SECOND_COLUMN_INDEX,
+                    "temperature:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_P_TMP")))
                 actual_tab.addstr(
                     10, self.SECOND_COLUMN_INDEX, "Warning:\t" + str(False))
 
@@ -217,27 +234,28 @@ class Cli(threading.Thread):
                 actual_tab.addstr(
                     8,
                     self.THIRD_COLUMN_INDEX, "fan_override:\t" +
-                                             str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled"))
+                                             str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value
+                                                              == Toggle.ON else "disabled"))
                 actual_tab.addstr(
                     9,
                     self.THIRD_COLUMN_INDEX, "fan_override_speed:\t" +
                                              str(self.shared_data.bms_hv.fans_set_override_speed))
 
-            for y in range(2, self.DEFAULT_HEIGHT - 6):
+            for y in range(2, CLI_DEFAULT_HEIGHT - 6):
                 if y == 2:
                     actual_tab.addch(y, self.SECOND_COLUMN_INDEX - 1, curses.ACS_PLUS)
                     actual_tab.addch(y, self.THIRD_COLUMN_INDEX - 1, curses.ACS_PLUS)
-                    for x in range(0, self.DEFAULT_WIDTH):
+                    for x in range(0, CLI_DEFAULT_WIDTH):
                         if x != self.SECOND_COLUMN_INDEX - 1 and x != self.THIRD_COLUMN_INDEX - 1:
                             actual_tab.addch(y, x, curses.ACS_HLINE)
                 else:
                     actual_tab.addch(y, self.SECOND_COLUMN_INDEX - 1, curses.ACS_VLINE)
                     actual_tab.addch(y, self.THIRD_COLUMN_INDEX - 1, curses.ACS_VLINE)
 
-            actual_tab.refresh(0, 0, 3, 0, self.DEFAULT_HEIGHT - 4, self.DEFAULT_WIDTH)
+            actual_tab.refresh(0, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
 
         elif tab == Tab.ERRORS.value:
-            actual_tab.addstr(0, int(self.DEFAULT_WIDTH / 2) - 5, "Errors view")
+            actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Errors view")
 
             actual_tab.addstr(1, 0, "Brusa:")
             with self.lock:
@@ -252,12 +270,12 @@ class Cli(threading.Thread):
                 else:
                     actual_tab.addstr(6, 0, "BMS_HV:\nNo errors")
 
-            actual_tab.refresh(self.scroll, 0, 3, 0, self.DEFAULT_HEIGHT - 4, self.DEFAULT_WIDTH)
+            actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
 
         elif tab == Tab.LOG.value:
-            actual_tab.addstr(0, int(self.DEFAULT_WIDTH / 2) - 5, "Log view")
+            actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Log view")
             actual_tab.addstr(1, 0, self.stdout_buffer.get_text())
-            actual_tab.refresh(self.scroll, 0, 3, 0, self.DEFAULT_HEIGHT - 4, self.DEFAULT_WIDTH)
+            actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
 
     def run(self):
         self.input_cutoff = False

@@ -5,20 +5,18 @@ from cantools.database import Database
 
 # Import the dbc files -------------------------------------------------------------------------------------------------
 brusa_dbc_file = join(dirname(dirname(realpath(__file__))), "NLG5_BRUSA.dbc")
-BMS_DBC_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "bms", "bms.dbc")
 DBC_PRIMARY_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "primary", "primary.dbc")
 dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
-dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 # ----------------------------------------------------------------------------------------------------------------------
 
 MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
-MAX_ACC_CHG_AMPERE = 12  # Maximum charging current of accumulator
+MAX_ACC_CHG_AMPERE = 16  # Maximum charging current of accumulator
 DEFAULT_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
 
 DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
-MAX_TARGET_V_ACC = 455  # Maximum voltage to charge the accumulator to
+MAX_TARGET_V_ACC = 454  # Maximum voltage to charge the accumulator to
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
@@ -27,6 +25,11 @@ CAN_INTERFACE = "vcan0"
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
+
+# CLI config
+CLI_TTY = "/dev/serial0"
+CLI_DEFAULT_WIDTH = 80
+CLI_DEFAULT_HEIGHT = 24
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message

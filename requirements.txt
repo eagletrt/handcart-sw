@@ -3,3 +3,4 @@ RPi.GPIO
 Flask
 pytz
 cantools
+termcolor

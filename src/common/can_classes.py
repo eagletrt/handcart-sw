@@ -41,6 +41,27 @@ class Toggle(Enum):
     ON = 1
 
 
+class HandcartStatus(Enum):
+    # ["CHECK", "IDLE", "PRECHARGE", "READY", "CHARGE", "CHARGE_DONE", "BALANCING", "ERROR"]
+    # TODO: add NULL status to not set it
+    CHECK = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "CHECK")
+    IDLE = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "IDLE")
+    PRECHARGE = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "PRECHARGE")
+    READY = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "READY")
+    CHARGE = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "CHARGE")
+    CHARGE_DONE = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "CHARGE_DONE")
+    BALANCING = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "BALANCING")
+    ERROR = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "ERROR")
+
+
 HvErrors = {
     # TODO: validate ?
     "errors_CELL_LOW_VOLTAGE": None,
@@ -85,3 +106,4 @@ primary_ID_HV_CELLS_VOLTAGE = dbc_primary.get_message_by_name("HV_CELLS_VOLTAGE"
 primary_ID_HV_CELLS_TEMP = dbc_primary.get_message_by_name("HV_CELLS_TEMP").frame_id
 primary_ID_HV_CELL_BALANCING_STATUS = dbc_primary.get_message_by_name("HV_CELL_BALANCING_STATUS").frame_id
 primary_ID_HV_FANS_OVERRIDE_STATUS = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE_STATUS").frame_id
+primary_ID_HANDCART_SETTING_SET = dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").frame_id

@@ -26,11 +26,6 @@ The rasp is connected via CAN Bus with BMS in the accumulator and with the Brusa
 -   TS (on, off) -> Tractive system (HV) (on o off)
 - 	SD, shutdown -> the shutdown system giving power to the accumulator AIRs
 
-## The old "carrellino"
-Before starting, I want to remember the old handcart, that is now dimissed, that did his job during all these years.
-
-![image](images/old_handcart.jpg)
-
 # Charging guide
 
 ## Setup procedure
@@ -41,6 +36,7 @@ First, you need to know what you’re doing, you’re going to work with High Vo
 - At least one ESO
 - HV protecting gloves
 - A voltage tester
+- An internet access point (for the raspi to connect to inernet)
 
 ### Finding a good power source
 Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the 2P+T 16A CEE blue connector there shouldn’t be any problem, otherwise if you’re using the "schuko to 2P+T 16A CEE" adaptor, make sure that the line is properly supporting the 16A load.
@@ -57,6 +53,9 @@ Depending on the accumulator (Chimera or Fenice) you have to choose the right ca
 - Connect the low voltage PSU to main power.
 
 ## Charge Procedure
+
+### Using telemetry app
+ TODO
 Make sure that just the people needed are near the handcart, the presence of an ESO is required in a race environment. Make sure a CO2 fire extinguisher is near the accumulator
 - Turn ON the TSMS key. From now on, the system could be at >400 VDC.
 - Connect to the raspi backend at port 8080 with a browser.
@@ -65,17 +64,22 @@ Make sure that just the people needed are near the handcart, the presence of an 
 - Airs should close, and the state of the handcart should go to "ready"
 - Press charge button, charge should start
 
+### Using the serial CLI
+If telemetry is not working or the handcart can't have internet access,
+
 In case of any problem, push the red shutdown button in the handcart, this will stop the charge and close the AIRs of the accumulator.
 
-# Backup (Emergency) software
+
+
+# Backup (emergency) software
 
 Before starting, follow the set up procedure for the handcart.
 It is necessary to initialize the canbus on the raspberry pi, just execute [this](https://github.com/eagletrt/handcart/blob/master/utils/start-can.sh) script.
 If you need the handcart working as fast as possible, just download the [charge script](https://github.com/eagletrt/handcart/blob/master/utils/charge_script.py) from github, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
 
 !!! Warning : This software is DUMB, if you set a voltage, the brusa will deliver it, be careful!.
-!!! Warning: at the time of writing (18/09/2021) the script supports just chimera’s accumulator, this can be bypassed by reading the next note.
-!!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to.
+!!! Warning: the script supports just Fenice EVO’s accumulator, this can be bypassed by reading the next note.
+!!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to. Use this With caution.
 
 # Software
 
@@ -315,3 +319,8 @@ Note that the endianess is big (motorola).
 # Decisions and info
 
 - EV 4.5.10 Tells that "Every TS connector outside of a housing must include a pilot contact/interlock line which is part of the shutdown circuit. Housings only used to avoid interlocks are prohibited." We have the black connector named "Anderson" which connects the brusa to the adaptor caple for the different accumulators, we want to put it in a container beacuse of the fact that TSMP and resistor has to be placed somewhere, and we didn't like the idea of putting them directly on the cables or the connector. This way we can leave it without the interlock connected to the shutdown.
+
+## The old "carrellino"
+I want to remember the old handcart, that is now dimissed, that did his job during all these years.
+
+![image](images/old_handcart.jpg)

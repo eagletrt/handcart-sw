@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from settings import ERROR_LOG_FILE_PATH
 from termcolor import colored
+
+from settings import ERROR_LOG_FILE_PATH
 
 
 def log_error(error_string: str):
@@ -21,7 +22,8 @@ class P_TYPE():
     ERROR = 2
     DEBUG = 3
 
-def tprint(msg: str, type:int):
+
+def tprint(msg: str, type: int):
     if type == P_TYPE.INFO:
         header = "[INFO] "
         print(header + msg)

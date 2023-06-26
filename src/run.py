@@ -8,10 +8,10 @@ Notes:
 """
 
 import atexit
-import getpass
-import os
 import queue
 import threading
+
+from RPi import GPIO
 
 import common.accumulator.fans as fans
 from common.cli.cli import Cli
@@ -22,11 +22,10 @@ from common.leds import TSAL_COLOR, setLedColor, thread_led
 from common.logging import tprint, P_TYPE
 from common.rasp import GPIO_setup, resetGPIOs
 from common.server.server import thread_3_WEB
-from RPi import GPIO
 from settings import *
 
-tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
-tprint("Effective user is [%s]" % (getpass.getuser()), P_TYPE.DEBUG)
+# tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
+# tprint("Effective user is [%s]" % (getpass.getuser()), P_TYPE.DEBUG)
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 
@@ -71,7 +70,7 @@ if __name__ == "__main__":
                                 can_forward_enabled,
                                 forward_lock,
                                 lock,
-                                tele_can_queue))
+                                com_queue))
 
     t1.start()
     t2.start()
@@ -93,8 +92,8 @@ if __name__ == "__main__":
 
     if ENABLE_CLI:
         t6 = Cli(
-           com_queue,
-           lock,
-           shared_data
+            com_queue,
+            lock,
+            shared_data
         )
         t6.start()

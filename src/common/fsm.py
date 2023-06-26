@@ -1,4 +1,3 @@
-import copy
 import queue
 import threading
 import time
@@ -139,7 +138,9 @@ class FSM(threading.Thread):
                 else:
                     print("cutoff command exceeds limits")
 
-            if act_com['com-type'] == "precharge" and act_com['value'] is True:
+            if act_com['com-type'] == "precharge" and \
+                    act_com['value'] is True and \
+                    self.canread.FSM_stat == STATE.IDLE:
                 self.precharge_command = True
 
             if act_com['com-type'] == "charge" and act_com['value'] is True:
@@ -189,6 +190,7 @@ class FSM(threading.Thread):
         self.accumulator_sd()
 
         if self.canread.bms_hv.isConnected() and self.canread.brusa.isConnected():
+            self.precharge_command = False  # Clear before entering IDLE
             return STATE.IDLE
         else:
             return STATE.CHECK
@@ -253,6 +255,7 @@ class FSM(threading.Thread):
             self.precharge_asked_time = 0
 
         if self.precharge_done:
+            self.start_charge_command = False  # reset start charge command
             return STATE.READY
         else:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE and \
@@ -416,7 +419,6 @@ class FSM(threading.Thread):
 
         while 1:
             time.sleep(0.001)
-            # print("main")
             # Controllo coda rec can messages, in caso li processo. Controllo anche errori
             if not self.rx_can_queue.empty():
                 new_msg = self.rx_can_queue.get()
@@ -457,7 +459,8 @@ class FSM(threading.Thread):
             act_stat = next_stat
 
             with self.lock:
-                # https://stackoverflow.com/questions/243836/how-to-copy-all-properties-of-an-object-to-another-object-in-python
+                # https://stackoverflow.com/questions/243836/how-to-copy-all-properties-of-an-object-to-another
+                # -object-in-python
                 # Magic
                 self.shared_data.__dict__.update(self.canread.__dict__)
                 # tprint(f"FSM shared data addr: {self.shared_data}", P_TYPE.DEBUG)

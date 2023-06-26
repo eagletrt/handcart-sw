@@ -11,6 +11,67 @@ from settings import *
 from .logging import log_error
 
 
+def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
+    """
+    Processes the HANDCART SETTING SET message from the telemetry and returns a list containing dict with the command
+    for the FSM
+    """
+    # TODO add trycatch
+    data = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+    com_list = []
+    com: dict[str, str | bool] = {}
+
+    try:
+        com['com-type'] = 'cutoff'
+        com['value'] = data["target_voltage"]
+        com_list.append(com)
+        com = {}
+
+        com['com-type'] = 'fan-override-set-status'
+        fan_override_set_status = Toggle(int(data['fans_override'].value))
+        com['value'] = True if fan_override_set_status == Toggle.ON else False
+        com_list.append(com)
+        com = {}
+
+        com['com-type'] = 'fan-override-set-speed'
+        com['value'] = data['fans_speed'] * 100
+        com_list.append(com)
+        com = {}
+
+        com['com-type'] = 'max-out-current'
+        com['value'] = data['acc_charge_current']
+        com_list.append(com)
+        com = {}
+
+        com['com-type'] = 'max-in-current'
+        com['value'] = data['grid_max_current']
+        com_list.append(com)
+
+        status = HandcartStatus(int(data['status'].value))
+
+        if status == HandcartStatus.IDLE:
+            com['com-type'] = 'shutdown'
+            com['value'] = True
+        elif status == HandcartStatus.ERROR:
+            # TODO ?
+            pass
+        elif status == HandcartStatus.PRECHARGE:
+            com['com-type'] = 'precharge'
+            com['value'] = True
+        elif status == HandcartStatus.CHARGE:
+            com['com-type'] = 'charge'
+            com['value'] = True
+        elif status == HandcartStatus.CHARGE_DONE:
+            com['com-type'] = 'charge'
+            com['value'] = False
+
+    except KeyError:
+        raise can.CanError
+
+    return com_list
+
+
 class CanListener:
     """
     That listener is called wether a can message arrives, then
@@ -61,14 +122,15 @@ class CanListener:
         calls the corresponding function to process the message
         :param msg: the incoming message
         """
-        #print(f"[DEBUG] {msg}")
+        # print(f"[DEBUG] {msg}")
         if self.doMsg.get(msg.arbitration_id) is not None:
             try:
-                #message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-                #print(f"[DEBUG] received message: {message}")
+                # message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+                # print(f"[DEBUG] received message: {message}")
                 self.doMsg.get(msg.arbitration_id)(msg)
             except KeyError:
                 self.can_err = True
+
 
 def canSend(bus, msg_id, data, lock: threading.Lock, shared_data):
     """
@@ -123,7 +185,7 @@ def thread_2_CAN(shared_data: CanListener,
                  can_forward_enabled: bool,
                  forward_lock: threading.Lock,
                  lock: threading.Lock,
-                 tele_can_queue: queue.Queue):
+                 command_queue: queue.Queue):
     """
     Thread managing the can connection, getting and sending messages
     """
@@ -140,8 +202,15 @@ def thread_2_CAN(shared_data: CanListener,
             it then put the message in the rx queue
             :param msg: the incoming message
             """
+            if msg.arbitration_id == primary_ID_HANDCART_SETTING_SET:
+                try:
+                    command = do_HANDCART_SETTING_SET(msg)
+                    if command is not None:
+                        command_queue.put(command)
+                except can.CanError:
+                    shared_data.can_err = True
+
             rx_can_queue.put(msg)
-            tele_can_queue.put(msg)
 
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
@@ -155,7 +224,6 @@ def thread_2_CAN(shared_data: CanListener,
 
     while 1:
         time.sleep(0.001)
-        # print("can")
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
             canSend(canbus, act.arbitration_id, act.data, lock, shared_data)
@@ -215,4 +283,19 @@ def thread_2_CAN(shared_data: CanListener,
                                                  data=data,
                                                  is_extended_id=False)
                     tx_can_queue.put(status_message)
-                    last_hc_presence_sent = time.time()
+
+                # Send settings to telemetry
+                m: cantools.database.can.message = dbc_primary.get_message_by_name('HANDCART_SETTINGS')
+                data = m.encode({
+                    "target_voltage": shared_data.target_v,
+                    "fans_override": shared_data.bms_hv.fans_set_override_status,
+                    "fans_speed": shared_data.bms_hv.fans_set_override_speed / 100.0,
+                    "acc_charge_current": shared_data.act_set_out_current,
+                    "grid_max_current": shared_data.act_set_in_current,
+                    "status": shared_data.FSM_stat
+                })
+                status_message = can.Message(arbitration_id=m.frame_id,
+                                             data=data,
+                                             is_extended_id=False)
+                tx_can_queue.put(status_message)
+                last_hc_presence_sent = time.time()

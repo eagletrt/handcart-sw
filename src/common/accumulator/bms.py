@@ -1,8 +1,6 @@
-import json
 import struct
 from datetime import datetime
 
-from common.logging import tprint, P_TYPE
 from settings import *
 
 
@@ -22,8 +20,10 @@ class CAN_CHIMERA_MSG_ID(Enum):
     ERROR = 0x08
     WARNING = 0x09
 
+
 CAN_ID_BMS_HV_CHIMERA = 0xAA
 CAN_ID_ECU_CHIMERA = 0x55
+
 
 class CAN_REQ_CHIMERA(Enum):
     REQ_TS_ON = 0x0A  # Remember to ask charge state with byte 1 set to 0x01
@@ -192,11 +192,7 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        tprint(f"ts status is {message.get('ts_status').value}", P_TYPE.DEBUG)
-        #message.get("ts_status")
-        tprint(f"ts status type is {type(message.get('ts_status').value)}", P_TYPE.DEBUG)
-        tprint(f"ts status is {int(message.get('ts_status').value)}", P_TYPE.DEBUG)
-        tprint(f"ts status type is {type(int(message.get('ts_status').value))}", P_TYPE.DEBUG)
+        # tprint(f"ts status is {message.get('ts_status').value}", P_TYPE.DEBUG)0x55
 
         self.status = TsStatus(int(message.get('ts_status').value))
 
