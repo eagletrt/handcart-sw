@@ -286,14 +286,16 @@ def thread_2_CAN(shared_data: CanListener,
 
                 # Send settings to telemetry
                 m: cantools.database.can.message = dbc_primary.get_message_by_name('HANDCART_SETTINGS')
-                data = m.encode({
+                data_ = {
                     "target_voltage": shared_data.target_v,
-                    "fans_override": shared_data.bms_hv.fans_set_override_status,
+                    "fans_override": shared_data.bms_hv.fans_set_override_status.value,
                     "fans_speed": shared_data.bms_hv.fans_set_override_speed / 100.0,
                     "acc_charge_current": shared_data.act_set_out_current,
                     "grid_max_current": shared_data.act_set_in_current,
-                    "status": shared_data.FSM_stat
-                })
+                    "status": shared_data.FSM_stat.value
+                }
+                # tprint(str(data_), P_TYPE.DEBUG)
+                data = m.encode(data_)
                 status_message = can.Message(arbitration_id=m.frame_id,
                                              data=data,
                                              is_extended_id=False)

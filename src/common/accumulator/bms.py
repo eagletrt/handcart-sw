@@ -46,8 +46,8 @@ class BMS_HV:
     hv_temp_history = []
     hv_temp_history_index = 0
 
-    hv_cells_act = [0 for i in range(18 * 6)]
-    hv_temps_act = [0 for i in range(36 * 6)]
+    hv_cells_act = [0 for i in range(BMS_CELLS_VOLTAGES_COUNT)]
+    hv_temps_act = [0 for j in range(BMS_CELLS_TEMPS_COUNT)]
 
     charged_capacity_ah = 0
     charged_capacity_wh = 0

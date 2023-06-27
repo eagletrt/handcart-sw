@@ -108,7 +108,7 @@ class FSM(threading.Thread):
         self.canread.can_err = False
 
     def balancing_disabled_check(self):
-        if self.canread.bms_hv.is_balancing:
+        if self.canread.bms_hv.is_balancing == Toggle.ON:
             m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
 
             data = m.encode(
@@ -307,7 +307,7 @@ class FSM(threading.Thread):
                 if self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
                         and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
                     self.can_forward_enabled = False
-                    return STATE.C_DONE
+                    return STATE.CHARGE_DONE
             except KeyError:
                 print("Error in reading can message from brusa")
                 # canread.can_err = True da rimettere
@@ -322,7 +322,7 @@ class FSM(threading.Thread):
         # User decide wether charge again or going idle
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
-        return STATE.C_DONE
+        return STATE.CHARGE_DONE
 
     def do_balancing(self):
         if self.balancing_stop_asked:
@@ -400,7 +400,7 @@ class FSM(threading.Thread):
         STATE.PRECHARGE: doPreCharge,
         STATE.READY: doReady,
         STATE.CHARGE: doCharge,
-        STATE.C_DONE: doC_done,
+        STATE.CHARGE_DONE: doC_done,
         STATE.BALANCING: do_balancing,
         STATE.ERROR: doError,
         STATE.EXIT: doExit
@@ -427,7 +427,7 @@ class FSM(threading.Thread):
             if act_stat != STATE.CHECK:
                 if not self.canread.bms_hv.isConnected():
                     next_stat = self.doState.get(STATE.CHECK)(self)
-                if (act_stat == STATE.CHARGE or act_stat == STATE.C_DONE) and not self.canread.brusa.isConnected():
+                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.brusa.isConnected():
                     next_stat = self.doState.get(STATE.CHECK)(self)
 
             if act_stat != STATE.BALANCING:

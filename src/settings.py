@@ -20,16 +20,24 @@ MAX_TARGET_V_ACC = 454  # Maximum voltage to charge the accumulator to
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
-CAN_INTERFACE = "vcan0"
+CAN_INTERFACE = "can0"
 
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
+BMS_CELLS_VOLTAGES_COUNT = 108
+BMS_CELLS_TEMPS_COUNT = 216
+BMS_SEGMENT_COUNT = 6
+BMS_CELLS_VOLTAGES_PER_SEGMENT = BMS_CELLS_VOLTAGES_COUNT / BMS_SEGMENT_COUNT
+BMS_CELLS_TEMPS_PER_SEGMENT = BMS_CELLS_TEMPS_COUNT / BMS_SEGMENT_COUNT
 
 # CLI config
 CLI_TTY = "/dev/serial0"
+CLI_TTY_REDIRECT_ENABLED = False
 CLI_DEFAULT_WIDTH = 80
 CLI_DEFAULT_HEIGHT = 24
+CLI_CELLS_VOLTAGE_RED_THRESHOLD = 3.6
+CLI_CELLS_TEMPS_RED_THRESHOLD = 50
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
@@ -60,13 +68,14 @@ class PIN(Enum):
 
 class STATE(Enum):
     """Enum containing the states of the backend's state-machine
+    It is inited with the values taken from the enum of the can message
     """
-    CHECK = 0
-    IDLE = 1
-    PRECHARGE = 2
-    READY = 3
-    CHARGE = 4
-    C_DONE = 5
-    BALANCING = 6
-    ERROR = -1
-    EXIT = -2
+    CHECK = HandcartStatus.CHECK.value
+    IDLE = HandcartStatus.IDLE.value
+    PRECHARGE = HandcartStatus.PRECHARGE.value
+    READY = HandcartStatus.READY.value
+    CHARGE = HandcartStatus.CHARGE.value
+    CHARGE_DONE = HandcartStatus.CHARGE_DONE.value
+    BALANCING = HandcartStatus.BALANCING.value
+    ERROR = HandcartStatus.ERROR.value
+    EXIT = -1  # extra state for convenience

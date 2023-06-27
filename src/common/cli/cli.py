@@ -1,6 +1,7 @@
 import curses
 import os
 import queue
+import random
 import sys
 import threading
 from enum import Enum
@@ -8,13 +9,17 @@ from enum import Enum
 from common.can_classes import Toggle
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
-from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY
+from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
+    BMS_CELLS_VOLTAGES_COUNT, BMS_CELLS_TEMPS_COUNT, CLI_CELLS_VOLTAGE_RED_THRESHOLD, CLI_CELLS_TEMPS_RED_THRESHOLD, \
+    BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT
 
 
 class Tab(Enum):
     MAIN = 0
     ERRORS = 1
     LOG = 2
+    CELLS_VOLTAGES = 3
+    CELLS_TEMPERATURES = 4
 
 
 class StdOutWrapper:
@@ -61,18 +66,19 @@ class Cli(threading.Thread):
         self.shared_data = self._args[2]
         tprint(f"Shared data on cli: {self.shared_data}", P_TYPE.DEBUG)
         tprint(f"Starting CLI thread", P_TYPE.DEBUG)
-        os.environ['TERM'] = 'linux'
 
-        # Used to connect to a tty and expose the CLI
-        with open(CLI_TTY, 'rb') as inf, open(CLI_TTY, 'wb') as outf:
-            os.dup2(inf.fileno(), 0)
-            tprint(f"Setted 0", P_TYPE.DEBUG)
-            os.dup2(outf.fileno(), 1)
-            tprint(f"Setted 1", P_TYPE.DEBUG)
-            os.dup2(outf.fileno(), 2)
-            tprint(f"Setted 2", P_TYPE.DEBUG)
+        if CLI_TTY_REDIRECT_ENABLED:
+            os.environ['TERM'] = 'linux'
+            # Used to connect to a tty and expose the CLI
+            with open(CLI_TTY, 'rb') as inf, open(CLI_TTY, 'wb') as outf:
+                os.dup2(inf.fileno(), 0)
+                tprint(f"Setted 0", P_TYPE.DEBUG)
+                os.dup2(outf.fileno(), 1)
+                tprint(f"Setted 1", P_TYPE.DEBUG)
+                os.dup2(outf.fileno(), 2)
+                tprint(f"Setted 2", P_TYPE.DEBUG)
 
-        tprint(f"CLI linked to {CLI_TTY}", P_TYPE.DEBUG)
+            tprint(f"CLI linked to {CLI_TTY}", P_TYPE.DEBUG)
 
         # This wrapper holds the stdout things while the cli is displayed, then it prints back them at the end
         self.stdout_buffer = StdOutWrapper()
@@ -80,6 +86,15 @@ class Cli(threading.Thread):
         sys.stderr = self.stdout_buffer
 
         self.stdscr = curses.initscr()
+
+        if curses.has_colors():
+            tprint("terminal has colors :)", P_TYPE.DEBUG)
+            curses.start_color()
+
+            # Define colors
+            curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+            curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+
         curses.noecho()
         self.stdscr.keypad(True)
         curses.halfdelay(5)
@@ -102,21 +117,16 @@ class Cli(threading.Thread):
         intro.addstr(4, int(CLI_DEFAULT_WIDTH / 2) - 22, "██╔══╝  ██╔══╝  ██║╚██╗██║██║██║     ██╔══╝")
         intro.addstr(5, int(CLI_DEFAULT_WIDTH / 2) - 22, "██║     ███████╗██║ ╚████║██║╚██████╗███████╗")
         intro.addstr(6, int(CLI_DEFAULT_WIDTH / 2) - 22, "╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝")
-        intro.addstr(7, int(CLI_DEFAULT_WIDTH / 2) - 22, "__/\\\\\\\\\\\\\\\\__/\\\\________/\\\\_______/\\\\\\______")
-        intro.addstr(8, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\///////////__\/\\\\_______\/\\\\_____/\\\///\\\\____")
-        intro.addstr(9, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\_____________\//\\\\______/\\\\____/\\\/__\///\\\\__")
-        intro.addstr(10, int(CLI_DEFAULT_WIDTH / 2) - 22,
-                     "_\/\\\\\\\\\\\\______\//\\\\____/\\\\____/\\\\______\//\\\\_")
-        intro.addstr(11, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\///////________\//\\\\__/\\\\____\/\\\\_______\/\\\\_")
-        intro.addstr(12, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\________________\//\\\/\\\\_____\//\\\\______/\\\\__")
-        intro.addstr(13, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\_________________\//\\\\\\_______\///\\\\__/\\\\____")
-        intro.addstr(14, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\/\\\\\\\\\\\\\\\\______\//\\\\__________\///\\\\\/_____")
-        intro.addstr(15, int(CLI_DEFAULT_WIDTH / 2) - 22, "_\///////////////________\///_____________\/////_______")
+        intro.addstr(7, int(CLI_DEFAULT_WIDTH / 2) - 22, "         ███████╗██╗   ██╗ ██████╗")
+        intro.addstr(8, int(CLI_DEFAULT_WIDTH / 2) - 22, "         ██╔════╝██║   ██║██╔═══██╗")
+        intro.addstr(9, int(CLI_DEFAULT_WIDTH / 2) - 22, "         █████╗  ██║   ██║██║   ██║")
+        intro.addstr(10, int(CLI_DEFAULT_WIDTH / 2) - 22, "         ██╔══╝  ╚██╗ ██╔╝██║   ██║")
+        intro.addstr(11, int(CLI_DEFAULT_WIDTH / 2) - 22, "         ███████╗ ╚████╔╝ ╚██████╔╝")
+        intro.addstr(12, int(CLI_DEFAULT_WIDTH / 2) - 22, "         ╚══════╝  ╚═══╝   ╚═════╝")
+        intro.addstr(14, int(CLI_DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
 
-        intro.addstr(17, int(CLI_DEFAULT_WIDTH / 2) - 22, ">>>>>>>>>>>>>>>> HANDCART >>>>>>>>>>>>>>>>>>>")
-
-        intro.addstr(19, int(CLI_DEFAULT_WIDTH / 2) - 12, "Is telemetry dead? ;)")
-        intro.addstr(20, int(CLI_DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
+        intro.addstr(16, int(CLI_DEFAULT_WIDTH / 2) - 12, "Is telemetry dead? ;)")
+        intro.addstr(18, int(CLI_DEFAULT_WIDTH / 2) - 12, "press a key to continue..")
 
         intro.refresh()
 
@@ -277,6 +287,61 @@ class Cli(threading.Thread):
             actual_tab.addstr(1, 0, self.stdout_buffer.get_text())
             actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
 
+        elif tab == Tab.CELLS_VOLTAGES.value:
+            actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Cells voltages")
+            with self.lock:
+
+                tmp = [random.randint(300, 400) / 100.0 for i in range(BMS_CELLS_VOLTAGES_COUNT)]
+
+                try:
+                    row_offset = 1
+                    col = 0
+
+                    for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
+                        act_row = int(row_offset + (index % BMS_CELLS_VOLTAGES_PER_SEGMENT))
+
+                        if voltage < CLI_CELLS_VOLTAGE_RED_THRESHOLD:
+                            actual_tab.addstr(act_row, col, f" {voltage:.2f} |")
+                        else:
+                            actual_tab.addstr(act_row, col, f" {voltage:.2f} |", curses.color_pair(1))
+
+                        if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
+                            col += 7
+
+                except IndexError:
+                    actual_tab.addstr(0, 0, f"Error: cells voltages not available")
+
+            actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
+
+        elif tab == Tab.CELLS_TEMPERATURES.value:
+            actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Cells temperatures")
+
+            with self.lock:
+
+                tmp = [random.randint(30000, 90000) / 1000.0 for i in range(BMS_CELLS_TEMPS_COUNT)]
+
+                try:
+                    row_offset = 1
+                    col = 0
+
+                    actual_tab.addstr(row_offset, col, f"| ")
+
+                    for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
+                        act_row = int(row_offset + (index % BMS_CELLS_TEMPS_PER_SEGMENT))
+
+                        if temp > CLI_CELLS_TEMPS_RED_THRESHOLD:
+                            actual_tab.addstr(act_row, col, f" {temp:.2f} |", curses.color_pair(1))
+                        else:
+                            actual_tab.addstr(act_row, col, f" {temp:.2f} |")
+
+                        if (index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
+                            col += 8
+
+                except IndexError:
+                    actual_tab.addstr(0, 0, f"Error: cells voltages not available")
+
+            actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
+
     def run(self):
         self.input_cutoff = False
         self.awaiting_input = False
@@ -295,7 +360,7 @@ class Cli(threading.Thread):
             if not self.awaiting_input:
                 key = self.stdscr.getch()
                 if key == ord('w'):
-                    if selected_tab == 2:
+                    if selected_tab == 4:
                         selected_tab = 0
                     else:
                         selected_tab += 1

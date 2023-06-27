@@ -75,7 +75,7 @@ def thread_led(shared_data):
             blinking = True
             setLedColor(TSAL_COLOR.PURPLE)
             tsal_actual_color = TSAL_COLOR.PURPLE
-        elif shared_data.FSM_stat == STATE.C_DONE:
+        elif shared_data.FSM_stat == STATE.CHARGE_DONE:
             blinking = True
             setLedColor(TSAL_COLOR.RED)
             tsal_actual_color = TSAL_COLOR.RED

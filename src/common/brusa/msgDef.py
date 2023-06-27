@@ -29,10 +29,14 @@ NLG5_ERR_DEF = [
     "CAN off, transmit buffer >255",
     "CAN transmit buffer >127",
     "CAN receiver buffer >127",
-    "Emergency Shutdown Threshold 'Battery Temperature' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
-    "Emergency Shutdown Threshold 'Battery Voltage' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
-    "Emergency Shutdown Threshold 'Amp Hours' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
-    "Emergency Shutdown Threshold 'Charging Time' is exceeded; see ChargeStar help section 'protective features'; error can only be cleared by cycling power ON-OFF-ON",
+    "Emergency Shutdown Threshold 'Battery Temperature' is exceeded; see ChargeStar help section 'protective "
+    "features'; error can only be cleared by cycling power ON-OFF-ON",
+    "Emergency Shutdown Threshold 'Battery Voltage' is exceeded; see ChargeStar help section 'protective features'; "
+    "error can only be cleared by cycling power ON-OFF-ON",
+    "Emergency Shutdown Threshold 'Amp Hours' is exceeded; see ChargeStar help section 'protective features'; error "
+    "can only be cleared by cycling power ON-OFF-ON",
+    "Emergency Shutdown Threshold 'Charging Time' is exceeded; see ChargeStar help section 'protective features'; "
+    "error can only be cleared by cycling power ON-OFF-ON",
     "",
     "",
     "Output power limited by low mains voltage",
@@ -41,7 +45,8 @@ NLG5_ERR_DEF = [
     "Commanded value is out of specified range; max or min applicable value is assumed instead",
     "NLG5 Control message not active",
     "LED Output driver defective, LEDs can´t be controlled by NLG5 anymore. Charging is still possible.",
-    "Save-Charging-Mode reduces primary current to 3.95 A as long as one of the four internal temperature sensors indicates -18° C or less."
+    "Save-Charging-Mode reduces primary current to 3.95 A as long as one of the four internal temperature sensors "
+    "indicates -18° C or less."
 ]
 
 NLG5_ST_DEF = [
