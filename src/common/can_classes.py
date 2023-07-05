@@ -42,8 +42,8 @@ class Toggle(Enum):
 
 
 class HandcartStatus(Enum):
-    # ["CHECK", "IDLE", "PRECHARGE", "READY", "CHARGE", "CHARGE_DONE", "BALANCING", "ERROR"]
-    # TODO: add NULL status to not set it
+    NONE = get_key_by_value(
+        dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "NONE")
     CHECK = get_key_by_value(
         dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "CHECK")
     IDLE = get_key_by_value(
