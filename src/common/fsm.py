@@ -273,7 +273,7 @@ class FSM(threading.Thread):
         """
 
         if self.canread.bms_hv.status != TsStatus.ON:
-            print("BMS_HV is not in TS_ON, going back idle")
+            tprint("BMS_HV is not in TS_ON, going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             # staccastacca()
             return STATE.IDLE
@@ -368,7 +368,7 @@ class FSM(threading.Thread):
             pass
             # print("brusa error")
         if self.canread.bms_hv.error:
-            print("bms error")
+            #print("bms error")
             pass
         if self.canread.can_err:
             # print("Can Error")

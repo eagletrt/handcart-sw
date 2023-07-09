@@ -244,6 +244,15 @@ Follow the guide
 here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
 . The password of the raspberry is "handcartpi". In the handcart just one CAN bus is necessary.
 
+Note: to configure wifi network, you can use
+```
+nmtui
+```
+by installing it if necessary
+```
+sudo apt install network-manager
+```
+
 # BRUSA NLG5 Charger deep dive
 
 The brusa can be controlled using CAN or can be programmed to be used without the CAN.

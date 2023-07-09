@@ -6,6 +6,8 @@ import cantools
 from cantools.database import Database
 from cantools.database.can import message
 
+from common.can_classes import HandcartStatus
+
 brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
 BMS_DBC_PATH = join(dirname(dirname(realpath(__file__))), "can_eagle", "dbc", "bms", "bms.dbc")
 DBC_PRIMARY_PATH = join(dirname(dirname(realpath(__file__))), "can_eagle", "dbc", "primary", "primary.dbc")
@@ -58,8 +60,9 @@ def test_HANDCART_SET_COMMAND():
         "fans_speed": 0,
         "acc_charge_current": 4,
         "grid_max_current": 4,
-        "status": 0
+        "status": HandcartStatus.NONE.value
     })
+    print(HandcartStatus.CHECK.value)
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
 
@@ -71,7 +74,7 @@ def test_HANDCART_SET_COMMAND():
         "fans_speed": 0.59,
         "acc_charge_current": 6,
         "grid_max_current": 6,
-        "status": 0
+        "status": HandcartStatus.NONE.value
     })
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
@@ -87,5 +90,56 @@ def test_HANDCART_SET_COMMAND():
         if i["com-type"] == "max-in-current":
             assert i["value"] == 6
 
+    # Check set status IDLE
+    data = message.encode({
+        "target_voltage": 450,
+        "fans_override": 1,
+        "fans_speed": 0.59,
+        "acc_charge_current": 6,
+        "grid_max_current": 6,
+        "status": HandcartStatus.IDLE.value
+    })
+    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
+    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
+    assert {"com-type":"shutdown", "value": True } in commands
+
+    # Check set status PRECHARGE
+    data = message.encode({
+        "target_voltage": 450,
+        "fans_override": 1,
+        "fans_speed": 0.59,
+        "acc_charge_current": 6,
+        "grid_max_current": 6,
+        "status": HandcartStatus.PRECHARGE.value
+    })
+    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
+    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
+    assert {"com-type":"precharge", "value": True } in commands
+
+    # Check set status CHARGE
+    data = message.encode({
+        "target_voltage": 450,
+        "fans_override": 1,
+        "fans_speed": 0.59,
+        "acc_charge_current": 6,
+        "grid_max_current": 6,
+        "status": HandcartStatus.CHARGE.value
+    })
+    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
+    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
+    assert {"com-type":"charge", "value": True } in commands
+
+    # Check set status CHARGE_DONE
+    data = message.encode({
+        "target_voltage": 450,
+        "fans_override": 1,
+        "fans_speed": 0.59,
+        "acc_charge_current": 6,
+        "grid_max_current": 6,
+        "status": HandcartStatus.CHARGE_DONE.value
+    })
+    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
+    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
+    assert {"com-type": "charge", "value": False} in commands
 
     print (commands)
