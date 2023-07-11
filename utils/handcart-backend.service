@@ -3,9 +3,9 @@ Description=Backend service for handcart
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/Desktop/handcart-sw/
-ExecStart=python3.7 backend/main.py
-Restart=always
+WorkingDirectory=/home/pi/Desktop/handcart_sw/
+ExecStart=python3.11 src/run.py
+Restart=no
 
 [Install]
 WantedBy=multi-user.target

@@ -1,8 +1,19 @@
-import curses
+import os
 import json
 from enum import Enum
 
 import requests
+
+# TODO: move to a process in the backend
+
+TTY = "/dev/tty3"
+
+with open(TTY, 'rb') as inf, open(TTY, 'wb') as outf:
+    os.dup2(inf.fileno(), 0)
+    os.dup2(outf.fileno(), 1)
+    os.dup2(outf.fileno(), 2)
+
+import curses
 
 DEFAULT_WIDTH = 80
 DEFAULT_HEIGHT = 24
@@ -54,7 +65,6 @@ brusa_err_str = ""
 handcart_status = "offline"
 cutoff_voltage = 0
 fast_charge = False
-
 
 class Tab(Enum):
     MAIN = 0
@@ -329,8 +339,7 @@ def doRequests():
         handcart_status = "offline"
 
 
-input_cutoff = False
-awaiting_input = False
+
 key = -1
 selected_tab = Tab.MAIN.value
 

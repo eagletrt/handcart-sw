@@ -1,19 +1,21 @@
-# Handcart Documentation
+# Handcart Fenice&Chimera 2021-22 Documentation and Guide
 
 ## Index
 
--   [Structure](#structure)
+-   [Software](#software)
+-	[Hardware](https://github.com/eagletrt/handcart-hw/blob/master/docs/handcart.md)
 -   [Resources & Useful links](#resources)
 
 ## Intro
 
-The handcart is the device that is responsible of transporting and charging the car's accumulator. It is based on three main components:
+The handcart is the device that is responsible of transporting and charging the car's accumulator. It is based on four main components:
 
 -   Brusa NLG513 charger, that is the actual charger
 -   Raspberry pi 4 to run the software
+-   handcart PCB
 -   High Voltage Accumulator
 
-The rasp is connected via CAN Bus with the BMS in the accumulator and with the Brusa charger. The software of the handcart is responsible of all the processes to ensure a good and safe charge.
+The rasp is connected via CAN Bus with BMS in the accumulator and with the Brusa charger. The software of the handcart is responsible of all the processes to ensure a good and safe charge. The raspi is mounted on the handcart PCB
 
 ## Abbreviations
 
@@ -22,11 +24,66 @@ The rasp is connected via CAN Bus with the BMS in the accumulator and with the B
 -   rasp -> raspberry
 -   FSM -> Finite State Machine
 -   TS (on, off) -> Tractive system (HV) (on o off)
+- 	SD, shutdown -> the shutdown system giving power to the accumulator AIRs
 
-## The old "carrellino"
-I want to remember the old handcart, that did his job during all these years.
+# Charging guide
 
-![image](images/old_handcart.jpg)
+## Setup procedure
+First, you need to know what you’re doing, you’re going to work with High Voltage both AC and DC, that’s no joke. An ESO should be always present during the charge procedure
+
+### Equipment
+- CO2 Fire extinguisher should be nearby during all charging process
+- At least one ESO
+- HV protecting gloves
+- A voltage tester
+- An internet access point (for the raspi to connect to inernet)
+
+### Finding a good power source
+Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the 2P+T 16A CEE blue connector there shouldn’t be any problem, otherwise if you’re using the "schuko to 2P+T 16A CEE" adaptor, make sure that the line is properly supporting the 16A load.
+<img src="images/schuko_adapter.jpg" width="40%">
+Using an undersized socket could be a fire hazard, so BE CAREFUL. Note that it is possible to specify to the BRUSA how much current to absorb (settings tab> brusa in current), for example to match the ourlet you are connected to.
+
+## Connecting the accumulator and giving power
+Depending on the accumulator (Chimera or Fenice) you have to choose the right cable. Then:
+- Turn off the TSMS key
+- Connect the accumulator with the brusa using the HV connector. With chimera make sure that it makes a good contact, sometimes the interlock will not be closed properly.
+- Connect the two LV connectors to the accumulator (or just one if using fenice), and the other end to the handcart.
+- Once a good power source has been found, connect the brusa to it. You’ll hear a “click” from the BRUSA.
+- Make sure the TSMS key is OFF.
+- Connect the low voltage PSU to main power.
+
+## Charge Procedure
+
+### Using telemetry app
+ TODO
+Make sure that just the people needed are near the handcart, the presence of an ESO is required in a race environment. Make sure a CO2 fire extinguisher is near the accumulator
+- Turn ON the TSMS key. From now on, the system could be at >400 VDC.
+- Connect to the raspi backend at port 8080 with a browser.
+- Go to settings and set the desired charging current limits and voltage setpoint, WARNING! do not exceed rated voltage of accumulator. The accumulator should manage by itself the fans depending on its temperature, but it is a good practice to turn them on anyway.
+- Go to home tab, press precharge button
+- Airs should close, and the state of the handcart should go to "ready"
+- Press charge button, charge should start
+
+### Using the serial CLI
+If telemetry is not working, you can display basic information and control the handcart.
+You need to connect via ssh to the handcart's raspberry, and then:
+- Disable and stop handcart-backend.service service using (sudo systemctl disable handcart-backend.service && sudo systemctl stop handcart-backend.service)
+- Enable the serial interface in src/settings.py (ENABLE_CLI = True and make sure CLI_TTY_REDIRECT_ENABLED = False)
+- launch by terminal python3.11 src/run.py 
+
+In case of any problem, push the red shutdown button in the handcart, this will stop the charge and close the AIRs of the accumulator.
+
+### Backup (emergency) software
+If the backend of the handcart has problems, you can relay on the simplest charging script, that has just the basic functions to do TS_ON and start charging.
+Before starting, follow the set up procedure for the handcart.
+If you need the handcart working as fast as possible, just use the src/charge_script.py, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
+
+Note: in case of the shutdown not opening, use the bypass switch on the handcart, that will bypass the PCB relay.
+
+!!! Warning: this script doesn't have any monitoring over the BMS cells voltages and temperatures. (All the controls are thougth to be done by the BMS)
+!!! Warning : This software is DUMB, if you set a voltage, the brusa will deliver it, be careful!.
+!!! Warning: the script supports just Fenice EVO’s accumulator, this can be bypassed by reading the next note.
+!!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to. Use this With caution.
 
 # Software
 
@@ -34,20 +91,20 @@ I want to remember the old handcart, that did his job during all these years.
 
 ![General diagram](https://lucid.app/publicSegments/view/04f173a9-55f8-42e4-9aa7-747b02ec5147/image.jpeg)
 
-The software is written in python and javascript. It's divided in two parts, respectively frontend and backend. The backend is responsible to manage the charge and to communicate with the devices, and it also hosts a webserver for the frontend.
-The software can be started trough the main.py python script found in backend/ folder. By default, a service can be found in the raspi, namely handcart-backend.service. In the folder utils/ you can find a shell script to reset the service.
+The software is written in python and javascript. It's divided in two parts, respectively frontend and backend. The backend is responsible to manage the charge and to orchestrate the devices (BMS and brusa) and it also hosts a webserver for the frontend. The frontend is a webapp that runs on the client browser.
+The software can be started trough the main.py python script found in backend/ folder. By default, a service can be found in the raspi, namely handcart-backend.service that runs the main.py script on startup. In the folder utils/ you can find a shell script to reset the service.
 
 ## Backend
 
-The backend is the part of the software that is responsible to manage the charge and to communicate with the devices, it also hosts a webserver to serve pages and data to the frontend.
-Basically it is a python script that becomes a process, then it splits itself in three threads.
+The backend is the part of the software that is responsible to manage the charge and to orchestrate the devices, it also hosts a webserver and a restfulAPI to serve pages and data to the frontend.
+Basically it is a python script that launches three threads.
 
 ### Threads
 
 The four threads are:
 
 -   The state machine, aka the main thread
--   The flask webserver
+-   The flask webserver (API)
 -   The CAN read/write process
 -   The thread to manage the leds
 
@@ -191,72 +248,14 @@ Follow the guide
 here [Rasp config](https://github.com/eagletrt/chimera-steeringwheel/blob/1402786b2e5fb6a07b8e8e68f7986f989c5b448c/tools/README.MD)
 . The password of the raspberry is "handcartpi". In the handcart just one CAN bus is necessary.
 
-# Hardware
-
-## Electrical wiring
-
-### TS Tractive System Wiring
-
-The TS wiring is described in this diagram:
-![image](images/Charger_TS_Circuit.png)
-
-#### The junction box
-The TS cable that goes from the BRUSA to the accumulator has a connector in order of being able to charge both the Chimera's acc and the Fenice one. This is done by using a custom cable for each accumulator. The connector is inside a junction box. This box also have the TSMPs resistors.
-
-![image](images/interlock_rule.png)
-![image](images/junction_box.jpg)
-
-The shields of the cables from the accumulator are connected to PE (protective earth) coming from the cable of the BRUSA trough a molex connector.
-
-![image](images/junction_box_2.jpg)
-![image](images/junction_box_3.jpg)
-
-All the cables exiting the junction box are restrained using some cable restrains from lapp.
-
-#### The TSMP
-The TS measurament points are connected to the TS+ and TS- in the junction box, having a proper resistor in series.
-
-![image](images/TSMP.jpg)
-![image](images/TSMP_3.jpg)
-
-
-### The handcart wiring & PCB connectors
-All the Shutdown cables in the wiring have purple color.
-
-#### RGB TSAL (fake)
-The TSAL is used to get a visual feedback of the state of the handcart during charging. The original fenice's TSAL has been taken and has been equiped with RGB leds, connetting the mosphet gates to some pins in the raspberry, specifically:
-- RED_LED = GPIO 12 #31
-- GREEN_LED = GPIO 13 #33
-- BLUE_LED = GPIO 16 #36
-
-Some cables has been routed from the back of the pcb to a weipu 6 pin female cable-to-cable connector. Then, the male connector is connected to the TSAL. The pin assignment is:
-
--   1 - GND
--   2 - 12V
--   3 - Red signal
--   4 - Green signal
--   5 - Blue signal
-
-A view of the soldered cables of the fake TSAL and the fan.
-![image](images/PCB_back.jpg)
-
-## The shutdown circuit
-
-The shutdown circuit is generated from the PSU, it passes trough a fuse, it passes through the mushroom, to a relay which is controlled by the rasp, then TO_CHARGER, which is the interlock of the connector of the brusa, and then FROM_CHARGER to BMS’s SD, then out of the BMS, to the TSMS key, then in to the BMS again to the airs.
-Note that the PON (Power ON) of the BRUSA is powered from the shutdown circuit, this way, if the shutdown is opened, the BRUSA is instantaneously disabled.
-
-![image](images/Charger_shutdown_circuit.png)
-
-## Handcart PCB
-
-# Components list
-- Brusa NLG513 - HV charger
-- Anderson SB 165A-600V - Connector of TS from brusa to accumulator
-- Amphenol AT06-12S - Connector of communication cable to accumulator
-- CGS HSA25 15K G 1731 - TSMP resistors
-- Lapp Oflex FD 90 CV 16mm2 - TS cables
-- TE connector 770680-1 - Connector of brusa communciation
-- Lapp SKINTOP ST-M Cable restrain - Cable restrain for TS cables
+Note: to configure wifi network, you can use
+```
+nmtui
+```
+by installing it if necessary
+```
+sudo apt install network-manager
+```
 
 # BRUSA NLG5 Charger deep dive
 
@@ -308,43 +307,6 @@ charge via can you have to send periodically a can message named NLG5_CTL see de
 the can matrix.
 Note that the endianess is big (motorola).
 
-# Setup procedure
-
-First, you need to know what you’re doing, you’re going to work with High Voltage both AC and DC, that’s no joke.
-
-## Finding a good power source
-
-Brusa will be absorbing a maximum of 16A on a 230V AC 50Hz outlet, so a maximum of 3.6kW, if you’re using the tripolar connector there shouldn’t be any problem, otherwise if you’re using the tripolar to standard socket adaptor, make sure to check if the line is properly supporting the load. Usually it would just warm up the cables, but if you’re unlucky this could cause a fire, so BE CAREFUL. Note that it is possible to specify to the BRUSA how much current to absorb.
-
-## Connecting the accumulator
-
-Depending on the accumulator (Chimera or Fenice) you have to choose the right cable.
-Turn off the TSMS key
-Turn off the PON switch
-Connect the accumulator and the brusa with the HV connector. With chimera make sure that it makes a good contact, sometimes the interlock will not be closed properly.
-Connect the two LV connectors to the accumulator, and the other end to the handcart.
-
-## Connecting brusa to main power
-
-Once a good power source has been found, connect the brusa to it. You’ll hear a “click” from the BRUSA.
-
-# Charge procedure
-
-Make sure that just the people needed are near the handcart, the presence of an ESO would be ideal in a not official environment, and required in a race environment.
-Turn ONthe TSMS key. From now on, the system could be at >400 DC volt.
-Start the charging software, and then, start the charge.
-In case of any problem, push the red shutdown button in the handcart, this will stop the charge and open the AIRs of the accumulator.
-
-# Backup (Emergency) software
-
-Before starting, follow the set up procedure for the handcart.
-It is necessary to initialize the canbus on the raspberry pi, just execute [this](https://github.com/eagletrt/handcart/blob/master/utils/start-can.sh) script.
-If you need the handcart working as fast as possible, just download the [charge script](https://github.com/eagletrt/handcart/blob/master/utils/charge_script.py) from github, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
-
-!!! Warning : This software is DUMB, if you set a voltage, the brusa will deliver it, be careful!.
-!!! Warning: at the time of writing (18/09/2021) the script supports just chimera’s accumulator, this can be bypassed by reading the next note.
-!!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to.
-
 # Resources & Useful links
 
 - [Handcart drive folder](https://drive.google.com/drive/u/0/folders/1gseosQS0oFUHIKkmOtbPTiWpbAOVRIfS)
@@ -370,3 +332,8 @@ If you need the handcart working as fast as possible, just download the [charge 
 # Decisions and info
 
 - EV 4.5.10 Tells that "Every TS connector outside of a housing must include a pilot contact/interlock line which is part of the shutdown circuit. Housings only used to avoid interlocks are prohibited." We have the black connector named "Anderson" which connects the brusa to the adaptor caple for the different accumulators, we want to put it in a container beacuse of the fact that TSMP and resistor has to be placed somewhere, and we didn't like the idea of putting them directly on the cables or the connector. This way we can leave it without the interlock connected to the shutdown.
+
+## The old "carrellino"
+I want to remember the old handcart, that is now dimissed, that did his job during all these years.
+
+![image](images/old_handcart.jpg)

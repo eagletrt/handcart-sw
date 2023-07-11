@@ -1,0 +1,6 @@
+python-can
+RPi.GPIO
+Flask
+pytz
+cantools
+termcolor

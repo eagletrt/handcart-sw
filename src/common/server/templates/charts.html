@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    {% include 'include/head.html' %}
+</head>
+
+<body>
+{% include 'include/header.html' %}
+
+<div class="container-fluid">
+    <div class="row">
+        {% include 'include/sidebar.html' %}
+
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                {% set cTitle = "temperature" if c == "temp" else (c + "map" if c == "heat" else c) %}
+                <h1 class="h2">{{ cTitle[0]|upper + cTitle[1:] }} chart</h1>
+            </div>
+
+            <div class="container col-md-12 ml-sm-auto col-lg-12 px-md-4">
+                <div class="row">
+                    <div class="col-sm">
+                        <div id="{{ c }}Chart" class="bigChart"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm" id="chart">
+                    </div>
+                </div>
+            </div>
+        </main>
+        <script>
+            var divs = 0;
+            var timers = [];
+            let actualChart = "{{c}}";
+            // lineCharts parameters: path, chart's div, json's parameter, the header label's id, the unit of measure of the value
+            // update lineCharts parameters: chart, series, path, parameter, zoom, the header label's id, the unit of measure of the value
+            if (actualChart == "volt") {
+                createMultilineChart("bms-hv/volt", "volt", "bus_voltage", NZ, "volt");
+            } else {
+                updateLineChartValue(null, "bms-hv/volt/last", "bus_voltage", NZ, "volt");
+            }
+
+            createChargeChart();
+
+            if (actualChart == "ampere") {
+                createLineChart("bms-hv/ampere", "ampere", "current", NZ, "amp");
+            } else {
+                updateLineChartValue(null, "bms-hv/ampere/last", "current", NZ, "amp");
+            }
+
+            if (actualChart == "temp") {
+                createMultilineChart("bms-hv/temp", "temp", "average_temp", NZ, "temp");
+            } else {
+                updateLineChartValue(null, "bms-hv/temp/last", "average_temp", NZ, "temp");
+            }
+
+            if (actualChart == "cell") {
+                createCellChart();
+            }
+
+            if (actualChart == "heat") {
+                createHeatChart(36); // number of columns
+            }
+        </script>
+    </div>
+</div>
+{% include 'include/foot.html' %}
+</body>
+
+</html>
