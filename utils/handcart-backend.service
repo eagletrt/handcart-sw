@@ -3,7 +3,7 @@ Description=Backend service for handcart
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/Desktop/new_handcart_sw/
+WorkingDirectory=/home/pi/Desktop/handcart_sw/
 ExecStart=python3.11 src/run.py
 Restart=no
 

@@ -1,6 +1,7 @@
 import struct
 from datetime import datetime
 
+from common.logging import tprint, P_TYPE
 from settings import *
 
 
@@ -62,7 +63,7 @@ class BMS_HV:
     warnings = HvWarnings.copy()
     error_str = ""
     error_list_chimera = []
-    status = TsStatus.OFF
+    status = TsStatus.IDLE
     chg_status = -1
     req_chg_current = 0
     req_chg_voltage = 0
@@ -102,7 +103,7 @@ class BMS_HV:
 
         self.act_pack_voltage = round(message.get("pack_voltage"), 2)
         self.act_bus_voltage = round(message.get("bus_voltage"), 2)
-        self.max_cell_voltage = round(message.get("cell_voltage"), 2)
+        self.max_cell_voltage = round(message.get("max_cell_voltage"), 2)
         self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
 
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
@@ -204,7 +205,15 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        try:
+            message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        except ValueError:
+            tprint(f"ValueError in doHV_CELLS_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
+            return
+
+        if message.get('start_index') > 105:
+            tprint(f"cells voltage index out of range: {message.get('start_index')}", P_TYPE.ERROR)
+            return
 
         self.hv_cells_act[message.get("start_index"):message.get("start_index") + 3] = \
             round(message.get("voltage_0"), 3), \
@@ -219,15 +228,23 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        try:
+            message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        except ValueError:
+            tprint(f"ValueError in doHV_CELLS_TEMP, msg data: {msg.data}", P_TYPE.ERROR)
+            return
 
-        self.hv_temps_act[message.get("start_index"):message.get("start_index") + 6] = \
+        if message.get('start_index') > 216:
+            tprint(f"cells temp index out of range: {message.get('start_index')}", P_TYPE.ERROR)
+            return
+
+        self.hv_temps_act[message.get("start_index"):message.get("start_index") + 4] = \
             round(message.get("temp_0"), 3), \
                 round(message.get("temp_1"), 3), \
                 round(message.get("temp_2"), 3), \
-                round(message.get("temp_3"), 3), \
-                round(message.get("temp_4"), 3), \
-                round(message.get("temp_5"), 3)
+                round(message.get("temp_3"), 3), # TODO CHECK\
+                #round(message.get("temp_4"), 3), \
+                #round(message.get("temp_5"), 3)
 
     def doHV_CELL_BALANCING_STATUS(self, msg):
         """
@@ -236,7 +253,11 @@ class BMS_HV:
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        try:
+            message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        except ValueError:
+            tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
+            return
 
         self.is_balancing = message.get("balancing_status")
 
@@ -261,9 +282,9 @@ class BMS_HV:
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
             print("ts on message")
-            self.status = TsStatus.ON
+            self.status = TsStatus.TS_ON
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
-            self.status = TsStatus.OFF
+            self.status = TsStatus.IDLE
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
             if msg.data[1] == 0:  # ERROR_LTC6804_PEC_ERROR

@@ -26,14 +26,21 @@ def get_key_by_value(d: OrderedDict, value: str):
 
 
 class TsStatus(Enum):
-    OFF = get_key_by_value(
-        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "OFF")
+    #VAL_ 84 ts_status 0 "INIT" 1 "IDLE" 2 "AIRN_CLOSE" 3 "PRECHARGE" 4 "AIRP_CLOSE" 5 "TS_ON" 6 "FATAL_ERROR" ;
+    INIT = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "INIT")
+    IDLE = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "IDLE")
+    AIRN_CLOSE = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "AIRN_CLOSE")
+    AIRP_CLOSE = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "AIRP_CLOSE")
     PRECHARGE = get_key_by_value(
         dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "PRECHARGE")
-    ON = get_key_by_value(
-        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "ON")
-    FATAL = get_key_by_value(
-        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "FATAL")
+    TS_ON = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "TS_ON")
+    FATAL_ERROR = get_key_by_value(
+        dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "FATAL_ERROR")
 
 
 class Toggle(Enum):

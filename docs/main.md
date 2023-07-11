@@ -65,18 +65,22 @@ Make sure that just the people needed are near the handcart, the presence of an 
 - Press charge button, charge should start
 
 ### Using the serial CLI
-If telemetry is not working or the handcart can't have internet access,
+If telemetry is not working, you can display basic information and control the handcart.
+You need to connect via ssh to the handcart's raspberry, and then:
+- Disable and stop handcart-backend.service service using (sudo systemctl disable handcart-backend.service && sudo systemctl stop handcart-backend.service)
+- Enable the serial interface in src/settings.py (ENABLE_CLI = True and make sure CLI_TTY_REDIRECT_ENABLED = False)
+- launch by terminal python3.11 src/run.py 
 
 In case of any problem, push the red shutdown button in the handcart, this will stop the charge and close the AIRs of the accumulator.
 
-
-
-# Backup (emergency) software
-
+### Backup (emergency) software
+If the backend of the handcart has problems, you can relay on the simplest charging script, that has just the basic functions to do TS_ON and start charging.
 Before starting, follow the set up procedure for the handcart.
-It is necessary to initialize the canbus on the raspberry pi, just execute [this](https://github.com/eagletrt/handcart/blob/master/utils/start-can.sh) script.
-If you need the handcart working as fast as possible, just download the [charge script](https://github.com/eagletrt/handcart/blob/master/utils/charge_script.py) from github, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
+If you need the handcart working as fast as possible, just use the src/charge_script.py, and execute it on the raspberry pi, you will be guided through the precharge process of the accumulator and the charge settings.
 
+Note: in case of the shutdown not opening, use the bypass switch on the handcart, that will bypass the PCB relay.
+
+!!! Warning: this script doesn't have any monitoring over the BMS cells voltages and temperatures. (All the controls are thougth to be done by the BMS)
 !!! Warning : This software is DUMB, if you set a voltage, the brusa will deliver it, be careful!.
 !!! Warning: the script supports just Fenice EVO’s accumulator, this can be bypassed by reading the next note.
 !!! Tip: if you need to bypass the precharge check of the accumulator for any reason, you can set the variable “BYPASS_TS_CHECK” in the script to false, this way the script will not check the presence of the accumulator, and the brusa will work on anything it is attached to. Use this With caution.

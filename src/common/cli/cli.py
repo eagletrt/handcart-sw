@@ -10,8 +10,9 @@ from common.can_classes import Toggle
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
 from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
-    BMS_CELLS_VOLTAGES_COUNT, BMS_CELLS_TEMPS_COUNT, CLI_CELLS_VOLTAGE_RED_THRESHOLD, CLI_CELLS_TEMPS_RED_THRESHOLD, \
-    BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT
+    BMS_CELLS_VOLTAGES_COUNT, BMS_CELLS_TEMPS_COUNT, \
+    BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT, CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW, \
+    CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_LOW
 
 
 class Tab(Enum):
@@ -31,6 +32,10 @@ class StdOutWrapper:
 
     def get_text(self, beg=0):
         return '\n'.join(self.text.split('\n')[beg:])
+
+    def flush(self, *args, **kwargs):
+        """No-op for wrapper"""
+        pass
 
 
 class Cli(threading.Thread):
@@ -300,10 +305,11 @@ class Cli(threading.Thread):
                     for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
                         act_row = int(row_offset + (index % BMS_CELLS_VOLTAGES_PER_SEGMENT))
 
-                        if voltage < CLI_CELLS_VOLTAGE_RED_THRESHOLD:
-                            actual_tab.addstr(act_row, col, f" {voltage:.2f} |")
-                        else:
+                        if voltage < CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW \
+                                or voltage > CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH:
                             actual_tab.addstr(act_row, col, f" {voltage:.2f} |", curses.color_pair(1))
+                        else:
+                            actual_tab.addstr(act_row, col, f" {voltage:.2f} |")
 
                         if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
                             col += 7
@@ -329,13 +335,15 @@ class Cli(threading.Thread):
                     for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
                         act_row = int(row_offset + (index % BMS_CELLS_TEMPS_PER_SEGMENT))
 
-                        if temp > CLI_CELLS_TEMPS_RED_THRESHOLD:
+                        if temp > CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH:
                             actual_tab.addstr(act_row, col, f" {temp:.2f} |", curses.color_pair(1))
+                        elif temp < CLI_CELLS_TEMPS_RED_THRESHOLD_LOW:
+                            actual_tab.addstr(act_row, col, f" {temp:.2f} |", curses.color_pair(2))
                         else:
                             actual_tab.addstr(act_row, col, f" {temp:.2f} |")
 
                         if (index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
-                            col += 8
+                            col += 9
 
                 except IndexError:
                     actual_tab.addstr(0, 0, f"Error: cells voltages not available")

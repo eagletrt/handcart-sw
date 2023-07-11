@@ -3,7 +3,7 @@ import can
 from can_cicd.includes_generator.Primary.ids import *
 from can_cicd.naked_generator.Primary.py.Primary import *
 
-data = TsStatus.serialize(Ts_Status.OFF.value)
+data = TsStatus.serialize(Ts_Status.IDLE.value)
 
 bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
@@ -18,7 +18,7 @@ a = HvErrors.serialize(warnings=e, errors=e)
 
 BMS_ERR = can.Message(arbitration_id=ID_HV_ERRORS, data=a)
 
-TS_ON = can.Message(arbitration_id=ID_TS_STATUS, data=TsStatus.serialize(Ts_Status.ON.value))  # BMS TS_ON
+TS_ON = can.Message(arbitration_id=ID_TS_STATUS, data=TsStatus.serialize(Ts_Status.TS_ON.value))  # BMS TS_ON
 
 NLG5_ERR = can.Message(arbitration_id=0x614, data=[1, 0, 0, 0, 0], is_extended_id=False)
 

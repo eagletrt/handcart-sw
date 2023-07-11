@@ -61,7 +61,7 @@ class FSM(threading.Thread):
         self.forward_lock = self._args[6]
 
     def accumulator_sd(self):  # accumulator shutdown
-        if self.canread.bms_hv.status == TsStatus.ON:
+        if self.canread.bms_hv.status == TsStatus.TS_ON:
             message = can.Message(arbitration_id=bms.CAN_ID_ECU_CHIMERA, is_extended_id=False,
                                   data=[bms.CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             self.tx_can_queue.put(message)
@@ -226,7 +226,7 @@ class FSM(threading.Thread):
         # ask pork to do precharge
         # Send req to bms "TS_ON"
 
-        if self.canread.bms_hv.status == TsStatus.OFF and not self.precharge_asked:
+        if self.canread.bms_hv.status == TsStatus.IDLE and not self.precharge_asked:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
                 m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
 
@@ -248,7 +248,7 @@ class FSM(threading.Thread):
             self.precharge_asked = True
             self.precharge_asked_time = time.time()
 
-        if self.canread.bms_hv.status == TsStatus.ON:
+        if self.canread.bms_hv.status == TsStatus.TS_ON:
             print("Precharge done, TS is on")
             self.precharge_done = True
             self.precharge_asked = False
@@ -272,7 +272,7 @@ class FSM(threading.Thread):
         Function that do the ready state of the state machine
         """
 
-        if self.canread.bms_hv.status != TsStatus.ON:
+        if self.canread.bms_hv.status != TsStatus.TS_ON:
             tprint("BMS_HV is not in TS_ON, going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             # staccastacca()
@@ -361,7 +361,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
         # Send to BMS stacca stacca
-        if not self.canread.bms_hv.status == TsStatus.OFF.value:
+        if not self.canread.bms_hv.status == TsStatus.IDLE.value:
             self.staccastacca()
 
         if self.canread.brusa.error:

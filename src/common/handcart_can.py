@@ -8,7 +8,7 @@ from can import Listener
 import common.accumulator.bms as bms
 from common.brusa.brusa import *
 from settings import *
-from .logging import log_error
+from .logging import log_error, P_TYPE, tprint
 
 
 def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
@@ -24,7 +24,7 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
 
     try:
         com['com-type'] = 'cutoff'
-        com['value'] = data["target_voltage"]
+        com['value'] = int(data["target_voltage"])
         com_list.append(com)
         com = {}
 
@@ -35,34 +35,34 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
         com = {}
 
         com['com-type'] = 'fan-override-set-speed'
-        com['value'] = data['fans_speed'] * 100
+        com['value'] = int(data['fans_speed'] * 100)
         com_list.append(com)
         com = {}
 
         com['com-type'] = 'max-out-current'
-        com['value'] = data['acc_charge_current']
+        com['value'] = int(data['acc_charge_current'])
         com_list.append(com)
         com = {}
 
         com['com-type'] = 'max-in-current'
-        com['value'] = data['grid_max_current']
+        com['value'] = int(data['grid_max_current'])
         com_list.append(com)
 
-        status = HandcartStatus(int(data['status'].value))
+        req_status = HandcartStatus(int(data['status'].value))
 
-        if status == HandcartStatus.IDLE:
+        if req_status == HandcartStatus.IDLE:
             com['com-type'] = 'shutdown'
             com['value'] = True
-        elif status == HandcartStatus.ERROR:
+        elif req_status == HandcartStatus.ERROR:
             # TODO ?
             pass
-        elif status == HandcartStatus.PRECHARGE:
+        elif req_status == HandcartStatus.PRECHARGE:
             com['com-type'] = 'precharge'
             com['value'] = True
-        elif status == HandcartStatus.CHARGE:
+        elif req_status == HandcartStatus.CHARGE:
             com['com-type'] = 'charge'
             com['value'] = True
-        elif status == HandcartStatus.CHARGE_DONE:
+        elif req_status == HandcartStatus.CHARGE_DONE:
             com['com-type'] = 'charge'
             com['value'] = False
 
@@ -203,10 +203,12 @@ def thread_2_CAN(shared_data: CanListener,
             :param msg: the incoming message
             """
             if msg.arbitration_id == primary_ID_HANDCART_SETTING_SET:
+                tprint(str(msg), P_TYPE.DEBUG)
                 try:
-                    command = do_HANDCART_SETTING_SET(msg)
-                    if command is not None:
-                        command_queue.put(command)
+                    commands = do_HANDCART_SETTING_SET(msg)
+                    if commands is not None:
+                        for c in commands:
+                            command_queue.put(c)
                 except can.CanError:
                     shared_data.can_err = True
 
