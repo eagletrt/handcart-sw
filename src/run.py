@@ -21,7 +21,6 @@ from common.handcart_can import CanListener, thread_2_CAN
 from common.leds import TSAL_COLOR, setLedColor, thread_led
 from common.logging import tprint, P_TYPE
 from common.rasp import GPIO_setup, resetGPIOs
-from common.server.server import thread_3_WEB
 from settings import *
 
 # tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
@@ -71,10 +70,6 @@ if __name__ == "__main__":
 
     t1.start()
     t2.start()
-
-    if ENABLE_WEB:
-        t3 = threading.Thread(target=thread_3_WEB, args=(shared_data, lock, com_queue))
-        t3.start()
 
     if ENABLE_LED:
         setLedColor(TSAL_COLOR.OFF)
