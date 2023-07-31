@@ -25,9 +25,14 @@ class BRUSA:
 
     act_NLG5_ST_values = {}
     act_NLG5_ACT_I = {'NLG5_OV_ACT': 0,
-                      'NLG5_OC_ACT': 0.2}
-    act_NLG5_ACT_II = {}
-    act_NLG5_TEMP = {}
+                      'NLG5_OC_ACT': 0,
+                      'NLG5_MV_ACT': 0,
+                      'NLG5_MC_ACT': 0,
+                      'NLG5_S_MC_M_CP': 0,
+                      'NLG5_P_TMP': 0}
+    act_NLG5_ACT_II = {'NLG5_S_MC_M_CP': 0,
+                       'NLG5_AHC_EXT': 0}
+    act_NLG5_TEMP = {'NLG5_P_TMP': 0}
     act_NLG5_ERR = {}
 
     error = False

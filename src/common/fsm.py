@@ -30,7 +30,6 @@ class FSM(threading.Thread):
     tx_can_queue: queue.Queue
     rx_can_queue: queue.Queue
     com_queue: queue.Queue
-    can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
     lock: threading.Lock
     shared_data: CanListener = None
     forward_lock: threading.Lock  # Lock to manage the access to the can_forward_enabled variable
@@ -39,7 +38,6 @@ class FSM(threading.Thread):
                  tx_can_queue: queue.Queue,
                  rx_can_queue: queue.Queue,
                  com_queue: queue.Queue,
-                 can_forward_enabled: bool,
                  lock: threading.Lock,
                  shared_data: CanListener,
                  forward_lock: threading.Lock):
@@ -47,7 +45,6 @@ class FSM(threading.Thread):
         super().__init__(args=(tx_can_queue,
                                rx_can_queue,
                                com_queue,
-                               can_forward_enabled,
                                lock,
                                shared_data,
                                forward_lock))
@@ -55,10 +52,9 @@ class FSM(threading.Thread):
         self.tx_can_queue = self._args[0]
         self.rx_can_queue = self._args[1]
         self.com_queue = self._args[2]
-        self.can_forward_enabled = self._args[3]
-        self.lock = self._args[4]
-        self.shared_data = self._args[5]
-        self.forward_lock = self._args[6]
+        self.lock = self._args[3]
+        self.shared_data = self._args[4]
+        self.forward_lock = self._args[5]
 
     def accumulator_sd(self):  # accumulator shutdown
         if self.canread.bms_hv.status == TsStatus.TS_ON:
@@ -88,13 +84,15 @@ class FSM(threading.Thread):
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
+        tprint("staccastacca done", P_TYPE.DEBUG)
+
         self.accumulator_sd()
 
         # Set PON to off
         # Open shutdown
         self.precharge_asked = False
         self.precharge_done = False
-        self.can_forward_enabled = False
+        self.canread.can_forward_enabled = False
 
     def clrErr(self):
         """
@@ -109,6 +107,7 @@ class FSM(threading.Thread):
 
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing == Toggle.ON:
+            tprint(f"turned OFF TS because in balancing", P_TYPE.DEBUG)
             m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
 
             data = m.encode(
@@ -260,7 +259,10 @@ class FSM(threading.Thread):
         else:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE and \
                     time.time() - self.precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
-                if self.precharge_asked and self.canread.bms_hv.status == TsStatus.PRECHARGE:
+                if self.precharge_asked and \
+                        (self.canread.bms_hv.status == TsStatus.PRECHARGE or
+                         self.canread.bms_hv.status == TsStatus.AIRN_CLOSE or
+                         self.canread.bms_hv.status == TsStatus.AIRP_CLOSE):
                     return STATE.PRECHARGE
                 else:
                     return STATE.IDLE
@@ -273,9 +275,8 @@ class FSM(threading.Thread):
         """
 
         if self.canread.bms_hv.status != TsStatus.TS_ON:
-            tprint("BMS_HV is not in TS_ON, going back idle", P_TYPE.INFO)
+            tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
-            # staccastacca()
             return STATE.IDLE
 
         self.precharge_asked = False
@@ -297,16 +298,16 @@ class FSM(threading.Thread):
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
         with self.forward_lock:
-            self.can_forward_enabled = True
+            self.canread.can_forward_enabled = True
 
             if self.stop_charge_command:
-                self.can_forward_enabled = False
+                self.canread.can_forward_enabled = False
                 self.stop_charge_command = False
                 return STATE.READY
             try:
                 if self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
                         and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
-                    self.can_forward_enabled = False
+                    self.canread.can_forward_enabled = False
                     return STATE.CHARGE_DONE
             except KeyError:
                 print("Error in reading can message from brusa")
@@ -355,7 +356,7 @@ class FSM(threading.Thread):
         """
 
         with self.forward_lock:
-            self.can_forward_enabled = False
+            self.canread.can_forward_enabled = False
 
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
@@ -368,7 +369,7 @@ class FSM(threading.Thread):
             pass
             # print("brusa error")
         if self.canread.bms_hv.error:
-            #print("bms error")
+            # print("bms error")
             pass
         if self.canread.can_err:
             # print("Can Error")
@@ -415,30 +416,40 @@ class FSM(threading.Thread):
         act_stat = STATE.CHECK
         self.canread.FSM_entered_stat = datetime.now().isoformat()
         tprint("Backend started", P_TYPE.INFO)
-        tprint("STATE: " + str(act_stat), P_TYPE.DEBUG)
+        # tprint("STATE: " + str(act_stat), P_TYPE.DEBUG)
 
         while 1:
             time.sleep(0.001)
             # Controllo coda rec can messages, in caso li processo. Controllo anche errori
-            if not self.rx_can_queue.empty():
-                new_msg = self.rx_can_queue.get()
-                self.canread.on_message_received(new_msg)
 
-            if act_stat != STATE.CHECK:
-                if not self.canread.bms_hv.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)(self)
-                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.brusa.isConnected():
-                    next_stat = self.doState.get(STATE.CHECK)(self)
+            if not self.rx_can_queue.empty():
+                msg_read = 0
+                while msg_read < MAX_BATCH_CAN_READ and \
+                        not self.rx_can_queue.empty():
+                    new_msg = self.rx_can_queue.get()
+                    self.canread.on_message_received(new_msg)
+                    msg_read += 1
 
             if act_stat != STATE.BALANCING:
                 # Check that balancing is disabled if not in balancing state
                 self.balancing_disabled_check()
 
+            next_stat = None
+
+            if act_stat != STATE.CHECK:
+                if not self.canread.bms_hv.isConnected():
+                    tprint("Going back to CHECK, BMS is not connected", P_TYPE.INFO)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
+                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.brusa.isConnected():
+                    tprint("Going back to CHECK, brusa is not connected", P_TYPE.INFO)
+                    next_stat = self.doState.get(STATE.CHECK)(self)
+
             # Checks errors
-            if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
-                next_stat = self.doState.get(STATE.ERROR)(self)
-            else:
-                next_stat = self.doState.get(act_stat)(self)
+            if next_stat is None:
+                if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
+                    next_stat = self.doState.get(STATE.ERROR)(self)
+                else:
+                    next_stat = self.doState.get(act_stat)(self)
 
             if self.shutdown_asked:
                 next_stat = STATE.IDLE

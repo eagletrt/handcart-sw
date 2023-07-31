@@ -1,11 +1,11 @@
 from os.path import join, dirname, realpath
 
-import common.handcart_can as handcart_can
 import can
 import cantools
 from cantools.database import Database
 from cantools.database.can import message
 
+import common.handcart_can as handcart_can
 from common.can_classes import HandcartStatus
 
 brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
@@ -66,7 +66,10 @@ def test_HANDCART_SET_COMMAND():
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
 
-    assert commands == [{'com-type': 'cutoff', 'value': 449.7725490196078}, {'com-type': 'fan-override-set-status', 'value': False}, {'com-type': 'fan-override-set-speed', 'value': 0.0}, {'com-type': 'max-out-current', 'value': 4.0}, {'com-type': 'max-in-current', 'value': 4.0}]
+    assert commands == [{'com-type': 'cutoff', 'value': 449.7725490196078},
+                        {'com-type': 'fan-override-set-status', 'value': False},
+                        {'com-type': 'fan-override-set-speed', 'value': 0.0},
+                        {'com-type': 'max-out-current', 'value': 4.0}, {'com-type': 'max-in-current', 'value': 4.0}]
 
     data = message.encode({
         "target_voltage": 450,
@@ -79,7 +82,7 @@ def test_HANDCART_SET_COMMAND():
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
 
-    assert {"com-type":"fan-override-set-status", "value": True } in commands
+    assert {"com-type": "fan-override-set-status", "value": True} in commands
     for i in commands:
         if i["com-type"] == "fan-override-set-speed":
             assert (58 <= i["value"] <= 59)
@@ -101,7 +104,7 @@ def test_HANDCART_SET_COMMAND():
     })
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type":"shutdown", "value": True } in commands
+    assert {"com-type": "shutdown", "value": True} in commands
 
     # Check set status PRECHARGE
     data = message.encode({
@@ -114,7 +117,7 @@ def test_HANDCART_SET_COMMAND():
     })
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type":"precharge", "value": True } in commands
+    assert {"com-type": "precharge", "value": True} in commands
 
     # Check set status CHARGE
     data = message.encode({
@@ -127,7 +130,7 @@ def test_HANDCART_SET_COMMAND():
     })
     can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type":"charge", "value": True } in commands
+    assert {"com-type": "charge", "value": True} in commands
 
     # Check set status CHARGE_DONE
     data = message.encode({
@@ -142,4 +145,4 @@ def test_HANDCART_SET_COMMAND():
     commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
     assert {"com-type": "charge", "value": False} in commands
 
-    print (commands)
+    print(commands)

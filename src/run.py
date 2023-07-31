@@ -37,7 +37,6 @@ tx_can_queue = queue.Queue()  # Queue for outgoing can messages
 tele_can_queue = queue.Queue()  # Queue used to send can messages to telemetry thread
 com_queue = queue.Queue()  # Command queue
 lock = threading.Lock()
-can_forward_enabled = False  # Enable or disable the charge can messages from BMS_HV to BRUSA
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
 
@@ -58,7 +57,6 @@ if __name__ == "__main__":
         tx_can_queue,
         rx_can_queue,
         com_queue,
-        can_forward_enabled,
         lock,
         shared_data,
         forward_lock
@@ -67,7 +65,6 @@ if __name__ == "__main__":
                           args=(shared_data,
                                 rx_can_queue,
                                 tx_can_queue,
-                                can_forward_enabled,
                                 forward_lock,
                                 lock,
                                 com_queue))

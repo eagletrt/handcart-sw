@@ -63,7 +63,8 @@ class BMS_HV:
     warnings = HvWarnings.copy()
     error_str = ""
     error_list_chimera = []
-    status = TsStatus.IDLE
+    status = TsStatus.INIT
+    act_cell_delta = 0
     chg_status = -1
     req_chg_current = 0
     req_chg_voltage = 0
@@ -83,6 +84,7 @@ class BMS_HV:
         Check if BMS_HV is connected
         :return: True if BMS_HV is connected
         """
+
         if self.lastupdated == 0:
             return False
         else:
@@ -105,7 +107,9 @@ class BMS_HV:
         self.act_bus_voltage = round(message.get("bus_voltage"), 2)
         self.max_cell_voltage = round(message.get("max_cell_voltage"), 2)
         self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
+        self.act_cell_delta = round(message.get("max_cell_voltage") - message.get("min_cell_voltage"), 2)
 
+        """
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
                                         "pack_voltage": self.act_pack_voltage,
                                         "bus_voltage": self.act_bus_voltage,
@@ -113,6 +117,7 @@ class BMS_HV:
                                         "min_cell_voltage": self.max_cell_voltage})
 
         self.hv_voltage_history_index += 1
+        """
 
     def doHV_CURRENT(self, msg):
         """
@@ -127,19 +132,21 @@ class BMS_HV:
         self.act_current = abs(round(message.get("current"), 2))
         self.act_power = round(message.get("power"), 2)
 
+        """
         self.hv_current_history.append({
             "timestamp": self.lastupdated,
             "current": self.act_current,
             "power": self.act_power
         })
-
         self.hv_current_history_index += 1
+        
 
         if self.act_current != 0:
             delta = (datetime.fromisoformat(self.lastupdated) - datetime.fromisoformat(
                 self.last_hv_current)).seconds * (1 / 3600)
             self.charged_capacity_ah += self.act_current * delta
             self.charged_capacity_wh += self.act_power * delta
+        """
 
     def doHV_TEMP(self, msg):
         """
@@ -155,12 +162,14 @@ class BMS_HV:
         self.min_temp = round(message.get("min_temp"), 2)
         self.max_temp = round(message.get("max_temp"), 2)
 
+        """
         self.hv_temp_history.append({"timestamp": self.lastupdated,
                                      "average_temp": self.act_average_temp,
                                      "max_temp": self.max_temp,
                                      "min_temp": self.min_temp})
 
         self.hv_temp_history_index += 1
+        """
 
     def doHV_ERRORS(self, msg):
         """
@@ -170,14 +179,14 @@ class BMS_HV:
         # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
         for i in message.keys():
             try:
                 self.errors[i] = message[i]
                 if message[i] != 0:
-                    self.error = True
+                    tprint("BMS error", P_TYPE.ERROR)
+                    # self.error = True
             except KeyError:
                 # Could be that it is not an error but a warning
                 self.warnings[i] = message[i]
@@ -188,13 +197,9 @@ class BMS_HV:
         Processes the HV_STATUS CAN message from BMS_HV
         :param msg: the HV_STATUS CAN message
         """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        # tprint(f"ts status is {message.get('ts_status').value}", P_TYPE.DEBUG)0x55
-
         self.status = TsStatus(int(message.get('ts_status').value))
 
     def doHV_CELLS_VOLTAGE(self, msg):
@@ -202,11 +207,10 @@ class BMS_HV:
         Processes the
         :param msg: the CAN message
         """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+            self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
             tprint(f"ValueError in doHV_CELLS_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
             return
@@ -225,11 +229,10 @@ class BMS_HV:
         Processes the
         :param msg: the CAN message
         """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+            self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
             tprint(f"ValueError in doHV_CELLS_TEMP, msg data: {msg.data}", P_TYPE.ERROR)
             return
@@ -242,24 +245,22 @@ class BMS_HV:
             round(message.get("temp_0"), 3), \
                 round(message.get("temp_1"), 3), \
                 round(message.get("temp_2"), 3), \
-                round(message.get("temp_3"), 3), # TODO CHECK\
-                #round(message.get("temp_4"), 3), \
-                #round(message.get("temp_5"), 3)
+                round(message.get("temp_3"), 3)
 
     def doHV_CELL_BALANCING_STATUS(self, msg):
         """
         Updates the balancing status of the acc
         """
         self.ACC_CONNECTED = ACCUMULATOR.FENICE
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+            self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
             tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        self.is_balancing = message.get("balancing_status")
+        # self.is_balancing = message.get("balancing_status") # TODO: change wrong value
 
     def doHV_FANS_OVERRIDE_STATUS(self, msg):
         """

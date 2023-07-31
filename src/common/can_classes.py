@@ -26,7 +26,7 @@ def get_key_by_value(d: OrderedDict, value: str):
 
 
 class TsStatus(Enum):
-    #VAL_ 84 ts_status 0 "INIT" 1 "IDLE" 2 "AIRN_CLOSE" 3 "PRECHARGE" 4 "AIRP_CLOSE" 5 "TS_ON" 6 "FATAL_ERROR" ;
+    # VAL_ 84 ts_status 0 "INIT" 1 "IDLE" 2 "AIRN_CLOSE" 3 "PRECHARGE" 4 "AIRP_CLOSE" 5 "TS_ON" 6 "FATAL_ERROR" ;
     INIT = get_key_by_value(
         dbc_primary.get_message_by_name("TS_STATUS").signals[0].choices, "INIT")
     IDLE = get_key_by_value(

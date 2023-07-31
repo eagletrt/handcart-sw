@@ -21,6 +21,7 @@ MAX_TARGET_V_ACC = 454  # Maximum voltage to charge the accumulator to
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
 CAN_INTERFACE = "can0"
+MAX_BATCH_CAN_READ = 5  # Maximum number of message read in a single FSM cycle (to avoid starvation)
 
 CAN_BMS_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_BRUSA_PRESENCE_TIMEOUT = 0.5  # in seconds
@@ -41,7 +42,7 @@ CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH = 4.15
 CLI_CELLS_TEMPS_RED_THRESHOLD_LOW = 5
 CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH = 50
 
-BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 2  # Time allowed for the BMS to finish precharge
+BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms

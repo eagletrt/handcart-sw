@@ -84,6 +84,8 @@ def exit_handler():
 
     bus.send(nlg5_ctl_msg_off)
 
+    time.sleep(0.5)
+
     message_ts_off: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
     data_ts_off = message_ts_off.encode(
         {
@@ -118,6 +120,8 @@ atexit.register(exit_handler)
 nlg5_ctl_msg = can.Message(arbitration_id=nlg5_ctl.frame_id,
                            data=data_nlg5_off,
                            is_extended_id=False)
+
+charging = False
 
 
 class Can_rx_Listener(Listener):
@@ -218,7 +222,7 @@ set_fan_override(True)
 time.sleep(1)  # wait for pon to enable
 
 t = time.time()
-charging = False
+
 while 1:
     time.sleep(0.10)
     if (not charging) and time.time() - t > 5:

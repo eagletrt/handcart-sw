@@ -199,49 +199,58 @@ class Cli(threading.Thread):
                 actual_tab.addstr(
                     3, self.FIRST_COLUMN_INDEX, "status:\t\t" + str(self.shared_data.bms_hv.status.name))
                 actual_tab.addstr(
-                    4, self.FIRST_COLUMN_INDEX, "Voltage:\t" + str(self.shared_data.bms_hv.act_bus_voltage))
+                    4, self.FIRST_COLUMN_INDEX, "pack voltage:\t" + str(self.shared_data.bms_hv.act_pack_voltage))
                 actual_tab.addstr(
-                    5, self.FIRST_COLUMN_INDEX, "cell max v:\t" + str(self.shared_data.bms_hv.max_cell_voltage))
+                    5, self.FIRST_COLUMN_INDEX, "bus voltage:\t" + str(self.shared_data.bms_hv.act_bus_voltage))
                 actual_tab.addstr(
-                    6, self.FIRST_COLUMN_INDEX, "cell min v:\t" + str(self.shared_data.bms_hv.min_cell_voltage))
+                    6, self.FIRST_COLUMN_INDEX, "cell max v:\t" + str(self.shared_data.bms_hv.max_cell_voltage))
                 actual_tab.addstr(
-                    7, self.FIRST_COLUMN_INDEX, "Avg Temp:\t" + str(self.shared_data.bms_hv.act_average_temp))
+                    7, self.FIRST_COLUMN_INDEX, "cell min v:\t" + str(self.shared_data.bms_hv.min_cell_voltage))
                 actual_tab.addstr(
-                    8, self.FIRST_COLUMN_INDEX, "Temp max:\t" + str(self.shared_data.bms_hv.max_temp))
+                    8, self.FIRST_COLUMN_INDEX, "cell delta v:\t" + str(self.shared_data.bms_hv.act_cell_delta))
                 actual_tab.addstr(
-                    9, self.FIRST_COLUMN_INDEX, "Temp min:\t" + str(self.shared_data.bms_hv.min_temp))
+                    9, self.FIRST_COLUMN_INDEX, "Avg Temp:\t" + str(self.shared_data.bms_hv.act_average_temp))
+                actual_tab.addstr(
+                    10, self.FIRST_COLUMN_INDEX, "Temp max:\t" + str(self.shared_data.bms_hv.max_temp))
+                actual_tab.addstr(
+                    11, self.FIRST_COLUMN_INDEX, "Temp min:\t" + str(self.shared_data.bms_hv.min_temp))
+                actual_tab.addstr(
+                    12, self.FIRST_COLUMN_INDEX, "Current:\t" + str(self.shared_data.bms_hv.act_current))
 
                 # BRUSA
                 actual_tab.addstr(
                     3, self.SECOND_COLUMN_INDEX, "status:\t" + str(self.shared_data.brusa.isConnected()))
                 actual_tab.addstr(
                     4, self.SECOND_COLUMN_INDEX,
-                    "main in V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT")))
+                    "main in V:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT"), 2)))
                 actual_tab.addstr(
                     5, self.SECOND_COLUMN_INDEX,
-                    "main in A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT")))
+                    "main in A:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT"), 2)))
                 actual_tab.addstr(
                     6, self.SECOND_COLUMN_INDEX,
-                    "out V:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT")))
+                    "out V:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT"), 2)))
                 actual_tab.addstr(
                     7, self.SECOND_COLUMN_INDEX,
-                    "out A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT")))
+                    "out A:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT"), 2)))
                 actual_tab.addstr(
                     8, self.SECOND_COLUMN_INDEX,
-                    "mainIN lim A:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_S_MC_M_CP")))
+                    "mainIN lim A:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_S_MC_M_CP"), 2)))
                 actual_tab.addstr(
                     9, self.SECOND_COLUMN_INDEX,
-                    "temperature:\t" + str(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_P_TMP")))
+                    "temperature:\t" + str(round(self.shared_data.brusa.act_NLG5_TEMP.get("NLG5_P_TMP"), 2)))
                 actual_tab.addstr(
                     10, self.SECOND_COLUMN_INDEX, "Warning:\t" + str(False))
+                actual_tab.addstr(
+                    11, self.SECOND_COLUMN_INDEX,
+                    "Ah:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_AHC_EXT"), 2)))
 
                 # HANDCART
                 actual_tab.addstr(
-                    3, self.THIRD_COLUMN_INDEX, "Status:\t" + str(self.shared_data.FSM_stat.name))
+                    3, self.THIRD_COLUMN_INDEX, "Status:\t\t" + str(self.shared_data.FSM_stat.name))
                 actual_tab.addstr(
-                    4, self.THIRD_COLUMN_INDEX, "cutoff v:\t" + str(self.shared_data.target_v))
+                    4, self.THIRD_COLUMN_INDEX, "cutoff v:\t\t" + str(self.shared_data.target_v))
                 actual_tab.addstr(
-                    5, self.THIRD_COLUMN_INDEX, "fastcharge:\t" + str(self.fast_charge))
+                    5, self.THIRD_COLUMN_INDEX, "fastcharge:\t\t" + str(self.fast_charge))
                 actual_tab.addstr(
                     6, self.THIRD_COLUMN_INDEX, "max-cur-out:\t" + str(self.shared_data.act_set_out_current))
                 actual_tab.addstr(
