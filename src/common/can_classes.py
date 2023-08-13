@@ -68,7 +68,6 @@ class HandcartStatus(Enum):
     ERROR = get_key_by_value(
         dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "ERROR")
 
-
 HvErrors = {
     # TODO: validate ?
     "errors_CELL_LOW_VOLTAGE": None,

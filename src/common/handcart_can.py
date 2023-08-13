@@ -35,7 +35,7 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
         com = {}
 
         com['com-type'] = 'fan-override-set-speed'
-        com['value'] = int(data['fans_speed'] * 100)
+        com['value'] = data['fans_speed'] * 100
         com_list.append(com)
         com = {}
 
@@ -294,7 +294,7 @@ def thread_2_CAN(shared_data: CanListener,
                 data_ = {
                     "target_voltage": shared_data.target_v,
                     "fans_override": shared_data.bms_hv.fans_set_override_status.value,
-                    "fans_speed": shared_data.bms_hv.fans_set_override_speed / 100.0,
+                    "fans_speed": shared_data.bms_hv.fans_set_override_speed,
                     "acc_charge_current": shared_data.act_set_out_current,
                     "grid_max_current": shared_data.act_set_in_current,
                     "status": shared_data.FSM_stat.value

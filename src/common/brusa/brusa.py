@@ -61,7 +61,7 @@ class BRUSA:
         self.act_NLG5_ST_values = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
         for key in self.act_NLG5_ST_values:
             value = self.act_NLG5_ST_values[key]
-            if (value == 1):
+            if value == 1:
                 signals = dbc_brusa.get_message_by_name('NLG5_ST').signals
                 for s in signals:
                     if s.name == key:

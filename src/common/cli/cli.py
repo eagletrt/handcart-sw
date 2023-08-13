@@ -53,6 +53,8 @@ class Cli(threading.Thread):
     input_cutoff = False
     awaiting_input = False
 
+    ask_idle = False
+
     # Shared data
     com_queue: queue.Queue
     lock: threading.Lock
@@ -177,14 +179,16 @@ class Cli(threading.Thread):
             elif self.shared_data.FSM_stat == STATE.CHARGE:
                 bottom_str += "[c] stop | "
 
-        bottom_str += "[v] set cutoff | [f] toggle fastcharge | [w] change view"
+            if self.shared_data.FSM_stat != STATE.IDLE and self.shared_data.FSM_stat != STATE.CHECK:
+                bottom_str += "[i] idle | "
+
+        bottom_str += "[v] set cutoff | [f] fastchg | [w] change view"
         bottom.addstr(1, 2, bottom_str)
 
         bottom.border()
         bottom.refresh()
 
     def actual_tab(self, tab):
-        # TODO: add tab for voltages and temperatures
         actual_tab = curses.newpad(100, CLI_DEFAULT_WIDTH)
 
         if tab == Tab.MAIN.value:
@@ -216,6 +220,8 @@ class Cli(threading.Thread):
                     11, self.FIRST_COLUMN_INDEX, "Temp min:\t" + str(self.shared_data.bms_hv.min_temp))
                 actual_tab.addstr(
                     12, self.FIRST_COLUMN_INDEX, "Current:\t" + str(self.shared_data.bms_hv.act_current))
+                actual_tab.addstr(
+                    13, self.FIRST_COLUMN_INDEX, "Balancing:\t" + str(self.shared_data.bms_hv.is_balancing.name))
 
                 # BRUSA
                 actual_tab.addstr(
@@ -242,7 +248,7 @@ class Cli(threading.Thread):
                     10, self.SECOND_COLUMN_INDEX, "Warning:\t" + str(False))
                 actual_tab.addstr(
                     11, self.SECOND_COLUMN_INDEX,
-                    "Ah:\t" + str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_AHC_EXT"), 2)))
+                    "Error:\t" + str(self.shared_data.brusa.error))
 
                 # HANDCART
                 actual_tab.addstr(
@@ -394,6 +400,9 @@ class Cli(threading.Thread):
                     j = {"com-type": "max-in-current", "value": 16 if self.fast_charge else 8}
                     self.com_queue.put(j)
                     j = {"com-type": "max-out-current", "value": 10 if self.fast_charge else 7}
+                    self.com_queue.put(j)
+                elif key == ord('i'):
+                    j = {"com-type": "shutdown", "value": True}
                     self.com_queue.put(j)
                 elif key == ord('c'):
                     with self.lock:

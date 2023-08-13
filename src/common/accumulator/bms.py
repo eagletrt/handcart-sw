@@ -84,7 +84,6 @@ class BMS_HV:
         Check if BMS_HV is connected
         :return: True if BMS_HV is connected
         """
-
         if self.lastupdated == 0:
             return False
         else:
@@ -256,11 +255,15 @@ class BMS_HV:
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+            #if message.get("cellboard_id") > BMS_CELLBOARD_COUNT - 1: # TODO add
+            #    raise ValueError("cellboard_id out of range")
         except ValueError:
             tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        # self.is_balancing = message.get("balancing_status") # TODO: change wrong value
+        #self.is_balancing = Toggle(int(message.get("balancing_status").value)) # TODO: reinsert when BMS is fixed
+        if self.is_balancing == Toggle.ON:
+            tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
     def doHV_FANS_OVERRIDE_STATUS(self, msg):
         """
@@ -270,6 +273,8 @@ class BMS_HV:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+        #tprint(message, P_TYPE.DEBUG)
 
         self.fans_override_status = message.get("fans_override")
         self.fans_override_speed = round(message.get("fans_speed"), 2)

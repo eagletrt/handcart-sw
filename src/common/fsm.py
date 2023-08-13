@@ -107,7 +107,7 @@ class FSM(threading.Thread):
 
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing == Toggle.ON:
-            tprint(f"turned OFF TS because in balancing", P_TYPE.DEBUG)
+            #tprint(f"turned OFF Balancing because in IDLE", P_TYPE.DEBUG)
             m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
 
             data = m.encode(
@@ -331,7 +331,7 @@ class FSM(threading.Thread):
             return STATE.IDLE
 
         if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-            if not self.canread.bms_hv.is_balancing \
+            if not self.canread.bms_hv.is_balancing == Toggle.ON \
                     and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL:
                 m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
 
