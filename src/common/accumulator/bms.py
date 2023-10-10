@@ -261,7 +261,7 @@ class BMS_HV:
             tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        #self.is_balancing = Toggle(int(message.get("balancing_status").value)) # TODO: reinsert when BMS is fixed
+        self.is_balancing = Toggle(int(message.get("balancing_status").value)) # TODO: reinsert when BMS is fixed
         if self.is_balancing == Toggle.ON:
             tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
