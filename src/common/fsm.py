@@ -21,6 +21,7 @@ class FSM(threading.Thread):
     precharge_command = False  # True if received precharge command
     start_charge_command = False  # True if received start charge command
     stop_charge_command = False  # True if received stop charge command
+    ready_command = False # True if received a ready command, used only to go from CHARGE_DONE to READY
     shutdown_asked = False
 
     balancing_asked_time = 0  # the time of the last precharge message has been sent
@@ -147,6 +148,9 @@ class FSM(threading.Thread):
 
             if act_com['com-type'] == "charge" and act_com['value'] is False:
                 self.stop_charge_command = True
+
+            if act_com['com-type'] == "ready" and act_com['value'] is True:
+                self.ready_command = True
 
             if act_com['com-type'] == "shutdown" and act_com['value'] is True:
                 self.shutdown_asked = True
@@ -297,6 +301,11 @@ class FSM(threading.Thread):
         # Set Brusa's PON to 12v (relay)
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
+        if self.canread.bms_hv.status != TsStatus.TS_ON:
+            tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
+            # note that errors are already managed in mainloop
+            return STATE.IDLE
+
         with self.forward_lock:
             self.canread.can_forward_enabled = True
 
@@ -305,8 +314,10 @@ class FSM(threading.Thread):
                 self.stop_charge_command = False
                 return STATE.READY
             try:
-                if self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
-                        and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1:
+                if (self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
+                        and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
+                        self.canread.bms_hv.max_cell_voltage >= MAX_ACC_CELL_VOLTAGE:
+
                     self.canread.can_forward_enabled = False
                     return STATE.CHARGE_DONE
             except KeyError:
@@ -322,6 +333,15 @@ class FSM(threading.Thread):
         """
         # User decide wether charge again or going idle
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+
+        if self.canread.bms_hv.status != TsStatus.TS_ON:
+            tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
+            # note that errors are already managed in mainloop
+            return STATE.IDLE
+
+        if self.ready_command:
+            self.ready_command = False
+            return STATE.READY
 
         return STATE.CHARGE_DONE
 

@@ -59,6 +59,9 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
         elif req_status == HandcartStatus.ERROR:
             # TODO ?
             pass
+        elif req_status == HandcartStatus.READY:
+            com['com-type'] = 'ready'
+            com['value'] = True
         elif req_status == HandcartStatus.PRECHARGE:
             com['com-type'] = 'precharge'
             com['value'] = True
@@ -235,13 +238,14 @@ def thread_2_CAN(shared_data: CanListener,
 
         # Handles the brusa ctl messages
         with forward_lock:
+            # TODO change to can library
             if time.time() - last_brusa_ctl_sent > 0.10:  # every tot time send a message
                 NLG5_CTL = dbc_brusa.get_message_by_name('NLG5_CTL')
                 if shared_data.can_forward_enabled:
                     with lock:
                         if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
-                                and 0 <= shared_data.act_set_in_current <= 16 \
-                                and 0 <= shared_data.act_set_out_current < 12:
+                                and 0 <= shared_data.act_set_in_current <= MAX_CHARGE_MAINS_AMPERE \
+                                and 0 <= shared_data.act_set_out_current < MAX_ACC_CHG_AMPERE:
 
                             mains_ampere = shared_data.act_set_in_current
                             out_ampere = shared_data.act_set_out_current
@@ -256,6 +260,9 @@ def thread_2_CAN(shared_data: CanListener,
                             })
                         else:
                             shared_data.generic_error = True
+                            tprint(f"Invalid settings for charging: {shared_data.target_v} V,"
+                                   f" in current: {shared_data.act_set_in_current} A,"
+                                   f" out current {shared_data.act_set_out_current}")
                             log_error(f"Invalid settings to charge accumulator, got "
                                       f"target volt:{shared_data.target_v}V, "
                                       f"in_current:{shared_data.act_set_in_current}A,"

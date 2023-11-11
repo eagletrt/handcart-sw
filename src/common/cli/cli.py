@@ -6,6 +6,7 @@ import sys
 import threading
 from enum import Enum
 
+import settings
 from common.can_classes import Toggle
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
@@ -397,9 +398,12 @@ class Cli(threading.Thread):
                     self.input_cutoff = True
                 elif key == ord('f'):
                     self.fast_charge = not self.fast_charge
-                    j = {"com-type": "max-in-current", "value": 16 if self.fast_charge else 8}
+                    j = {
+                        "com-type": "max-in-current",
+                        "value": settings.MAX_CHARGE_MAINS_AMPERE if self.fast_charge else settings.DEFAULT_CHARGE_MAINS_AMPERE
+                    }
                     self.com_queue.put(j)
-                    j = {"com-type": "max-out-current", "value": 10 if self.fast_charge else 7}
+                    j = {"com-type": "max-out-current", "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
                     self.com_queue.put(j)
                 elif key == ord('i'):
                     j = {"com-type": "shutdown", "value": True}

@@ -12,11 +12,13 @@ dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load th
 
 MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
-MAX_ACC_CHG_AMPERE = 16  # Maximum charging current of accumulator
-DEFAULT_ACC_CHG_AMPERE = 8  # Standard charging current of accumulator
+MAX_ACC_CHG_AMPERE = 9  # Maximum charging current of accumulator
+DEFAULT_ACC_CHG_AMPERE = 4  # Standard charging current of accumulator
 
 DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
 MAX_TARGET_V_ACC = 454  # Maximum voltage to charge the accumulator to
+
+MAX_ACC_CELL_VOLTAGE = 4.2
 
 CAN_DEVICE_TIMEOUT = 2000  # Time tolerated between two message of a device
 
