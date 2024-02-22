@@ -46,7 +46,8 @@ CLI_CELLS_TEMPS_RED_THRESHOLD_LOW = 5
 CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH = 50
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
-RETRANSMIT_INTERVAL = 0.5  # Time to wait before retransmitting a request message
+RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
+RETRANSMIT_INTERVAL_CRITICAL = 0.1 # time to wait before retransmitting a critical request message (seconds)
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
 ENABLE_CLI = True  # Set to true to enable USB cli

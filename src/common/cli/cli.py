@@ -174,16 +174,18 @@ class Cli(threading.Thread):
 
         with self.lock:
             if self.shared_data.FSM_stat == STATE.IDLE:
-                bottom_str += "[c] precharge | "
+                bottom_str += "[c] precharge | [b] bal | "
             elif self.shared_data.FSM_stat == STATE.READY:
                 bottom_str += "[c] charge | "
             elif self.shared_data.FSM_stat == STATE.CHARGE:
                 bottom_str += "[c] stop | "
+            elif self.shared_data.FSM_stat == STATE.BALANCING:
+                bottom_str += "[b] bal stop | "
 
             if self.shared_data.FSM_stat != STATE.IDLE and self.shared_data.FSM_stat != STATE.CHECK:
                 bottom_str += "[i] idle | "
 
-        bottom_str += "[v] set cutoff | [f] fastchg | [w] change view"
+        bottom_str += "[v] cutoff | [f] fastchg | [w] view"
         bottom.addstr(1, 2, bottom_str)
 
         bottom.border()
@@ -403,7 +405,8 @@ class Cli(threading.Thread):
                         "value": settings.MAX_CHARGE_MAINS_AMPERE if self.fast_charge else settings.DEFAULT_CHARGE_MAINS_AMPERE
                     }
                     self.com_queue.put(j)
-                    j = {"com-type": "max-out-current", "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
+                    j = {"com-type": "max-out-current",
+                         "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
                     self.com_queue.put(j)
                 elif key == ord('i'):
                     j = {"com-type": "shutdown", "value": True}
@@ -419,6 +422,13 @@ class Cli(threading.Thread):
                         elif self.shared_data.FSM_stat == STATE.CHARGE:
                             j = {"com-type": "charge", "value": False}
                             self.com_queue.put(j)
+                elif key == ord('b'):
+                    with self.lock:
+                        if self.shared_data.FSM_stat == STATE.IDLE:
+                            j = {"com-type": "balancing", "value": True}
+                        if self.shared_data.FSM_stat == STATE.BALANCING:
+                            j = {"com-type": "balancing", "value": False}
+                        self.com_queue.put(j)
 
             else:
                 curses.echo()

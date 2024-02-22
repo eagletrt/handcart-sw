@@ -68,6 +68,7 @@ class HandcartStatus(Enum):
     ERROR = get_key_by_value(
         dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").signals[5].choices, "ERROR")
 
+
 HvErrors = {
     # TODO: validate ?
     "errors_CELL_LOW_VOLTAGE": None,
@@ -103,13 +104,21 @@ HvWarnings = {
     "warnings_EEPROM_WRITE": None,
 }
 
+# Used to verify that names are present in dbc
+
 primary_ID_HV_VOLTAGE = dbc_primary.get_message_by_name("HV_VOLTAGE").frame_id
 primary_ID_HV_CURRENT = dbc_primary.get_message_by_name("HV_CURRENT").frame_id
 primary_ID_HV_ERRORS = dbc_primary.get_message_by_name("HV_ERRORS").frame_id
 primary_ID_HV_TEMP = dbc_primary.get_message_by_name("HV_TEMP").frame_id
 primary_ID_TS_STATUS = dbc_primary.get_message_by_name("TS_STATUS").frame_id
 primary_ID_HV_CELLS_VOLTAGE = dbc_primary.get_message_by_name("HV_CELLS_VOLTAGE").frame_id
+primary_ID_HV_CELL_VOLTAGE = dbc_primary.get_message_by_name("HV_CELL_VOLTAGE").frame_id
 primary_ID_HV_CELLS_TEMP = dbc_primary.get_message_by_name("HV_CELLS_TEMP").frame_id
 primary_ID_HV_CELL_BALANCING_STATUS = dbc_primary.get_message_by_name("HV_CELL_BALANCING_STATUS").frame_id
 primary_ID_HV_FANS_OVERRIDE_STATUS = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE_STATUS").frame_id
 primary_ID_HANDCART_SETTING_SET = dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET").frame_id
+primary_ID_SET_TS_STATUS_HANDCART = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART").frame_id
+primary_ID_SET_CELL_BALANCING_STATUS = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS").frame_id
+primary_ID_HANDCART_STATUS = dbc_primary.get_message_by_name("HANDCART_STATUS").frame_id
+primary_ID_HANDCART_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SETTINGS").frame_id
+primary_ID_HV_FANS_OVERRIDE = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE").frame_id

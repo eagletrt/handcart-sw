@@ -21,12 +21,13 @@ class FSM(threading.Thread):
     precharge_command = False  # True if received precharge command
     start_charge_command = False  # True if received start charge command
     stop_charge_command = False  # True if received stop charge command
-    ready_command = False # True if received a ready command, used only to go from CHARGE_DONE to READY
+    ready_command = False  # True if received a ready command, used only to go from CHARGE_DONE to READY
     shutdown_asked = False
 
     balancing_asked_time = 0  # the time of the last precharge message has been sent
     balancing_stop_asked = False
     balancing_command = False
+    last_balancing_stop_asked_time: datetime = 0
 
     tx_can_queue: queue.Queue
     rx_can_queue: queue.Queue
@@ -64,13 +65,18 @@ class FSM(threading.Thread):
             self.tx_can_queue.put(message)
 
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                    primary_ID_SET_TS_STATUS_HANDCART)
 
-                data = m.encode(
-                    {
-                        "ts_status_set": Toggle.OFF.value,
-                    }
-                )
+                try:
+                    data = m.encode(
+                        {
+                            "ts_status_set": Toggle.OFF.value,
+                        }
+                    )
+                except cantools.database.EncodeError:
+                    self.canread.can_err = True
+
                 message = can.Message(arbitration_id=m.frame_id,
                                       data=data,
                                       is_extended_id=False)
@@ -107,20 +113,26 @@ class FSM(threading.Thread):
         self.canread.can_err = False
 
     def balancing_disabled_check(self):
-        if self.canread.bms_hv.is_balancing == Toggle.ON:
-            #tprint(f"turned OFF Balancing because in IDLE", P_TYPE.DEBUG)
-            m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+        if self.canread.bms_hv.is_balancing == Toggle.ON and \
+                self.last_balancing_stop_asked_time != 0 and \
+                (self.last_balancing_stop_asked_time - datetime.now()).seconds > RETRANSMIT_INTERVAL_CRITICAL:
 
-            data = m.encode(
-                {
-                    "set_balancing_status": Toggle.OFF.value,
-                }
-            )
+            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_SET_CELL_BALANCING_STATUS)
+            try:
+                data = m.encode(
+                    {
+                        "set_balancing_status": Toggle.OFF.value,
+                        "balancing_threshold": 50
+                    }
+                )
+            except cantools.database.EncodeError:
+                self.canread.can_err = True
 
             message = can.Message(arbitration_id=m.frame_id,
                                   data=data,
                                   is_extended_id=False)
             self.tx_can_queue.put(message)
+            self.last_balancing_stop_asked_time = datetime.now()
 
     def checkCommands(self):
         """
@@ -231,13 +243,16 @@ class FSM(threading.Thread):
 
         if self.canread.bms_hv.status == TsStatus.IDLE and not self.precharge_asked:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+                m = dbc_primary.get_message_by_frame_id(primary_ID_SET_TS_STATUS_HANDCART)
 
-                data = m.encode(
-                    {
-                        "ts_status_set": Toggle.ON.value,
-                    }
-                )
+                try:
+                    data = m.encode(
+                        {
+                            "ts_status_set": Toggle.ON.value,
+                        }
+                    )
+                except cantools.database.EncodeError:
+                    self.canread.can_err = True
 
                 ts_on_msg = can.Message(arbitration_id=m.frame_id,
                                         data=data,
@@ -315,9 +330,8 @@ class FSM(threading.Thread):
                 return STATE.READY
             try:
                 if (self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
-                        and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
+                    and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
                         self.canread.bms_hv.max_cell_voltage >= MAX_ACC_CELL_VOLTAGE:
-
                     self.canread.can_forward_enabled = False
                     return STATE.CHARGE_DONE
             except KeyError:
@@ -352,14 +366,19 @@ class FSM(threading.Thread):
 
         if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
             if not self.canread.bms_hv.is_balancing == Toggle.ON \
-                    and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+                    and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL_NORMAL:
+                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                    primary_ID_SET_CELL_BALANCING_STATUS)
 
-                data = m.encode(
-                    {
-                        "set_balancing_status": Toggle.ON.value,
-                    }
-                )
+                try:
+                    data = m.encode(
+                        {
+                            "set_balancing_status": Toggle.ON.value,
+                            "balancing_threshold": 50
+                        }
+                    )
+                except cantools.database.EncodeError:
+                    self.canread.can_err = True
 
                 message = can.Message(arbitration_id=m.frame_id,
                                       data=data,

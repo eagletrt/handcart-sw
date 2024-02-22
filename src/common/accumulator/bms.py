@@ -104,9 +104,6 @@ class BMS_HV:
 
         self.act_pack_voltage = round(message.get("pack_voltage"), 2)
         self.act_bus_voltage = round(message.get("bus_voltage"), 2)
-        self.max_cell_voltage = round(message.get("max_cell_voltage"), 2)
-        self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
-        self.act_cell_delta = round(message.get("max_cell_voltage") - message.get("min_cell_voltage"), 2)
 
         """
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
@@ -223,6 +220,19 @@ class BMS_HV:
                 round(message.get("voltage_1"), 3), \
                 round(message.get("voltage_2"), 3)
 
+    def doHV_CELL_VOLTAGE(self, msg):
+        try:
+            message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+            self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+        except ValueError:
+            tprint(f"ValueError in doHV_CELL_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
+            return
+
+        self.max_cell_voltage = round(message.get("max_cell_voltage"), 2)
+        self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
+        # AVG and sum missing
+        self.act_cell_delta = round(message.get("max_cell_voltage") - message.get("min_cell_voltage"), 2)
+
     def doHV_CELLS_TEMP(self, msg):
         """
         Processes the
@@ -261,7 +271,7 @@ class BMS_HV:
             tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        self.is_balancing = Toggle(int(message.get("balancing_status").value))  # TODO: reinsert when BMS is fixed
+        self.is_balancing = Toggle(int(message.get("balancing_status").value))
         if self.is_balancing == Toggle.ON:
             tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
@@ -276,7 +286,7 @@ class BMS_HV:
 
         # tprint(message, P_TYPE.DEBUG)
 
-        self.fans_override_status = message.get("fans_override")
+        self.fans_override_status = Toggle(int(message.get("fans_override").value))
         self.fans_override_speed = round(message.get("fans_speed"), 2)
 
     def do_CHIMERA(self, msg):

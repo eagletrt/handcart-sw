@@ -113,6 +113,7 @@ class CanListener:
         primary_ID_HV_TEMP: bms_hv.doHV_TEMP,
         primary_ID_TS_STATUS: bms_hv.doHV_STATUS,
         primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
+        primary_ID_HV_CELL_VOLTAGE: bms_hv.doHV_CELL_VOLTAGE,
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
         primary_ID_HV_CELL_BALANCING_STATUS: bms_hv.doHV_CELL_BALANCING_STATUS,
         primary_ID_HV_FANS_OVERRIDE_STATUS: bms_hv.doHV_FANS_OVERRIDE_STATUS,
@@ -249,15 +250,18 @@ def thread_2_CAN(shared_data: CanListener,
 
                             mains_ampere = shared_data.act_set_in_current
                             out_ampere = shared_data.act_set_out_current
-                            data = NLG5_CTL.encode({
-                                'NLG5_C_C_EN': 1,
-                                'NLG5_C_C_EL': 0,
-                                'NLG5_C_CP_V': 0,
-                                'NLG5_C_MR': 0,
-                                'NLG5_MC_MAX': mains_ampere,
-                                'NLG5_OV_COM': shared_data.target_v,
-                                'NLG5_OC_COM': out_ampere
-                            })
+                            try:
+                                data = NLG5_CTL.encode({
+                                    'NLG5_C_C_EN': 1,
+                                    'NLG5_C_C_EL': 0,
+                                    'NLG5_C_CP_V': 0,
+                                    'NLG5_C_MR': 0,
+                                    'NLG5_MC_MAX': mains_ampere,
+                                    'NLG5_OV_COM': shared_data.target_v,
+                                    'NLG5_OC_COM': out_ampere
+                                })
+                            except cantools.database.EncodeError:
+                                shared_data.can_err = True
                         else:
                             shared_data.generic_error = True
                             tprint(f"Invalid settings for charging: {shared_data.target_v} V,"
@@ -269,15 +273,18 @@ def thread_2_CAN(shared_data: CanListener,
                                       f"out_current:{shared_data.act_set_out_current}A")
                 else:
                     # Brusa need to constantly keep to receive this msg, otherwise it will go in error
-                    data = NLG5_CTL.encode({
-                        'NLG5_C_C_EN': 0,
-                        'NLG5_C_C_EL': 0,
-                        'NLG5_C_CP_V': 0,
-                        'NLG5_C_MR': 0,
-                        'NLG5_MC_MAX': 0,
-                        'NLG5_OV_COM': 0,
-                        'NLG5_OC_COM': 0
-                    })
+                    try:
+                        data = NLG5_CTL.encode({
+                            'NLG5_C_C_EN': 0,
+                            'NLG5_C_C_EL': 0,
+                            'NLG5_C_CP_V': 0,
+                            'NLG5_C_MR': 0,
+                            'NLG5_MC_MAX': 0,
+                            'NLG5_OV_COM': 0,
+                            'NLG5_OC_COM': 0
+                        })
+                    except cantools.database.EncodeError:
+                        shared_data.can_err = True
                 NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id,
                                                data=data,
                                                is_extended_id=False)
@@ -285,11 +292,14 @@ def thread_2_CAN(shared_data: CanListener,
                 last_brusa_ctl_sent = time.time()
             if time.time() - last_hc_presence_sent > 0.08:
                 if shared_data.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                    m: cantools.database.can.message = dbc_primary.get_message_by_name('HANDCART_STATUS')
+                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
 
-                    data = m.encode({
-                        "connected": Toggle.ON.value
-                    })
+                    try:
+                        data = m.encode({
+                            "connected": Toggle.ON.value
+                        })
+                    except cantools.database.EncodeError:
+                        shared_data.can_err = True
 
                     status_message = can.Message(arbitration_id=m.frame_id,
                                                  data=data,
@@ -297,7 +307,7 @@ def thread_2_CAN(shared_data: CanListener,
                     tx_can_queue.put(status_message)
 
                 # Send settings to telemetry
-                m: cantools.database.can.message = dbc_primary.get_message_by_name('HANDCART_SETTINGS')
+                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS)
                 data_ = {
                     "target_voltage": shared_data.target_v,
                     "fans_override": shared_data.bms_hv.fans_set_override_status.value,
@@ -307,7 +317,11 @@ def thread_2_CAN(shared_data: CanListener,
                     "status": shared_data.FSM_stat.value
                 }
                 # tprint(str(data_), P_TYPE.DEBUG)
-                data = m.encode(data_)
+                try:
+                    data = m.encode(data_)
+                except cantools.database.EncodeError:
+                    shared_data.can_err = True
+
                 status_message = can.Message(arbitration_id=m.frame_id,
                                              data=data,
                                              is_extended_id=False)
