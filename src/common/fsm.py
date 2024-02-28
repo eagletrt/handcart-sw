@@ -115,7 +115,7 @@ class FSM(threading.Thread):
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing == Toggle.ON and \
                 self.last_balancing_stop_asked_time != 0 and \
-                (self.last_balancing_stop_asked_time - datetime.now()).seconds > RETRANSMIT_INTERVAL_CRITICAL:
+                (datetime.now() - self.last_balancing_stop_asked_time).seconds > RETRANSMIT_INTERVAL_CRITICAL:
 
             m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_SET_CELL_BALANCING_STATUS)
             try:
@@ -132,7 +132,7 @@ class FSM(threading.Thread):
                                   data=data,
                                   is_extended_id=False)
             self.tx_can_queue.put(message)
-            self.last_balancing_stop_asked_time = datetime.now()
+        self.last_balancing_stop_asked_time = datetime.now()
 
     def checkCommands(self):
         """
