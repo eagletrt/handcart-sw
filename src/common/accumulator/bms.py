@@ -60,10 +60,9 @@ class BMS_HV:
     min_cell_voltage = -1
     error = False
     errors = HvErrors.copy()
-    warnings = HvWarnings.copy()
     error_str = ""
     error_list_chimera = []
-    status = TsStatus.INIT
+    status = HvStatus.INIT
     act_cell_delta = 0
     chg_status = -1
     req_chg_current = 0
@@ -79,6 +78,8 @@ class BMS_HV:
     fans_set_override_speed = 0
     fans_set_override_status = Toggle.OFF
 
+    sum_cell = 0
+
     def isConnected(self):
         """
         Check if BMS_HV is connected
@@ -90,7 +91,7 @@ class BMS_HV:
             return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
                 < CAN_BMS_PRESENCE_TIMEOUT
 
-    def doHV_VOLTAGE(self, msg):
+    def doHV_TOTAL_VOLTAGE(self, msg):
         """
         Processes th HV_VOLTAGE CAN message from BMS_HV
         :param msg: the HV_VOLTAGE CAN message
@@ -102,8 +103,9 @@ class BMS_HV:
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.act_pack_voltage = round(message.get("pack_voltage"), 2)
-        self.act_bus_voltage = round(message.get("bus_voltage"), 2)
+        self.act_pack_voltage = round(message.get("pack"), 2)
+        self.act_bus_voltage = round(message.get("bus"), 2)
+        self.sum_cell = round(message.get("sum_cell"), 2)
 
         """
         self.hv_voltage_history.append({"timestamp": self.lastupdated,
@@ -114,6 +116,18 @@ class BMS_HV:
 
         self.hv_voltage_history_index += 1
         """
+
+    def doHV_ENERGY(self, msg):
+        """
+        Processes the HV_CURRENT CAN message from BMS_HV
+        :param msg: the HV_CURRENT CAN message
+        """
+        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
+
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+        self.act_current = abs(round(message.get("energy"), 2))
 
     def doHV_CURRENT(self, msg):
         """
@@ -126,7 +140,6 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_current = abs(round(message.get("current"), 2))
-        self.act_power = round(message.get("power"), 2)
 
         """
         self.hv_current_history.append({
@@ -144,7 +157,7 @@ class BMS_HV:
             self.charged_capacity_wh += self.act_power * delta
         """
 
-    def doHV_TEMP(self, msg):
+    def doHV_CELLS_TEMP_STATS(self, msg):
         """
         Processes the HV_TEMP CAN message from BMS_HV
         :param msg: the HV_TEMP CAN message
@@ -154,9 +167,9 @@ class BMS_HV:
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
-        self.act_average_temp = round(message.get("average_temp"), 2)
-        self.min_temp = round(message.get("min_temp"), 2)
-        self.max_temp = round(message.get("max_temp"), 2)
+        self.act_average_temp = round(message.get("avg"), 2)
+        self.min_temp = round(message.get("min"), 2)
+        self.max_temp = round(message.get("max"), 2)
 
         """
         self.hv_temp_history.append({"timestamp": self.lastupdated,
@@ -196,7 +209,7 @@ class BMS_HV:
 
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        self.status = TsStatus(int(message.get('ts_status').value))
+        self.status = HvStatus(int(message.get('status').value))
 
     def doHV_CELLS_VOLTAGE(self, msg):
         """
@@ -220,7 +233,7 @@ class BMS_HV:
                 round(message.get("voltage_1"), 3), \
                 round(message.get("voltage_2"), 3)
 
-    def doHV_CELL_VOLTAGE(self, msg):
+    def doHV_CELLS_VOLTAGE_STATS(self, msg):
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
@@ -228,10 +241,10 @@ class BMS_HV:
             tprint(f"ValueError in doHV_CELL_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        self.max_cell_voltage = round(message.get("max_cell_voltage"), 2)
-        self.min_cell_voltage = round(message.get("min_cell_voltage"), 2)
+        self.max_cell_voltage = round(message.get("max"), 2)
+        self.min_cell_voltage = round(message.get("min"), 2)
         # AVG and sum missing
-        self.act_cell_delta = round(message.get("max_cell_voltage") - message.get("min_cell_voltage"), 2)
+        self.act_cell_delta = round(message.get("delta"), 2)
 
     def doHV_CELLS_TEMP(self, msg):
         """
@@ -256,7 +269,7 @@ class BMS_HV:
                 round(message.get("temp_2"), 3), \
                 round(message.get("temp_3"), 3)
 
-    def doHV_CELL_BALANCING_STATUS(self, msg):
+    def doHV_BALANCING_STATUS(self, msg):
         """
         Updates the balancing status of the acc
         """
@@ -275,7 +288,7 @@ class BMS_HV:
         if self.is_balancing == Toggle.ON:
             tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
-    def doHV_FANS_OVERRIDE_STATUS(self, msg):
+    def doHV_FANS_STATUS(self, msg):
         """
         Updates the fans override status of the acc
         """
@@ -298,9 +311,9 @@ class BMS_HV:
 
         if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
             print("ts on message")
-            self.status = TsStatus.TS_ON
+            self.status = HvStatus.TS_ON
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
-            self.status = TsStatus.IDLE
+            self.status = HvStatus.IDLE
         elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
             self.error = True
             if msg.data[1] == 0:  # ERROR_LTC6804_PEC_ERROR

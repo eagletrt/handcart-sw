@@ -17,7 +17,8 @@ def thread_fans(shared_data: common.handcart_can.CanListener,
         with lock:
             if shared_data.FSM_stat == STATE.ERROR or shared_data.bms_hv.max_temp > 50:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_FANS_OVERRIDE)
+                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                        primary_ID_HV_SET_FANS_STATUS)
 
                     try:
                         data = m.encode(
@@ -42,7 +43,7 @@ def thread_fans(shared_data: common.handcart_can.CanListener,
                 if shared_data.bms_hv.fans_set_override_status == Toggle.ON:
                     set_status = Toggle.ON
 
-                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_FANS_OVERRIDE)
+                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_FANS_STATUS)
 
                 try:
                     data = m.encode(
@@ -61,7 +62,8 @@ def thread_fans(shared_data: common.handcart_can.CanListener,
 
             if shared_data.bms_hv.fans_override_speed != shared_data.bms_hv.fans_set_override_speed:
                 if shared_data.bms_hv.fans_override_status == Toggle.ON:
-                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_FANS_OVERRIDE)
+                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                        primary_ID_HV_SET_FANS_STATUS)
 
                     try:
                         data = m.encode(

@@ -7,10 +7,10 @@ import threading
 from enum import Enum
 
 import settings
-from common.can_classes import Toggle
+from common.can_classes import Toggle, STATE
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
-from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
+from settings import CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
     BMS_CELLS_VOLTAGES_COUNT, BMS_CELLS_TEMPS_COUNT, \
     BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT, CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW, \
     CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_LOW

@@ -10,6 +10,9 @@ dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 # ----------------------------------------------------------------------------------------------------------------------
 
+# If you want to check that the dbc of the canlib has the same names of the messages that are used in the code, enable
+CAN_MESSAGE_CHECK_ENABLED = True
+
 MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
 MAX_ACC_CHG_AMPERE = 9  # Maximum charging current of accumulator
@@ -47,7 +50,7 @@ CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH = 50
 
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
-RETRANSMIT_INTERVAL_CRITICAL = 0.1 # time to wait before retransmitting a critical request message (seconds)
+RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
 ENABLE_CLI = True  # Set to true to enable USB cli
@@ -71,18 +74,3 @@ class PIN(Enum):
     BUT_5 = 19
     ROT_A = 18
     ROT_B = 17
-
-
-class STATE(Enum):
-    """Enum containing the states of the backend's state-machine
-    It is inited with the values taken from the enum of the can message
-    """
-    CHECK = HandcartStatus.CHECK.value
-    IDLE = HandcartStatus.IDLE.value
-    PRECHARGE = HandcartStatus.PRECHARGE.value
-    READY = HandcartStatus.READY.value
-    CHARGE = HandcartStatus.CHARGE.value
-    CHARGE_DONE = HandcartStatus.CHARGE_DONE.value
-    BALANCING = HandcartStatus.BALANCING.value
-    ERROR = HandcartStatus.ERROR.value
-    EXIT = -1  # extra state for convenience

@@ -37,7 +37,7 @@ GPIO.setup(20, GPIO.OUT)  # SD
 GPIO.output(20, GPIO.HIGH)  # open sd relay
 GPIO.output(21, GPIO.HIGH)  # disable PON
 
-nlg5_ctl = dbc_brusa.get_message_by_name('NLG5_CTL')
+nlg5_ctl = message_NLG5_CTL
 data_nlg5_off = nlg5_ctl.encode({
     'NLG5_C_C_EN': 0,  # enable
     'NLG5_C_C_EL': 0,  # clear error latch
@@ -52,12 +52,13 @@ bus = can.interface.Bus(interface='socketcan',
                         channel='can0',
                         receive_own_messages=True)
 
-ts_status = TsStatus.IDLE  # The TS status
+ts_status = HvStatus.IDLE  # The TS status
 
 
 def set_fan_override(set_on: bool):
     if FAN_OVERRIDE_ENABLED:
-        message_fan_override: cantools.database.can.message = dbc_primary.get_message_by_name("HV_FANS_OVERRIDE")
+        message_fan_override: cantools.database.can.message = (
+            dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_FANS_STATUS))
 
         data_fan_override = m.encode(
             {
@@ -86,10 +87,11 @@ def exit_handler():
 
     time.sleep(0.5)
 
-    message_ts_off: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+    message_ts_off: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+        primary_ID_HV_SET_STATUS_HANDCART)
     data_ts_off = message_ts_off.encode(
         {
-            "ts_status_set": Toggle.OFF.value,
+            "hv_status_set": Toggle.OFF.value,
         }
     )
     bms_ts_off = can.Message(arbitration_id=message_ts_off.frame_id,
@@ -103,7 +105,7 @@ def exit_handler():
 
 
 def send_handcart_status_periodic():
-    handcart_status_def = dbc_primary.get_message_by_name('HANDCART_STATUS')
+    handcart_status_def = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
     handcart_status_data = handcart_status_def.encode({"connected": Toggle.ON.value})
 
     handcart_status_msg = can.Message(
@@ -126,11 +128,11 @@ charging = False
 
 class Can_rx_Listener(Listener):
     def on_message_received(self, msg):
-        if msg.arbitration_id == primary_ID_TS_STATUS:
+        if msg.arbitration_id == primary_ID_HV_STATUS:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             global ts_status
-            ts_status = TsStatus(int(message.get('ts_status').value))
-        elif msg.arbitration_id == dbc_brusa.get_message_by_name('NLG5_ACT_I').frame_id:
+            status = HvStatus(int(message.get('status').value))
+        elif msg.arbitration_id == message_NLG5_ACT_I.frame_id:
             global charging
             if charging:
                 message = dbc_brusa.decode_message(msg.arbitration_id, msg.data)
@@ -185,10 +187,10 @@ nlg5_ctl_msg = can.Message(arbitration_id=nlg5_ctl.frame_id,
                            data=data_nlg5_idle,
                            is_extended_id=False)
 
-m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_STATUS_HANDCART)
 data = m.encode(
     {
-        "ts_status_set": Toggle.ON.value,
+        "hv_status_set": Toggle.ON.value,
     }
 )
 bms_ts_on = can.Message(arbitration_id=m.frame_id,
@@ -209,7 +211,7 @@ if not BYPASS_TS_CHECK:
     print("Waiting for BMS to finish precharge")
 
     while True:
-        if ts_status == TsStatus.TS_ON:
+        if ts_status == HvStatus.TS_ON:
             break
         else:
             time.sleep(0.1)

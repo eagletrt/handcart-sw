@@ -59,19 +59,19 @@ class FSM(threading.Thread):
         self.forward_lock = self._args[5]
 
     def accumulator_sd(self):  # accumulator shutdown
-        if self.canread.bms_hv.status == TsStatus.TS_ON:
+        if self.canread.bms_hv.status == HvStatus.TS_ON:
             message = can.Message(arbitration_id=bms.CAN_ID_ECU_CHIMERA, is_extended_id=False,
                                   data=[bms.CAN_REQ_CHIMERA.REQ_TS_OFF.value])
             self.tx_can_queue.put(message)
 
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
                 m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-                    primary_ID_SET_TS_STATUS_HANDCART)
+                    primary_ID_HV_SET_STATUS_HANDCART)
 
                 try:
                     data = m.encode(
                         {
-                            "ts_status_set": Toggle.OFF.value,
+                            "hv_status_set": Toggle.OFF.value,
                         }
                     )
                 except cantools.database.EncodeError:
@@ -117,7 +117,7 @@ class FSM(threading.Thread):
                 self.last_balancing_stop_asked_time != 0 and \
                 (datetime.now() - self.last_balancing_stop_asked_time).seconds > RETRANSMIT_INTERVAL_CRITICAL:
 
-            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_SET_CELL_BALANCING_STATUS)
+            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
             try:
                 data = m.encode(
                     {
@@ -241,14 +241,14 @@ class FSM(threading.Thread):
         # ask pork to do precharge
         # Send req to bms "TS_ON"
 
-        if self.canread.bms_hv.status == TsStatus.IDLE and not self.precharge_asked:
+        if self.canread.bms_hv.status == HvStatus.IDLE and not self.precharge_asked:
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                m = dbc_primary.get_message_by_frame_id(primary_ID_SET_TS_STATUS_HANDCART)
+                m = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_STATUS_HANDCART)
 
                 try:
                     data = m.encode(
                         {
-                            "ts_status_set": Toggle.ON.value,
+                            "hv_status_set": Toggle.ON.value,
                         }
                     )
                 except cantools.database.EncodeError:
@@ -266,7 +266,7 @@ class FSM(threading.Thread):
             self.precharge_asked = True
             self.precharge_asked_time = time.time()
 
-        if self.canread.bms_hv.status == TsStatus.TS_ON:
+        if self.canread.bms_hv.status == HvStatus.TS_ON:
             print("Precharge done, TS is on")
             self.precharge_done = True
             self.precharge_asked = False
@@ -279,9 +279,9 @@ class FSM(threading.Thread):
             if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE and \
                     time.time() - self.precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
                 if self.precharge_asked and \
-                        (self.canread.bms_hv.status == TsStatus.PRECHARGE or
-                         self.canread.bms_hv.status == TsStatus.AIRN_CLOSE or
-                         self.canread.bms_hv.status == TsStatus.AIRP_CLOSE):
+                        (self.canread.bms_hv.status == HvStatus.PRECHARGE or
+                         self.canread.bms_hv.status == HvStatus.AIRN_CLOSE or
+                         self.canread.bms_hv.status == HvStatus.AIRP_CLOSE):
                     return STATE.PRECHARGE
                 else:
                     return STATE.IDLE
@@ -293,7 +293,7 @@ class FSM(threading.Thread):
         Function that do the ready state of the state machine
         """
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -316,7 +316,7 @@ class FSM(threading.Thread):
         # Set Brusa's PON to 12v (relay)
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -348,7 +348,7 @@ class FSM(threading.Thread):
         # User decide wether charge again or going idle
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -368,7 +368,7 @@ class FSM(threading.Thread):
             if not self.canread.bms_hv.is_balancing == Toggle.ON \
                     and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL_NORMAL:
                 m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-                    primary_ID_SET_CELL_BALANCING_STATUS)
+                    primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
 
                 try:
                     data = m.encode(
@@ -401,7 +401,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
         # Send to BMS stacca stacca
-        if not self.canread.bms_hv.status == TsStatus.IDLE.value:
+        if not self.canread.bms_hv.status == HvStatus.IDLE.value:
             self.staccastacca()
 
         if self.canread.brusa.error:

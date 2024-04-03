@@ -4,10 +4,12 @@ import time
 
 import can
 from can import Listener
+from cantools.database import DecodeError
 
 import common.accumulator.bms as bms
 from common.brusa.brusa import *
 from settings import *
+from .can_classes import STATE
 from .logging import log_error, P_TYPE, tprint
 
 
@@ -16,8 +18,11 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
     Processes the HANDCART SETTING SET message from the telemetry and returns a list containing dict with the command
     for the FSM
     """
-    # TODO add trycatch
-    data = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+    try:
+        data = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+    except DecodeError:
+        raise can.CanError
 
     com_list = []
     com: dict[str, str | bool] = {}
@@ -107,16 +112,17 @@ class CanListener:
         CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
 
         # BMS_HV Fenice
-        primary_ID_HV_VOLTAGE: bms_hv.doHV_VOLTAGE,
+        primary_ID_HV_TOTAL_VOLTAGE: bms_hv.doHV_TOTAL_VOLTAGE,
         primary_ID_HV_CURRENT: bms_hv.doHV_CURRENT,
+        primary_ID_HV_ENERGY: bms_hv.doHV_ENERGY,
         primary_ID_HV_ERRORS: bms_hv.doHV_ERRORS,
-        primary_ID_HV_TEMP: bms_hv.doHV_TEMP,
-        primary_ID_TS_STATUS: bms_hv.doHV_STATUS,
+        primary_ID_HV_CELLS_TEMP_STATS: bms_hv.doHV_CELLS_TEMP_STATS,
+        primary_ID_HV_STATUS: bms_hv.doHV_STATUS,
         primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
-        primary_ID_HV_CELL_VOLTAGE: bms_hv.doHV_CELL_VOLTAGE,
+        primary_ID_HV_CELLS_VOLTAGE_STATS: bms_hv.doHV_CELLS_VOLTAGE_STATS,
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
-        primary_ID_HV_CELL_BALANCING_STATUS: bms_hv.doHV_CELL_BALANCING_STATUS,
-        primary_ID_HV_FANS_OVERRIDE_STATUS: bms_hv.doHV_FANS_OVERRIDE_STATUS,
+        primary_ID_HV_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
+        primary_ID_HV_FANS_STATUS: bms_hv.doHV_FANS_STATUS,
 
         # BMS_HV Chimera
         # bms.CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
@@ -209,7 +215,7 @@ def thread_2_CAN(shared_data: CanListener,
             it then put the message in the rx queue
             :param msg: the incoming message
             """
-            if msg.arbitration_id == primary_ID_HANDCART_SETTING_SET:
+            if msg.arbitration_id == primary_ID_HANDCART_SET_SETTINGS:
                 tprint(str(msg), P_TYPE.DEBUG)
                 try:
                     commands = do_HANDCART_SETTING_SET(msg)
@@ -241,7 +247,6 @@ def thread_2_CAN(shared_data: CanListener,
         with forward_lock:
             # TODO change to can library
             if time.time() - last_brusa_ctl_sent > 0.10:  # every tot time send a message
-                NLG5_CTL = dbc_brusa.get_message_by_name('NLG5_CTL')
                 if shared_data.can_forward_enabled:
                     with lock:
                         if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
@@ -251,7 +256,7 @@ def thread_2_CAN(shared_data: CanListener,
                             mains_ampere = shared_data.act_set_in_current
                             out_ampere = shared_data.act_set_out_current
                             try:
-                                data = NLG5_CTL.encode({
+                                data = message_NLG5_CTL.encode({
                                     'NLG5_C_C_EN': 1,
                                     'NLG5_C_C_EL': 0,
                                     'NLG5_C_CP_V': 0,
@@ -274,7 +279,7 @@ def thread_2_CAN(shared_data: CanListener,
                 else:
                     # Brusa need to constantly keep to receive this msg, otherwise it will go in error
                     try:
-                        data = NLG5_CTL.encode({
+                        data = message_NLG5_CTL.encode({
                             'NLG5_C_C_EN': 0,
                             'NLG5_C_C_EL': 0,
                             'NLG5_C_CP_V': 0,
@@ -285,7 +290,7 @@ def thread_2_CAN(shared_data: CanListener,
                         })
                     except cantools.database.EncodeError:
                         shared_data.can_err = True
-                NLG5_CTL_message = can.Message(arbitration_id=NLG5_CTL.frame_id,
+                NLG5_CTL_message = can.Message(arbitration_id=message_NLG5_CTL.frame_id,
                                                data=data,
                                                is_extended_id=False)
                 tx_can_queue.put(NLG5_CTL_message)

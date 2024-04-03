@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
+from common.can_classes import message_NLG5_ST, message_NLG5_ERR
 from settings import dbc_brusa
 
 
@@ -62,7 +63,7 @@ class BRUSA:
         for key in self.act_NLG5_ST_values:
             value = self.act_NLG5_ST_values[key]
             if value == 1:
-                signals = dbc_brusa.get_message_by_name('NLG5_ST').signals
+                signals = message_NLG5_ST.signals
                 for s in signals:
                     if s.name == key:
                         self.act_NLG5_ST_srt.append(s.comment)
@@ -116,7 +117,7 @@ class BRUSA:
             value = self.act_NLG5_ERR[key]
             if value == 1:
                 self.error = True
-                signals = dbc_brusa.get_message_by_name('NLG5_ERR').signals
+                signals = message_NLG5_ERR.signals
                 for s in signals:
                     if s.name == key:
                         self.act_NLG5_ERR_list.append(s.comment)

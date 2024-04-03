@@ -6,7 +6,8 @@ from cantools.database import Database
 from cantools.database.can import message
 
 import common.handcart_can as handcart_can
-from common.can_classes import HandcartStatus
+from common.can_classes import HandcartStatus, primary_ID_HV_STATUS, primary_ID_HANDCART_STATUS, \
+    primary_ID_HANDCART_SET_SETTINGS
 
 brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
 BMS_DBC_PATH = join(dirname(dirname(realpath(__file__))), "can_eagle", "dbc", "bms", "bms.dbc")
@@ -15,16 +16,15 @@ dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
 dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 
-
 def test_1():
     for i in dbc_primary.messages:
         print(i)
-    m: message = dbc_primary.get_message_by_name("HV_VERSION")
+    m: message = dbc_primary.get_message_by_frame_id("HV_MAINBOARD_VERSION")
 
     for j in m.signals:
         print(j)
 
-    data = m.encode({"component_version": 12, "canlib_build_time": 123})
+    data = m.encode({"component_build_time": 12, "canlib_build_time": 123})
 
     can_message = can.Message(arbitration_id=m.frame_id, data=data)
 
@@ -33,27 +33,22 @@ def test_1():
     print(recv_data)
 
 
-m: message = dbc_primary.get_message_by_name("TS_STATUS")
+m: message = dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS)
 
 
 def test_2():
     for i in dbc_primary.messages:
         print(i)
-    m: message = dbc_primary.get_message_by_name("HANDCART_STATUS")
+    m: message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
 
     print(m)
     print(m.signals)
     for j in m.signals:
         print(f"\"{j.name}\" : None,")
-        # d : OrderedDict = j.choices
-        # print(d)
-        # while len(d)>0:
-        #    val, name = d.popitem(last=False)
-        #    print(f"{val} {name}")
 
 
 def test_HANDCART_SET_COMMAND():
-    message = dbc_primary.get_message_by_name("HANDCART_SETTINGS_SET")
+    message = dbc_primary.get_message_by_name(primary_ID_HANDCART_SET_SETTINGS)
     data = message.encode({
         "target_voltage": 450,
         "fans_override": 0,
