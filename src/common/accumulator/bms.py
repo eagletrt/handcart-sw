@@ -1,4 +1,3 @@
-import struct
 from datetime import datetime
 
 from common.logging import tprint, P_TYPE
@@ -6,29 +5,7 @@ from settings import *
 
 
 class ACCUMULATOR(Enum):
-    CHIMERA = 1
     FENICE = 2
-
-
-class CAN_CHIMERA_MSG_ID(Enum):
-    PACK_VOLTS = 0x01
-    PACK_TEMPS = 0x0A
-    TS_ON = 0x03
-    TS_OFF = 0x04
-    CURRENT = 0x05
-    AVG_TEMP = 0x06
-    MAX_TEMP = 0x07
-    ERROR = 0x08
-    WARNING = 0x09
-
-
-CAN_ID_BMS_HV_CHIMERA = 0xAA
-CAN_ID_ECU_CHIMERA = 0x55
-
-
-class CAN_REQ_CHIMERA(Enum):
-    REQ_TS_ON = 0x0A  # Remember to ask charge state with byte 1 set to 0x01
-    REQ_TS_OFF = 0x0B
 
 
 class BMS_HV:
@@ -36,7 +13,7 @@ class BMS_HV:
     Class that stores and processes all the data of the BMS_HV
     """
 
-    ACC_CONNECTED = ACCUMULATOR.FENICE  # Default fenice, if msgs from chimera received will be changed
+    ACC_CONNECTED = ACCUMULATOR.FENICE  # Default Fenice, keep for other future BMS
 
     lastupdated = 0
 
@@ -61,7 +38,6 @@ class BMS_HV:
     error = False
     errors = HvErrors.copy()
     error_str = ""
-    error_list_chimera = []
     status = HvStatus.INIT
     act_cell_delta = 0
     chg_status = -1
@@ -273,7 +249,6 @@ class BMS_HV:
         """
         Updates the balancing status of the acc
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
 
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
@@ -292,7 +267,6 @@ class BMS_HV:
         """
         Updates the fans override status of the acc
         """
-        self.ACC_CONNECTED = ACCUMULATOR.FENICE
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
@@ -301,61 +275,3 @@ class BMS_HV:
 
         self.fans_override_status = Toggle(int(message.get("fans_override").value))
         self.fans_override_speed = round(message.get("fans_speed"), 2)
-
-    def do_CHIMERA(self, msg):
-        """
-        Processes a BMS HV message from CHIMERA accumulator
-        """
-        self.ACC_CONNECTED = ACCUMULATOR.CHIMERA
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
-        if msg.data[0] == CAN_CHIMERA_MSG_ID.TS_ON.value:
-            print("ts on message")
-            self.status = HvStatus.TS_ON
-        elif msg.data[0] == CAN_CHIMERA_MSG_ID.TS_OFF.value:
-            self.status = HvStatus.IDLE
-        elif msg.data[0] == CAN_CHIMERA_MSG_ID.ERROR.value:
-            self.error = True
-            if msg.data[1] == 0:  # ERROR_LTC6804_PEC_ERROR
-                self.error_list_chimera.append("ERROR_LTC6804_PEC_ERROR")
-            if msg.data[2] == 1:  # ERROR_CELL_UNDER_VOLTAGE
-                self.error_list_chimera.append("ERROR_CELL_UNDER_VOLTAGE")
-            if msg.data[3] == 2:  # ERROR_CELL_OVER_VOLTAGE
-                self.error_list_chimera.append("ERROR_CELL_OVER_VOLTAGE")
-            if msg.data[4] == 3:  # ERROR_CELL_OVER_TEMPERATURE
-                self.error_list_chimera.append("ERROR_CELL_OVER_TEMPERATURE")
-            if msg.data[5] == 4:  # ERROR_OVER_CURRENT
-                self.error_list_chimera.append("ERROR_OVER_CURRENT")
-
-        elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_VOLTS.value:
-            self.act_bus_voltage = round((msg.data[1] << 16 | msg.data[2] << 8 | msg.data[3]) / 10000, 1)
-            self.max_cell_voltage = round((msg.data[4] << 8 | msg.data[5]) / 10000, 2)
-            self.min_cell_voltage = round((msg.data[6] << 8 | msg.data[7]) / 10000, 2)
-            self.hv_voltage_history.append({"timestamp": self.lastupdated,
-                                            "bus_voltage": self.act_bus_voltage,
-                                            "max_cell_voltage": self.max_cell_voltage,
-                                            "min_cell_voltage": self.max_cell_voltage})
-
-            self.hv_voltage_history_index += 1
-
-        elif msg.data[0] == CAN_CHIMERA_MSG_ID.PACK_TEMPS.value:
-            a = ">chhh"
-            _, self.act_average_temp, self.max_temp, self.min_temp = struct.unpack(a, msg.data)
-            self.act_average_temp /= 100
-            self.max_temp /= 100
-            self.min_temp /= 100
-            self.hv_temp_history.append({"timestamp": self.lastupdated,
-                                         "average_temp": self.act_average_temp,
-                                         "max_temp": self.max_temp,
-                                         "min_temp": self.min_temp})
-            # print(self.act_average_temp, self.max_temp, self.min_temp)
-            self.hv_temp_history_index += 1
-
-        elif msg.data[0] == CAN_CHIMERA_MSG_ID.CURRENT.value:
-            self.act_current = (msg.data[1] << 8 | msg.data[2]) / 10
-            self.act_power = (msg.data[3] << 8 | msg.data[4])
-            self.hv_current_history.append({"timestamp": self.lastupdated,
-                                            "current": self.act_current,
-                                            "power": self.act_power})
-
-            self.hv_current_history_index += 1

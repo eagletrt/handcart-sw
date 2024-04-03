@@ -41,7 +41,8 @@ primary_ID_HV_BALANCING_STATUS = dbc_primary.get_message_by_name("HV_BALANCING_S
 primary_ID_HV_FANS_STATUS = dbc_primary.get_message_by_name("HV_FANS_STATUS").frame_id
 primary_ID_HANDCART_SET_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SET_SETTINGS").frame_id
 primary_ID_HV_SET_STATUS_HANDCART = dbc_primary.get_message_by_name("HV_SET_STATUS_HANDCART").frame_id
-primary_ID_HV_SET_BALANCING_STATUS_HANDCART = dbc_primary.get_message_by_name("HV_SET_BALANCING_STATUS_HANDCART").frame_id
+primary_ID_HV_SET_BALANCING_STATUS_HANDCART = dbc_primary.get_message_by_name(
+    "HV_SET_BALANCING_STATUS_HANDCART").frame_id
 primary_ID_HANDCART_STATUS = dbc_primary.get_message_by_name("HANDCART_STATUS").frame_id
 primary_ID_HANDCART_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SETTINGS").frame_id
 primary_ID_HV_SET_FANS_STATUS = dbc_primary.get_message_by_name("HV_SET_FANS_STATUS").frame_id
@@ -61,6 +62,7 @@ message_NLG5_CTL: Message = dbc_brusa.get_message_by_name('NLG5_CTL')
 message_NLG5_ST: Message = dbc_brusa.get_message_by_name('NLG5_ST')
 message_NLG5_ACT_I: Message = dbc_brusa.get_message_by_name('NLG5_ACT_I')
 message_NLG5_ERR: Message = dbc_brusa.get_message_by_name('NLG5_ERR')
+
 
 class HvStatus(Enum):
     # VAL_ 84 ts_status 0 "INIT" 1 "IDLE" 2 "AIRN_CLOSE" 3 "PRECHARGE" 4 "AIRP_CLOSE" 5 "TS_ON" 6 "FATAL_ERROR" ;

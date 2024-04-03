@@ -16,6 +16,7 @@ dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
 dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 
+
 def test_1():
     for i in dbc_primary.messages:
         print(i)

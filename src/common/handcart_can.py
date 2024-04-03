@@ -123,9 +123,6 @@ class CanListener:
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
         primary_ID_HV_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
         primary_ID_HV_FANS_STATUS: bms_hv.doHV_FANS_STATUS,
-
-        # BMS_HV Chimera
-        # bms.CAN_ID_BMS_HV_CHIMERA: bms_hv.do_CHIMERA
     }
 
     # Function called when a new message arrive, maps it to
@@ -296,20 +293,19 @@ def thread_2_CAN(shared_data: CanListener,
                 tx_can_queue.put(NLG5_CTL_message)
                 last_brusa_ctl_sent = time.time()
             if time.time() - last_hc_presence_sent > 0.08:
-                if shared_data.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                    m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
+                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
 
-                    try:
-                        data = m.encode({
-                            "connected": Toggle.ON.value
-                        })
-                    except cantools.database.EncodeError:
-                        shared_data.can_err = True
+                try:
+                    data = m.encode({
+                        "connected": Toggle.ON.value
+                    })
+                except cantools.database.EncodeError:
+                    shared_data.can_err = True
 
-                    status_message = can.Message(arbitration_id=m.frame_id,
-                                                 data=data,
-                                                 is_extended_id=False)
-                    tx_can_queue.put(status_message)
+                status_message = can.Message(arbitration_id=m.frame_id,
+                                             data=data,
+                                             is_extended_id=False)
+                tx_can_queue.put(status_message)
 
                 # Send settings to telemetry
                 m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS)
