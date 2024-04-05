@@ -50,11 +50,14 @@ class BMS_HV:
     is_balancing = Toggle.OFF
     fans_override_status = Toggle.OFF
     fans_override_speed = 0
+    balancing_cells = []
 
     fans_set_override_speed = 0
     fans_set_override_status = Toggle.OFF
 
     sum_cell = 0
+
+    cellboard_versions = {}  # id: {"version": "", "build":""}
 
     def isConnected(self):
         """
@@ -261,6 +264,7 @@ class BMS_HV:
 
         self.is_balancing = Toggle(int(message.get("balancing_status").value))
         if self.is_balancing == Toggle.ON:
+            self.balancing_cells = message.get("balancing_cells")  # TODO: check
             tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
     def doHV_FANS_STATUS(self, msg):
@@ -275,3 +279,15 @@ class BMS_HV:
 
         self.fans_override_status = Toggle(int(message.get("fans_override").value))
         self.fans_override_speed = round(message.get("fans_speed"), 2)
+
+    def do_HV_CELLBOARD_VERSION(self, msg):
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        # tprint(f"Cellboard {message.get('cellboard_id')} version:  {message.get('component_build_time')}", P_TYPE.DEBUG)
+
+    def do_HV_MAINBOARD_VERSION(self, msg):
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        # tprint(message.get("component_build_time"), P_TYPE.DEBUG)

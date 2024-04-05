@@ -10,7 +10,7 @@ import common.accumulator.bms as bms
 from common.brusa.brusa import *
 from settings import *
 from .can_classes import STATE
-from .logging import log_error, P_TYPE, tprint
+from .logging import log_error, tprint
 
 
 def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
@@ -123,6 +123,8 @@ class CanListener:
         primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
         primary_ID_HV_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
         primary_ID_HV_FANS_STATUS: bms_hv.doHV_FANS_STATUS,
+        primary_ID_HV_MAINBOARD_VERSION: bms_hv.do_HV_MAINBOARD_VERSION,
+        primary_ID_HV_CELLBOARD_VERSION: bms_hv.do_HV_CELLBOARD_VERSION
     }
 
     # Function called when a new message arrive, maps it to
@@ -213,7 +215,7 @@ def thread_2_CAN(shared_data: CanListener,
             :param msg: the incoming message
             """
             if msg.arbitration_id == primary_ID_HANDCART_SET_SETTINGS:
-                tprint(str(msg), P_TYPE.DEBUG)
+                # tprint(str(msg), P_TYPE.DEBUG)
                 try:
                     commands = do_HANDCART_SETTING_SET(msg)
                     if commands is not None:

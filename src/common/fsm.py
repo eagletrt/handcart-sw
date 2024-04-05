@@ -138,7 +138,7 @@ class FSM(threading.Thread):
 
         if not self.com_queue.empty():
             act_com = self.com_queue.get()
-            tprint(str(act_com), P_TYPE.DEBUG)
+            # tprint(str(act_com), P_TYPE.DEBUG)
 
             if act_com['com-type'] == 'cutoff':
                 if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
