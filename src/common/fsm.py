@@ -6,7 +6,6 @@ from datetime import datetime
 import can
 from RPi import GPIO
 
-import common.accumulator.bms as bms
 from common.handcart_can import CanListener
 from common.logging import P_TYPE, tprint
 from settings import *
@@ -21,12 +20,13 @@ class FSM(threading.Thread):
     precharge_command = False  # True if received precharge command
     start_charge_command = False  # True if received start charge command
     stop_charge_command = False  # True if received stop charge command
-    ready_command = False # True if received a ready command, used only to go from CHARGE_DONE to READY
+    ready_command = False  # True if received a ready command, used only to go from CHARGE_DONE to READY
     shutdown_asked = False
 
     balancing_asked_time = 0  # the time of the last precharge message has been sent
     balancing_stop_asked = False
     balancing_command = False
+    last_balancing_stop_asked_time: datetime = 0
 
     tx_can_queue: queue.Queue
     rx_can_queue: queue.Queue
@@ -58,22 +58,23 @@ class FSM(threading.Thread):
         self.forward_lock = self._args[5]
 
     def accumulator_sd(self):  # accumulator shutdown
-        if self.canread.bms_hv.status == TsStatus.TS_ON:
-            message = can.Message(arbitration_id=bms.CAN_ID_ECU_CHIMERA, is_extended_id=False,
-                                  data=[bms.CAN_REQ_CHIMERA.REQ_TS_OFF.value])
-            self.tx_can_queue.put(message)
+        if self.canread.bms_hv.status == HvStatus.TS_ON:
 
-            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                primary_ID_HV_SET_STATUS_HANDCART)
 
+            try:
                 data = m.encode(
                     {
-                        "ts_status_set": Toggle.OFF.value,
+                        "hv_status_set": Toggle.OFF.value,
                     }
                 )
-                message = can.Message(arbitration_id=m.frame_id,
-                                      data=data,
-                                      is_extended_id=False)
+            except cantools.database.EncodeError:
+                self.canread.can_err = True
+
+            message = can.Message(arbitration_id=m.frame_id,
+                                  data=data,
+                                  is_extended_id=False)
             self.tx_can_queue.put(message)
 
     def staccastacca(self):
@@ -107,20 +108,27 @@ class FSM(threading.Thread):
         self.canread.can_err = False
 
     def balancing_disabled_check(self):
-        if self.canread.bms_hv.is_balancing == Toggle.ON:
-            #tprint(f"turned OFF Balancing because in IDLE", P_TYPE.DEBUG)
-            m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+        if self.canread.bms_hv.is_balancing == Toggle.ON and \
+                self.last_balancing_stop_asked_time != 0 and \
+                (datetime.now() - self.last_balancing_stop_asked_time).seconds > RETRANSMIT_INTERVAL_CRITICAL:
 
-            data = m.encode(
-                {
-                    "set_balancing_status": Toggle.OFF.value,
-                }
-            )
+            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
+            try:
+                data = m.encode(
+                    {
+                        "set_balancing_status": Toggle.OFF.value,
+                        "balancing_threshold": 50
+                    }
+                )
+            except cantools.database.EncodeError:
+                self.canread.can_err = True
 
             message = can.Message(arbitration_id=m.frame_id,
                                   data=data,
                                   is_extended_id=False)
             self.tx_can_queue.put(message)
+        self.last_balancing_stop_asked_time = datetime.now()
 
     def checkCommands(self):
         """
@@ -130,7 +138,7 @@ class FSM(threading.Thread):
 
         if not self.com_queue.empty():
             act_com = self.com_queue.get()
-            tprint(str(act_com), P_TYPE.DEBUG)
+            # tprint(str(act_com), P_TYPE.DEBUG)
 
             if act_com['com-type'] == 'cutoff':
                 if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
@@ -229,30 +237,28 @@ class FSM(threading.Thread):
         # ask pork to do precharge
         # Send req to bms "TS_ON"
 
-        if self.canread.bms_hv.status == TsStatus.IDLE and not self.precharge_asked:
-            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_TS_STATUS_HANDCART")
+        if self.canread.bms_hv.status == HvStatus.IDLE and not self.precharge_asked:
+            m = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_STATUS_HANDCART)
 
+            try:
                 data = m.encode(
                     {
-                        "ts_status_set": Toggle.ON.value,
+                        "hv_status_set": Toggle.ON.value,
                     }
                 )
+            except cantools.database.EncodeError:
+                self.canread.can_err = True
 
-                ts_on_msg = can.Message(arbitration_id=m.frame_id,
-                                        data=data,
-                                        is_extended_id=False)
-            else:
-                ts_on_msg = can.Message(arbitration_id=0x55,
-                                        data=[bms.CAN_REQ_CHIMERA.REQ_TS_ON.value, 0x01, 0x00, 0x00],
-                                        is_extended_id=False)
+            ts_on_msg = can.Message(arbitration_id=m.frame_id,
+                                    data=data,
+                                    is_extended_id=False)
 
             self.tx_can_queue.put(ts_on_msg)
             self.precharge_asked = True
             self.precharge_asked_time = time.time()
 
-        if self.canread.bms_hv.status == TsStatus.TS_ON:
-            print("Precharge done, TS is on")
+        if self.canread.bms_hv.status == HvStatus.TS_ON:
+            tprint("Precharge done, TS is on", P_TYPE.INFO)
             self.precharge_done = True
             self.precharge_asked = False
             self.precharge_asked_time = 0
@@ -261,12 +267,11 @@ class FSM(threading.Thread):
             self.start_charge_command = False  # reset start charge command
             return STATE.READY
         else:
-            if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE and \
-                    time.time() - self.precharge_asked_time > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
+            if (time.time() - self.precharge_asked_time) > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
                 if self.precharge_asked and \
-                        (self.canread.bms_hv.status == TsStatus.PRECHARGE or
-                         self.canread.bms_hv.status == TsStatus.AIRN_CLOSE or
-                         self.canread.bms_hv.status == TsStatus.AIRP_CLOSE):
+                        (self.canread.bms_hv.status == HvStatus.PRECHARGE or
+                         self.canread.bms_hv.status == HvStatus.AIRN_CLOSE or
+                         self.canread.bms_hv.status == HvStatus.AIRP_CLOSE):
                     return STATE.PRECHARGE
                 else:
                     return STATE.IDLE
@@ -278,7 +283,7 @@ class FSM(threading.Thread):
         Function that do the ready state of the state machine
         """
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -301,7 +306,7 @@ class FSM(threading.Thread):
         # Set Brusa's PON to 12v (relay)
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -315,9 +320,8 @@ class FSM(threading.Thread):
                 return STATE.READY
             try:
                 if (self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
-                        and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
+                    and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
                         self.canread.bms_hv.max_cell_voltage >= MAX_ACC_CELL_VOLTAGE:
-
                     self.canread.can_forward_enabled = False
                     return STATE.CHARGE_DONE
             except KeyError:
@@ -334,7 +338,7 @@ class FSM(threading.Thread):
         # User decide wether charge again or going idle
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
 
-        if self.canread.bms_hv.status != TsStatus.TS_ON:
+        if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
             # note that errors are already managed in mainloop
             return STATE.IDLE
@@ -350,25 +354,27 @@ class FSM(threading.Thread):
             self.balancing_stop_asked = False
             return STATE.IDLE
 
-        if self.canread.bms_hv.ACC_CONNECTED == bms.ACCUMULATOR.FENICE:
-            if not self.canread.bms_hv.is_balancing == Toggle.ON \
-                    and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL:
-                m: cantools.database.can.message = dbc_primary.get_message_by_name("SET_CELL_BALANCING_STATUS")
+        if not self.canread.bms_hv.is_balancing == Toggle.ON \
+                and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL_NORMAL:
+            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+                primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
 
+            try:
                 data = m.encode(
                     {
                         "set_balancing_status": Toggle.ON.value,
+                        "balancing_threshold": 50
                     }
                 )
+            except cantools.database.EncodeError:
+                self.canread.can_err = True
 
-                message = can.Message(arbitration_id=m.frame_id,
-                                      data=data,
-                                      is_extended_id=False)
-                self.tx_can_queue.put(message)
-                self.balancing_asked_time = time.time()
-            return STATE.BALANCING
-
-        return STATE.IDLE
+            message = can.Message(arbitration_id=m.frame_id,
+                                  data=data,
+                                  is_extended_id=False)
+            self.tx_can_queue.put(message)
+            self.balancing_asked_time = time.time()
+        return STATE.BALANCING
 
     def doError(self):
         """
@@ -382,7 +388,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
         # Send to BMS stacca stacca
-        if not self.canread.bms_hv.status == TsStatus.IDLE.value:
+        if not self.canread.bms_hv.status == HvStatus.IDLE.value:
             self.staccastacca()
 
         if self.canread.brusa.error:

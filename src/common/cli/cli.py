@@ -1,17 +1,15 @@
 import curses
 import os
 import queue
-import random
 import sys
 import threading
 from enum import Enum
 
 import settings
-from common.can_classes import Toggle
+from common.can_classes import Toggle, STATE
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
-from settings import STATE, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
-    BMS_CELLS_VOLTAGES_COUNT, BMS_CELLS_TEMPS_COUNT, \
+from settings import CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
     BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT, CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW, \
     CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_LOW
 
@@ -22,6 +20,14 @@ class Tab(Enum):
     LOG = 2
     CELLS_VOLTAGES = 3
     CELLS_TEMPERATURES = 4
+    SETTINGS = 5
+
+
+class InputType(Enum):
+    BMS_FAN_SPEED = 1
+    BMS_MAX_CHARGE_CURRENT = 2
+    BRUSA_MAX_MAIN_CURRENT = 3
+    BMS_TARGET_VOLTAGE = 4
 
 
 class StdOutWrapper:
@@ -51,10 +57,12 @@ class Cli(threading.Thread):
     cutoff_voltage = 0
     fast_charge = False
 
-    input_cutoff = False
+    is_input_section_enabled = False
     awaiting_input = False
 
     ask_idle = False
+
+    actual_input_type = -1  # select the type of value you are trying to insert
 
     # Shared data
     com_queue: queue.Queue
@@ -153,37 +161,76 @@ class Cli(threading.Thread):
         header.border()
         header.refresh()
 
+    def refresh_bottom(self, bottom):
+        bottom.border()
+        curses.echo()
+        bottom.refresh()
+
     def bottom(self):
         bottom = curses.newwin(3, CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT - 3, 0)
 
-        if self.input_cutoff:
-            bottom.addstr(1, 2, "set cutoff voltage: ")
-            bottom.border()
-            curses.echo()
-            bottom.refresh()
-            cutoff_voltage = int(bottom.getstr(1, 22, 15))
+        if self.is_input_section_enabled:
+            if self.actual_input_type == InputType.BMS_TARGET_VOLTAGE:
+                txt = "Set cutoff: "
+                bottom.addstr(1, 2, txt)
 
-            j = {"com-type": "cutoff", "value": cutoff_voltage}
-            self.com_queue.put(j)  # TODO: to check if ok
+                self.refresh_bottom(bottom)
+
+                cutoff_voltage = int(bottom.getstr(1, len(txt) + 1, 5))
+                if 300 < cutoff_voltage < 460:
+                    j = {"com-type": "cutoff", "value": cutoff_voltage}
+                    self.com_queue.put(j)
+            elif self.actual_input_type == InputType.BMS_MAX_CHARGE_CURRENT:
+                txt = "Set BMS max charge current: "
+                bottom.addstr(1, 2, txt)
+
+                self.refresh_bottom(bottom)
+
+                acc_charge_current = int(bottom.getstr(1, len(txt) + 1, 5))
+                if 0 < acc_charge_current <= 8:
+                    j = {"com-type": "max-out-current", "value": acc_charge_current}
+                    self.com_queue.put(j)
+            elif self.actual_input_type == InputType.BRUSA_MAX_MAIN_CURRENT:
+                txt = "Set BRUSA max mains current: "
+                bottom.addstr(1, 2, txt)
+
+                self.refresh_bottom(bottom)
+
+                brusa_max_mains = int(bottom.getstr(1, len(txt) + 1, 5))
+                if 0 < brusa_max_mains <= 16:
+                    j = {"com-type": "max-in-current", "value": brusa_max_mains}
+                    self.com_queue.put(j)
+            elif self.actual_input_type == InputType.BMS_FAN_SPEED:
+                txt = "Set BMS fan speed (%): "
+                bottom.addstr(1, 2, txt)
+
+                self.refresh_bottom(bottom)
+
+                bms_fan_speed = int(bottom.getstr(1, len(txt) + 1, 5))
+                if 0 <= bms_fan_speed <= 100:
+                    j = {"com-type": "fan-override-set-speed", "value": bms_fan_speed}
+                    self.com_queue.put(j)
 
             self.awaiting_input = False
-            self.input_cutoff = False
+            self.is_input_section_enabled = False
             curses.halfdelay(5)
 
         bottom_str = ""
 
         with self.lock:
             if self.shared_data.FSM_stat == STATE.IDLE:
-                bottom_str += "[c] precharge | "
+                bottom_str += "[c] precharge | [b] bal | "
             elif self.shared_data.FSM_stat == STATE.READY:
                 bottom_str += "[c] charge | "
             elif self.shared_data.FSM_stat == STATE.CHARGE:
                 bottom_str += "[c] stop | "
+            elif self.shared_data.FSM_stat == STATE.BALANCING:
+                bottom_str += "[b] bal stop | "
 
             if self.shared_data.FSM_stat != STATE.IDLE and self.shared_data.FSM_stat != STATE.CHECK:
                 bottom_str += "[i] idle | "
 
-        bottom_str += "[v] set cutoff | [f] fastchg | [w] change view"
+        bottom_str += "[v] cutoff | [f] fastchg | [w] view"
         bottom.addstr(1, 2, bottom_str)
 
         bottom.border()
@@ -311,9 +358,6 @@ class Cli(threading.Thread):
         elif tab == Tab.CELLS_VOLTAGES.value:
             actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Cells voltages")
             with self.lock:
-
-                tmp = [random.randint(300, 400) / 100.0 for i in range(BMS_CELLS_VOLTAGES_COUNT)]
-
                 try:
                     row_offset = 1
                     col = 0
@@ -339,9 +383,6 @@ class Cli(threading.Thread):
             actual_tab.addstr(0, int(CLI_DEFAULT_WIDTH / 2) - 5, "Cells temperatures")
 
             with self.lock:
-
-                tmp = [random.randint(30000, 90000) / 1000.0 for i in range(BMS_CELLS_TEMPS_COUNT)]
-
                 try:
                     row_offset = 1
                     col = 0
@@ -366,8 +407,55 @@ class Cli(threading.Thread):
 
             actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
 
+        elif tab == Tab.SETTINGS.value:
+            # TODO: add settings such as fan speed and current
+            act_row = 0
+            actual_tab.addstr(act_row, int(CLI_DEFAULT_WIDTH / 2) - 5, "Settings")
+
+            with self.lock:
+                act_row += 2
+                actual_tab.addstr(act_row, 0, "Setting name\t\t\t| Value set\t\t| Actual value")
+                act_row += 2
+                try:
+                    actual_tab.addstr(
+                        act_row, 0,
+                        f"[o] BMS fan override:\t\t "
+                        f"{'enabled' if self.shared_data.bms_hv.fans_set_override_status == Toggle.ON else 'disabled'}\t\t"
+                        f"{'enabled' if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 'disabled'}",
+                        curses.color_pair(0))
+                    act_row += 1
+                    actual_tab.addstr(
+                        act_row, 0,
+                        f"[s] BMS fan speed:\t\t "
+                        f"{round(self.shared_data.bms_hv.fans_set_override_speed * 100, 2)} %\t\t\t"
+                        f"{round(self.shared_data.bms_hv.fans_override_speed, 2)} %",
+                        curses.color_pair(0))
+                    act_row += 1
+                    actual_tab.addstr(
+                        act_row, 0,
+                        f"[l] BMS max charge current\t "
+                        f"{round(self.shared_data.act_set_out_current, 2)} A\t\t\t"
+                        f"{round(self.shared_data.brusa.act_NLG5_ACT_I.get('NLG5_OC_ACT'), 2)} A",
+                        curses.color_pair(0))
+                    act_row += 1
+                    actual_tab.addstr(
+                        act_row, 0,
+                        f"[u] Brusa max main current:\t "
+                        f"{round(self.shared_data.act_set_in_current, 2)} A\t\t\t"
+                        f"{round(self.shared_data.brusa.act_NLG5_ACT_II.get('NLG5_S_MC_M_CP'), 2)} A",
+                        curses.color_pair(0))
+                    act_row += 1
+                    actual_tab.addstr(
+                        act_row, 0,
+                        f"[v] BMS target voltage:\t\t "
+                        f"{self.shared_data.target_v} V",
+                        curses.color_pair(0))
+                except Exception:
+                    actual_tab.addstr(0, 0, f"Error: settings tab not available")
+            actual_tab.refresh(self.scroll, 0, 3, 0, CLI_DEFAULT_HEIGHT - 4, CLI_DEFAULT_WIDTH)
+
     def run(self):
-        self.input_cutoff = False
+        self.is_input_section_enabled = False
         self.awaiting_input = False
         key = -1
         selected_tab = Tab.MAIN.value
@@ -384,7 +472,7 @@ class Cli(threading.Thread):
             if not self.awaiting_input:
                 key = self.stdscr.getch()
                 if key == ord('w'):
-                    if selected_tab == 4:
+                    if selected_tab == 5:
                         selected_tab = 0
                     else:
                         selected_tab += 1
@@ -395,7 +483,8 @@ class Cli(threading.Thread):
                         self.scroll -= 1
                 elif key == ord('v'):
                     self.awaiting_input = True
-                    self.input_cutoff = True
+                    self.is_input_section_enabled = True
+                    self.actual_input_type = InputType.BMS_TARGET_VOLTAGE
                 elif key == ord('f'):
                     self.fast_charge = not self.fast_charge
                     j = {
@@ -403,7 +492,8 @@ class Cli(threading.Thread):
                         "value": settings.MAX_CHARGE_MAINS_AMPERE if self.fast_charge else settings.DEFAULT_CHARGE_MAINS_AMPERE
                     }
                     self.com_queue.put(j)
-                    j = {"com-type": "max-out-current", "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
+                    j = {"com-type": "max-out-current",
+                         "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
                     self.com_queue.put(j)
                 elif key == ord('i'):
                     j = {"com-type": "shutdown", "value": True}
@@ -419,6 +509,29 @@ class Cli(threading.Thread):
                         elif self.shared_data.FSM_stat == STATE.CHARGE:
                             j = {"com-type": "charge", "value": False}
                             self.com_queue.put(j)
+                elif key == ord('b'):
+                    with self.lock:
+                        if self.shared_data.FSM_stat == STATE.IDLE:
+                            j = {"com-type": "balancing", "value": True}
+                        if self.shared_data.FSM_stat == STATE.BALANCING:
+                            j = {"com-type": "balancing", "value": False}
+                        self.com_queue.put(j)
+                elif key == ord('s'):
+                    self.awaiting_input = True
+                    self.is_input_section_enabled = True
+                    self.actual_input_type = InputType.BMS_FAN_SPEED
+                elif key == ord('l'):
+                    self.awaiting_input = True
+                    self.is_input_section_enabled = True
+                    self.actual_input_type = InputType.BMS_MAX_CHARGE_CURRENT
+                elif key == ord('u'):
+                    self.awaiting_input = True
+                    self.is_input_section_enabled = True
+                    self.actual_input_type = InputType.BRUSA_MAX_MAIN_CURRENT
+                elif key == ord('o'):
+                    j = {"com-type": "fan-override-set-status",
+                         "value": True if self.shared_data.bms_hv.fans_set_override_status == Toggle.OFF else False}
+                    self.com_queue.put(j)
 
             else:
                 curses.echo()

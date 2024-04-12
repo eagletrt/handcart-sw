@@ -23,20 +23,23 @@ class P_TYPE():
     DEBUG = 3
 
 
-def tprint(msg: str, type: int):
-    if type == P_TYPE.INFO:
+def tprint(msg: str, type_: int):
+    if type(msg) is not str:
+        msg = str(msg)
+
+    if type_ == P_TYPE.INFO:
         header = "[INFO] "
         print(header + msg)
         return
-    elif type == P_TYPE.WARNING:
+    elif type_ == P_TYPE.WARNING:
         header = "[WARNING] "
         print(colored(header + msg, "yellow"))
         return
-    elif type == P_TYPE.ERROR:
+    elif type_ == P_TYPE.ERROR:
         header = "[ERROR] "
         print(colored(header + msg, "red"))
         return
-    elif type == P_TYPE.DEBUG:
+    elif type_ == P_TYPE.DEBUG:
         header = "[DEBUG] "
         print(header + msg)
         return
