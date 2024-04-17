@@ -61,9 +61,11 @@ from common.can_classes import *  # This inits all the enums in the can_classes.
 
 
 class PIN(Enum):
-    RED_LED = 12  # 31
-    GREEN_LED = 13  # 33
-    BLUE_LED = 16  # 36
+    BUZZER = 1
+    RED_LED = 12  # (GPIO12) # TODO remove
+    GREEN_LED = 13  # GPIO13 # TODO remove
+    BLUE_LED = 18  # GPIO16 # TODO remove
+    DISCHARGE = 19
     SD_RELAY = 20
     PON_CONTROL = 21
     BUT_0 = 22
@@ -71,6 +73,7 @@ class PIN(Enum):
     BUT_2 = 24
     BUT_3 = 26
     BUT_4 = 27
-    BUT_5 = 19
+    ROT_A = 16
     ROT_A = 18
     ROT_B = 17
+    LED_STRIP_CTRL = 18
