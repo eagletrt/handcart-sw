@@ -21,6 +21,7 @@ from common.handcart_can import CanListener, thread_2_CAN
 from common.leds import TSAL_COLOR, setLedColor, thread_led
 from common.logging import tprint, P_TYPE
 from common.rasp import GPIO_setup, resetGPIOs
+from common.ui.gui import Gui
 from settings import *
 
 # tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
@@ -72,6 +73,7 @@ if __name__ == "__main__":
     t2.start()
 
     if ENABLE_LED:
+        tprint("Leds are enabled", P_TYPE.DEBUG)
         setLedColor(TSAL_COLOR.OFF)
         t4 = threading.Thread(target=thread_led, args=(shared_data,))
         t4.start()
@@ -83,9 +85,19 @@ if __name__ == "__main__":
         tprint("starting without fan control", P_TYPE.WARNING)
 
     if ENABLE_CLI:
+        tprint("CLI is enabled, starting cli..", P_TYPE.DEBUG)
         t6 = Cli(
             com_queue,
             lock,
             shared_data
         )
         t6.start()
+
+    if ENABLE_GUI:
+        tprint("GUI is enabled, starting gui..", P_TYPE.DEBUG)
+        g = Gui(
+            com_queue,
+            lock,
+            shared_data
+        )
+        g.run()

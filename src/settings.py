@@ -53,9 +53,10 @@ RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-cri
 RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-ENABLE_CLI = True  # Set to true to enable USB cli
+ENABLE_CLI = False  # Set to true to enable USB cli
 ENABLE_WEB = False
-ENABLE_LED = True
+ENABLE_LED = False
+ENABLE_GUI = True
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 
@@ -68,12 +69,11 @@ class PIN(Enum):
     DISCHARGE = 19
     SD_RELAY = 20
     PON_CONTROL = 21
-    BUT_0 = 22
-    BUT_1 = 23
-    BUT_2 = 24
-    BUT_3 = 26
-    BUT_4 = 27
+    BUT_0 = 22  # Confirm rotative
+    BUT_1 = 23  # left
+    BUT_2 = 24  # UP
+    BUT_3 = 26  # right
+    BUT_4 = 27  # Down
     ROT_A = 16
-    ROT_A = 18
     ROT_B = 17
     LED_STRIP_CTRL = 18

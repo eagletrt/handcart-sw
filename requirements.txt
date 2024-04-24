@@ -1,6 +1,10 @@
-python-can
-RPi.GPIO
-Flask
+python-can~=4.2.2
+rpi.lgpio
 pytz
-cantools
-termcolor
+cantools~=39.2.0
+termcolor~=2.3.0
+ttkbootstrap~=1.10.1
+spidev~=3.6
+bitstring~=4.1.4
+pyautogui
+python-xlib # needed by pyautogui for execution

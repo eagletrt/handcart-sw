@@ -1,12 +1,14 @@
 import datetime
-import queue
-import threading
 import tkinter
-from enum import Enum
+import pyautogui
 
 import ttkbootstrap as ttk
+from RPi import GPIO
+from RPi.GPIO import FALLING
 from ttkbootstrap.constants import *
 
+from common.handcart_can import *
+from common.can_classes import Toggle
 from common.handcart_can import CanListener
 
 
@@ -25,13 +27,22 @@ def init_table(values: list[list[str]], root_element: ttk.Frame) -> list[list[tk
     entries: list[list[tkinter.Entry]] = []
 
     for row in range(num_rows):
-        entries.append([tkinter.Entry(root_element) for _ in range(num_columns)])
+        tmp = []
+        for col in range(num_columns):
+            en: tkinter.Entry = tkinter.Entry(
+                root_element,
+                disabledbackground="#000000",
+                disabledforeground="#ffffff"
+            )
+            tmp.append(en)
+        entries.append(tmp)
 
     for row in range(num_rows):
         for col in range(num_columns):
             entries[row][col].grid(row=row, column=col)
             root_element.grid_columnconfigure(col, weight=1)
             entries[row][col].insert(END, values[row][col])
+            entries[row][col].configure(state=DISABLED)
     return entries
 
 
@@ -48,8 +59,10 @@ def update_table(values: list[list[str]], entries: list[list[tkinter.Entry]]) ->
 
     for row in range(num_rows):
         for col in range(num_columns):
+            entries[row][col].configure(state=NORMAL)
             entries[row][col].delete(0, tkinter.END)
             entries[row][col].insert(END, values[row][col])
+            entries[row][col].configure(state=DISABLED)
 
 
 class Element(Enum):
@@ -63,8 +76,9 @@ class Tab(Enum):
     TAB_ERRORS = 2
 
 
-class Gui(threading.Thread):
+class Gui():
     FULL_SCREEN = True
+    USE_MOCKED_VALUES = True
 
     TTKBOOSTRAP_THEME = "cyborg"  # https://ttkbootstrap.readthedocs.io/en/latest/themes/dark/
 
@@ -107,6 +121,10 @@ class Gui(threading.Thread):
     MAIN_CENTER_WIDTH: int
     main_bms_values: list[list[str]]
     main_table_bms: list[list[tkinter.Entry]]
+    main_brusa_values: list[list[str]]
+    main_table_brusa: list[list[tkinter.Entry]]
+    main_handcart_values: list[list[str]]
+    main_table_handcart: list[list[tkinter.Entry]]
 
     # Settings window
     tab_settings: ttk.Frame
@@ -115,7 +133,7 @@ class Gui(threading.Thread):
     tab_errors: ttk.Frame
 
     # Logic
-    selected_element = None
+    selected_element: Element = None
     current_tab = Tab.TAB_MAIN.value
 
     def calculate_resolution(self):
@@ -129,7 +147,7 @@ class Gui(threading.Thread):
 
         self.MAIN_CENTER_WIDTH = int(self.WINDOW_WIDTH / 3)
 
-    def on_focus_in(self, event: tkinter.Event, s):
+    def on_focus_in(self, event: tkinter.Event, s: Element):
         """
         Called wheter an element is selected from the keyboard or buttons
         """
@@ -157,6 +175,35 @@ class Gui(threading.Thread):
                 self.current_tab -= 1
 
         self.root_center_tabs.select(self.current_tab)
+
+    def callback_but_1(self, ch: int) -> None:
+        """
+        Callback for button right. Called whether the button is pressed
+        """
+        print(PIN(ch))
+        self.change_tab(True)
+
+    def callback_but_3(self, ch: int):
+        """
+        Callback for button left. Called whether the button is pressed
+        """
+        print(PIN(ch))
+        self.change_tab(False)
+
+    def callback_but_2(self, ch: int):
+        """
+        Callback for button UP. Called whether the button is pressed
+        """
+        print(PIN(ch))
+        with pyautogui.hold('shift'):
+            pyautogui.press('\t')
+
+    def callback_but_4(self, ch: int):
+        """
+        Callback for button DOWN. Called whether the button is pressed
+        """
+        print(PIN(ch))
+        pyautogui.press('\t')
 
     def on_tab_changed(self, event: tkinter.Event):
         self.current_tab = self.root_center_tabs.index(self.root_center_tabs.select())
@@ -186,6 +233,10 @@ class Gui(threading.Thread):
         self.root_center_tabs.add(self.tab_errors, text="errors")  # 2
         self.root_center_tabs.bind('<<NotebookTabChanged>>', lambda ev: self.on_tab_changed(ev))
         self.root_center_tabs.pack(expand=1, fill=tkinter.BOTH)
+
+        # Register callbacks for buttons
+        GPIO.add_event_detect(PIN.BUT_2.value, FALLING, callback=self.callback_but_2, bouncetime=200)
+        GPIO.add_event_detect(PIN.BUT_4.value, FALLING, callback=self.callback_but_4, bouncetime=200)
 
         self.root_center_tabs.select(self.tab_main)
 
@@ -230,6 +281,10 @@ class Gui(threading.Thread):
         self.button_right.bind("<FocusOut>", lambda ev: self.on_focus_out(ev))
         self.button_right.pack(side=RIGHT, padx=5, pady=10)
 
+        # Setup callbacks for buttons
+        GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=200)
+        GPIO.add_event_detect(PIN.BUT_3.value, FALLING, callback=self.callback_but_3, bouncetime=200)
+
         self.root_bottom_refresh()
 
     def root_bottom_refresh(self):
@@ -259,14 +314,21 @@ class Gui(threading.Thread):
         self.main_center_left.grid(column=0, row=0)
         self.main_center_left.pack_propagate(False)  # prevents the frame to resize automatically
 
+        self.main_center_left_lbl_top = ttk.Label(self.main_center_left, text="BMS")
+        self.main_center_left_lbl_top.pack(side=TOP)
+
         self.main_another_center_left = ttk.Frame(self.main_center_left)
         self.main_another_center_left.pack(fill=BOTH)
 
-        self.main_bms_values = [["State", "value"],
-                                ["Max cell v", "3.4 V"],
-                                ["Min cell v", "2.8 V"],
-                                ["avg cell v", "3.2 V"],
-                                ["cell delta", "0.4 V"]]
+        self.main_bms_values = [
+            ["State", "-"],
+            ["Max cell V", "-"],
+            ["Min cell V", "-"],
+            ["Cell delta V", "-"],
+            ["Max temp °C", "-"],
+            ["Min temp °C", "-"],
+            ["Avg temp °C", "-"]
+        ]
 
         self.main_table_bms = init_table(self.main_bms_values, self.main_another_center_left)
 
@@ -276,18 +338,87 @@ class Gui(threading.Thread):
         self.main_center_center.grid(column=1, row=0)
         self.main_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
+        self.main_center_center_lbl_top = ttk.Label(self.main_center_center, text="BRUSA")
+        self.main_center_center_lbl_top.pack(side=TOP)
+
+        self.main_another_center_center = ttk.Frame(self.main_center_center)
+        self.main_another_center_center.pack(fill=BOTH)
+
+        self.main_brusa_values = [
+            ["status", "-"],
+            ["Mains in VAC", "-"],
+            ["Mains in A", "-"],
+            ["Mains max in A", "-"],
+            ["Out VDC", "-"],
+            ["Out A", "-"],
+            ["Temperature °C", "-"],
+            ["Errors", "-"]
+        ]
+
+        self.main_table_brusa = init_table(self.main_brusa_values, self.main_another_center_center)
+
         self.main_center_right = ttk.Frame(
             self.tab_main,
             width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.main_center_right.grid(column=2, row=0)
         self.main_center_right.pack_propagate(False)  # prevents the frame to resize automatically
 
+        self.main_center_right_lbl_top = ttk.Label(self.main_center_right, text="HANDCART")
+        self.main_center_right_lbl_top.pack(side=TOP)
+
+        self.main_another_center_right = ttk.Frame(self.main_center_right)
+        self.main_another_center_right.pack(fill=BOTH)
+
+        self.main_handcart_values = [
+            ["Status", "-"],
+            ["target V", "-"],
+            ["Max current out", "-"],
+            ["Max current in", "-"],
+            ["Fan override", "-"],
+            ["fan override speed", "-"]
+        ]
+
+        self.main_table_handcart = init_table(self.main_handcart_values, self.main_another_center_right)
+
         self.main_refresh()
 
     def main_refresh(self):
-        self.main_bms_values[0][1] = str(datetime.datetime.now())
-        self.main_bms_values[1][1] = str(datetime.datetime.now())
-        self.main_bms_values[2][1] = str(datetime.datetime.now())
+        if self.USE_MOCKED_VALUES:
+            self.main_bms_values[0][1] = str(datetime.now())
+            self.main_bms_values[1][1] = str(datetime.now())
+            self.main_bms_values[2][1] = str(datetime.now())
+        else:
+            self.main_bms_values = [
+                ["State", self.shared_data.bms_hv.status.name],
+                ["Max cell V", self.shared_data.bms_hv.max_cell_voltage],
+                ["Min cell V", self.shared_data.bms_hv.min_cell_voltage],
+                ["Cell delta V", self.shared_data.bms_hv.act_cell_delta],
+                ["Max temp °C", self.shared_data.bms_hv.max_temp],
+                ["Min temp °C", self.shared_data.bms_hv.min_temp],
+                ["Avg temp °C", self.shared_data.bms_hv.act_average_temp]
+            ]
+
+            self.main_brusa_values = [
+                ["status", self.shared_data.brusa.isConnected()],
+                ["Mains in VAC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT"), 2))],
+                ["Mains in A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT"), 2))],
+                ["Mains max in A", str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_S_MC_M_CP"), 2))],
+                ["Out VDC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT"), 2))],
+                ["Out A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT"), 2))],
+                ["Temperature °C", str(round(self.shared_data.brusa.act_NLG5_TEMP.get("NLG5_P_TMP"), 2))],
+                ["Errors", str(self.shared_data.brusa.error)]
+            ]
+
+            self.main_handcart_values = [
+                ["Status", self.shared_data.FSM_stat.name],
+                ["target V", self.shared_data.target_v],
+                ["Max current out", self.shared_data.act_set_out_current],
+                ["Max current in", self.shared_data.act_set_in_current],
+                ["Fan override",
+                 str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
+                ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)]
+            ]
+
         update_table(self.main_bms_values, self.main_table_bms)
         self.tab_main.after(self.REFRESH_RATE, self.main_refresh)
 
@@ -297,12 +428,9 @@ class Gui(threading.Thread):
                  com_queue: queue.Queue,
                  lock: threading.Lock,
                  shared_data: CanListener):
-        super().__init__(args=(com_queue,
-                               lock,
-                               shared_data))
-        self.com_queue = self._args[0]
-        self.lock = self._args[1]
-        self.shared_data = self._args[2]
+        self.com_queue = com_queue
+        self.lock = lock
+        self.shared_data = shared_data
         self.setup_root()
 
     def run(self):
