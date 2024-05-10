@@ -57,6 +57,7 @@ ENABLE_CLI = False  # Set to true to enable USB cli
 ENABLE_WEB = False
 ENABLE_LED = False
 ENABLE_GUI = True
+ENABLE_BUZZER = True
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 
@@ -75,5 +76,5 @@ class PIN(Enum):
     BUT_3 = 26  # right
     BUT_4 = 27  # Down
     ROT_A = 16
-    ROT_B = 17
+    ROT_B = 17  # B
     LED_STRIP_CTRL = 18

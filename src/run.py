@@ -14,6 +14,7 @@ import threading
 from RPi import GPIO
 
 import common.accumulator.fans as fans
+from common.buzzer import Buzzer, STARTUP_SOUND
 from common.cli.cli import Cli
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
@@ -36,6 +37,7 @@ rx_can_queue = queue.Queue()  # Queue for incoming can messages
 tx_can_queue = queue.Queue()  # Queue for outgoing can messages
 tele_can_queue = queue.Queue()  # Queue used to send can messages to telemetry thread
 com_queue = queue.Queue()  # Command queue
+melody_queue = queue.Queue()  # Queue to send melodies to the buzzer
 lock = threading.Lock()
 forward_lock = threading.Lock()  # Lock to manage the access to the can_forward_enabled variable
 
@@ -93,6 +95,15 @@ if __name__ == "__main__":
         )
         t6.start()
 
+    if ENABLE_BUZZER:
+        tprint("Buzzer enabled, starting buzzer thread", P_TYPE.DEBUG)
+        b = Buzzer(
+            melody_queue
+        )
+        b.start()
+
+        melody_queue.put({"melody": STARTUP_SOUND, "repeat": 1})
+
     if ENABLE_GUI:
         tprint("GUI is enabled, starting gui..", P_TYPE.DEBUG)
         g = Gui(
@@ -100,4 +111,4 @@ if __name__ == "__main__":
             lock,
             shared_data
         )
-        g.run()
+        g.run()  # WARNING, not a thread

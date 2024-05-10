@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from termcolor import colored
-
 from settings import ERROR_LOG_FILE_PATH
+from termcolor import colored
 
 
 def log_error(error_string: str):

@@ -5,7 +5,6 @@ from datetime import datetime
 
 import can
 from RPi import GPIO
-
 from common.handcart_can import CanListener
 from common.logging import P_TYPE, tprint
 from settings import *
