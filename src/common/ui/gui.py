@@ -1,21 +1,22 @@
 import datetime
 import tkinter
-import pyautogui
 
+import pyautogui
 import ttkbootstrap as ttk
 from RPi import GPIO
 from RPi.GPIO import FALLING
 from ttkbootstrap.constants import *
 
 from common.handcart_can import *
-from common.can_classes import Toggle
 from common.handcart_can import CanListener
+from common.logging import tprint, P_TYPE
 
 
-def init_table(values: list[list[str]], root_element: ttk.Frame) -> list[list[tkinter.Entry]]:
+def init_table(values: list[list[str]], root_element: ttk.Frame, state=DISABLED) -> list[list[tkinter.Entry]]:
     """
     Generate a tkinter table given the value matrix.
     Args:
+        state: state of the element, default disabled
         values: The value matrix by which the table will be built
         root_element: The tkinter element where the table will be placed
 
@@ -42,14 +43,15 @@ def init_table(values: list[list[str]], root_element: ttk.Frame) -> list[list[tk
             entries[row][col].grid(row=row, column=col)
             root_element.grid_columnconfigure(col, weight=1)
             entries[row][col].insert(END, values[row][col])
-            entries[row][col].configure(state=DISABLED)
+            entries[row][col].configure(state=state)
     return entries
 
 
-def update_table(values: list[list[str]], entries: list[list[tkinter.Entry]]) -> None:
+def update_table(values: list[list[str]], entries: list[list[tkinter.Entry]], state=DISABLED) -> None:
     """
     Update a tkinter table withe given values
     Args:
+        state: state of the entities, default DISABLED
         values: the values matrix to update the given entries tkinter matrix. Note that the values structure should
         match the entries structure
         entries: The tkinter Entry table
@@ -62,12 +64,34 @@ def update_table(values: list[list[str]], entries: list[list[tkinter.Entry]]) ->
             entries[row][col].configure(state=NORMAL)
             entries[row][col].delete(0, tkinter.END)
             entries[row][col].insert(END, values[row][col])
-            entries[row][col].configure(state=DISABLED)
+            entries[row][col].configure(state=state)
 
 
 class Element(Enum):
     BUTTON_WINDOW_LEFT = 0
     BUTTON_WINDOW_RIGHT = 1
+    SETTING_1 = 2
+
+
+# Multiplier to say how much the value of the settings is inc(dec)remented
+# each encoder step
+SETTING_ELEMENT_MULTIPLIER = {
+    Element.SETTING_1: 1
+}
+
+
+def is_settings_element(el: Element) -> bool:
+    """
+    Tells if the element is a setting element or not
+    Args:
+        el:
+
+    Returns:
+
+    """
+    return el in [
+        Element.SETTING_1
+    ]
 
 
 class Tab(Enum):
@@ -76,9 +100,31 @@ class Tab(Enum):
     TAB_ERRORS = 2
 
 
+class ScrollableFrame(ttk.Frame):
+    def __init__(self, container, *args, **kwargs):
+        super().__init__(container, *args, **kwargs)
+        canvas = tkinter.Canvas(self)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = ttk.Frame(canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+
 class Gui():
     FULL_SCREEN = True
-    USE_MOCKED_VALUES = True
+    USE_MOCKED_VALUES = False
 
     TTKBOOSTRAP_THEME = "cyborg"  # https://ttkbootstrap.readthedocs.io/en/latest/themes/dark/
 
@@ -91,6 +137,8 @@ class Gui():
     ROOT_HEADER_HEIGHT: int  # calculated later
     ROOT_CENTER_HEIGHT: int  # calculated later
     ROOT_BOTTOM_HEIGHT: int  # calculated later
+
+    ELEMENT_INDEX_OFFSET = 2  # offset of the element int value of the enum wrt 0
 
     shared_data: CanListener = None
     lock: threading.Lock
@@ -111,6 +159,8 @@ class Gui():
     root_bottom: ttk.Frame
     button_left: ttk.Button
     button_right: ttk.Button
+    button_start_charge: ttk.Button
+    button_start_balance: ttk.Button
 
     # Main window
     tab_main: ttk.Frame
@@ -135,6 +185,7 @@ class Gui():
     # Logic
     selected_element: Element = None
     current_tab = Tab.TAB_MAIN.value
+    confirmed: bool = False
 
     def calculate_resolution(self):
         if self.FULL_SCREEN:
@@ -152,15 +203,26 @@ class Gui():
         Called wheter an element is selected from the keyboard or buttons
         """
         self.selected_element = s
-        print(f"focus on: {s}")
-        print(self)
 
-    def on_focus_out(self, event: tkinter.Event):
+        # save old value of element selected
+        if 10 >= self.selected_element.value >= 2:
+            self.confirmed = False  # tell if the new element new value haas been confirmed
+
+        tprint(f"focus on: {s}", P_TYPE.DEBUG)
+
+    def on_focus_out(self, event: tkinter.Event, s: Element):
         """
         Reset the element focused
         """
+
+        # restore old value if not confirmed
+        if is_settings_element(self.selected_element) and not self.confirmed:
+            self.settings_set_value[0][self.get_selected_settings_element_index()] \
+                = self.settings_actual_value[0][self.get_selected_settings_element_index()]
         self.selected_element = None
-        print("reset focus")
+        self.confirmed = False
+
+        tprint("reset focus", P_TYPE.DEBUG)
 
     def change_tab(self, forward: bool):
         if forward:
@@ -180,21 +242,21 @@ class Gui():
         """
         Callback for button right. Called whether the button is pressed
         """
-        print(PIN(ch))
+        tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         self.change_tab(True)
 
     def callback_but_3(self, ch: int):
         """
         Callback for button left. Called whether the button is pressed
         """
-        print(PIN(ch))
+        tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         self.change_tab(False)
 
     def callback_but_2(self, ch: int):
         """
         Callback for button UP. Called whether the button is pressed
         """
-        print(PIN(ch))
+        tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         with pyautogui.hold('shift'):
             pyautogui.press('\t')
 
@@ -202,8 +264,68 @@ class Gui():
         """
         Callback for button DOWN. Called whether the button is pressed
         """
-        print(PIN(ch))
+        tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         pyautogui.press('\t')
+
+    def get_selected_settings_element_index(self) -> int | None:
+        """
+        Get selected element only if it is a setting element
+        Returns:
+
+        """
+        if self.selected_element is not None:
+            if is_settings_element(self.selected_element):
+                index = self.selected_element.value - self.ELEMENT_INDEX_OFFSET
+                return index
+
+        return None
+
+    def encoder_callback(self, gpio_pin: int):
+        CLK_state = GPIO.input(PIN.ROT_B.value)
+        DT_state = GPIO.input(PIN.ROT_A.value)
+
+        delta = 0
+
+        multiplier = 1
+        if is_settings_element(self.selected_element):
+            multiplier = SETTING_ELEMENT_MULTIPLIER[self.selected_element]
+
+        if CLK_state == GPIO.HIGH and DT_state == GPIO.LOW:
+            tprint(f"Rotary Encoder direction: {'CLOCKWISE' if False else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
+
+            delta = -1 * multiplier
+
+        elif CLK_state == GPIO.HIGH and DT_state == GPIO.HIGH:
+            tprint(f"Rotary Encoder direction: {'CLOCKWISE' if True else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
+
+            delta = 1 * multiplier
+
+        selected_settings_element_index = self.get_selected_settings_element_index()
+
+        if selected_settings_element_index is not None:
+            val = float(self.settings_set_value[0][selected_settings_element_index])
+            self.settings_set_value[0][selected_settings_element_index] = str(val + delta)
+
+    def button_encoder_callback(self, gpio_pin: int):
+        tprint("Pressed confirm button", P_TYPE.DEBUG)
+        self.confirmed = True
+        # TODO: based on selected item send command to update its value
+        # On deselect, you will restore the saved value.
+        if not is_settings_element(self.selected_element):
+            return
+
+        setting_index = self.get_selected_settings_element_index()
+
+        if setting_index is None:
+            return
+
+        command_mapping = {
+            Element.SETTING_1: lambda: {
+                "com-type": "cutoff",
+                "value": float(self.settings_set_value[0][self.get_selected_settings_element_index()])}
+        }
+
+        self.com_queue.put(command_mapping[self.selected_element]())
 
     def on_tab_changed(self, event: tkinter.Event):
         self.current_tab = self.root_center_tabs.index(self.root_center_tabs.select())
@@ -224,9 +346,8 @@ class Gui():
         self.root_bottom_setup()
 
         self.setup_main_window()
-
-        self.tab_settings = ttk.Frame(self.root_center_tabs)
-        self.tab_errors = ttk.Frame(self.root_center_tabs)
+        self.setup_settings_window()
+        self.setup_errors_window()
 
         self.root_center_tabs.add(self.tab_main, text="main")  # 0
         self.root_center_tabs.add(self.tab_settings, text="settings")  # 1
@@ -237,6 +358,8 @@ class Gui():
         # Register callbacks for buttons
         GPIO.add_event_detect(PIN.BUT_2.value, FALLING, callback=self.callback_but_2, bouncetime=200)
         GPIO.add_event_detect(PIN.BUT_4.value, FALLING, callback=self.callback_but_4, bouncetime=200)
+        GPIO.add_event_detect(PIN.ROT_B.value, GPIO.RISING, callback=self.encoder_callback, bouncetime=1)  # encoder
+        GPIO.add_event_detect(PIN.BUT_0.value, FALLING, callback=self.button_encoder_callback, bouncetime=200)
 
         self.root_center_tabs.select(self.tab_main)
 
@@ -255,6 +378,8 @@ class Gui():
         self.root_header_refresh()
 
     def root_header_refresh(self):
+        if not self.USE_MOCKED_VALUES:
+            self.lbl_state.configure(text=f"STATE: {self.shared_data.FSM_stat.name}")
         self.root_header.after(self.REFRESH_RATE, self.root_header_refresh)
 
     # ROOT BOTTOM ------------------------------------------------------------------------------------------------------
@@ -271,15 +396,41 @@ class Gui():
             self.root_bottom, text="<-", bootstyle=(SECONDARY), command=lambda fw=False: self.change_tab(fw))
         self.button_left.bind(
             "<FocusIn>", lambda ev, el=Element.BUTTON_WINDOW_LEFT: self.on_focus_in(ev, el))  # select thing
-        self.button_left.bind("<FocusOut>", lambda ev: self.on_focus_out(ev))
-        self.button_left.pack(side=LEFT, padx=5, pady=10)
+        self.button_left.bind(
+            "<FocusOut>", lambda ev, el=Element.BUTTON_WINDOW_LEFT: self.on_focus_out(ev, el))
+        self.button_left.pack(side=LEFT)
+        # self.button_left.grid(column=0, row=0)
 
         self.button_right = ttk.Button(
             self.root_bottom, text="->", bootstyle=(SECONDARY), command=lambda fw=True: self.change_tab(fw))
         self.button_right.bind("<FocusIn>",
                                lambda ev, el=Element.BUTTON_WINDOW_RIGHT: self.on_focus_in(ev, el))  # select thing
-        self.button_right.bind("<FocusOut>", lambda ev: self.on_focus_out(ev))
-        self.button_right.pack(side=RIGHT, padx=5, pady=10)
+        self.button_right.bind(
+            "<FocusOut>", lambda ev, el=Element.BUTTON_WINDOW_RIGHT: self.on_focus_out(ev, el))
+        self.button_right.pack(side=RIGHT)
+        # self.button_right.grid(column=2, row=0)
+
+        self.root_bottom_center_button_container = ttk.Frame(
+            self.root_bottom,
+            width=self.WINDOW_WIDTH / 2,
+            height=self.ROOT_BOTTOM_HEIGHT,
+            borderwidth=self.BORDER_WIDTH,
+            relief=GROOVE
+        )
+        self.root_bottom_center_button_container.pack_propagate(True)
+        self.root_bottom_center_button_container.pack(side=TOP)
+        # self.root_bottom_center_button_container.grid(column=1, row=0)
+
+        self.button_start_charge = ttk.Button(
+            self.root_bottom_center_button_container, text="Charge", bootstyle=(SECONDARY), command=lambda fw=True: None
+        )
+        self.button_start_charge.grid(column=0, row=0)
+
+        self.button_start_balance = ttk.Button(
+            self.root_bottom_center_button_container, text="Balance", bootstyle=(SECONDARY),
+            command=lambda fw=True: None
+        )
+        self.button_start_balance.grid(column=1, row=0)
 
         # Setup callbacks for buttons
         GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=200)
@@ -420,9 +571,108 @@ class Gui():
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
+        update_table(self.main_brusa_values, self.main_table_brusa)
+        update_table(self.main_handcart_values, self.main_table_handcart)
         self.tab_main.after(self.REFRESH_RATE, self.main_refresh)
 
     # SETTINGS WINDOW --------------------------------------------------------------------------------------------------
+
+    def setup_settings_window(self):
+        self.tab_settings = ttk.Frame(self.root_center_tabs)
+
+        # CENTER LEFT
+        self.settings_center_left = ttk.Frame(
+            self.tab_settings,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+        self.settings_center_left.grid(column=0, row=0)
+        self.settings_center_left.pack_propagate(False)  # prevents the frame to resize automatically
+
+        self.settings_center_left_lbl_top = ttk.Label(self.settings_center_left, text="Setting name")
+        self.settings_center_left_lbl_top.pack(side=TOP)
+
+        self.settings_another_center_left = ttk.Frame(self.settings_center_left)
+        self.settings_another_center_left.pack(fill=BOTH)
+
+        self.settings_name_value = [
+            ["BMS target voltage (V)"]
+        ]
+
+        self.settings_name_table = init_table(self.settings_name_value, self.settings_another_center_left)
+
+        # CENTER CENTER
+        self.settings_center_center = ttk.Frame(
+            self.tab_settings,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+        self.settings_center_center.grid(column=1, row=0)
+        self.settings_center_center.pack_propagate(False)  # prevents the frame to resize automatically
+
+        self.settings_center_center_lbl_top = ttk.Label(self.settings_center_center, text="Value read")
+        self.settings_center_center_lbl_top.pack(side=TOP)
+
+        self.settings_another_center_center = ttk.Frame(self.settings_center_center)
+        self.settings_another_center_center.pack(fill=BOTH)
+
+        self.settings_actual_value = [
+            [self.shared_data.target_v]
+        ]
+
+        self.settings_actual_value_table = init_table(self.settings_actual_value, self.settings_another_center_center)
+
+        # CENTER RIGHT
+
+        self.settings_center_center_right = ttk.Frame(
+            self.tab_settings,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+        self.settings_center_center_right.grid(column=2, row=0)
+        self.settings_center_center_right.pack_propagate(False)  # prevents the frame to resize automatically
+
+        self.settings_center_center_right_lbl_top = ttk.Label(self.settings_center_center_right, text="Value set")
+        self.settings_center_center_right_lbl_top.pack(side=TOP)
+
+        self.settings_another_center_center_right = ttk.Frame(self.settings_center_center_right)
+        self.settings_another_center_center_right.pack(fill=BOTH)
+
+        self.settings_set_value = [
+            [self.shared_data.target_v]
+        ]
+
+        self.settings_set_value_table = init_table(
+            self.settings_set_value, self.settings_another_center_center_right, state=NORMAL)
+
+        self.settings_set_value_table[0][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_1: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[0][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_1: self.on_focus_out(ev, el))
+
+        self.settings_refresh()
+
+    def settings_refresh(self):
+        self.settings_actual_value = [
+            [self.shared_data.target_v]
+        ]
+        update_table(self.settings_actual_value, self.settings_actual_value_table)
+        update_table(self.settings_set_value, self.settings_set_value_table, state=NORMAL)
+
+        self.tab_settings.after(self.REFRESH_RATE, self.settings_refresh)
+        pass
+
+    # ERRORS WINDOW ----------------------------------------------------------------------------------------------------
+    def setup_errors_window(self):
+        self.tab_errors = ttk.Frame(self.root_center_tabs)
+        self.errors_scroll = ScrollableFrame(self.tab_errors)
+        self.errors_scroll.pack(side=BOTTOM)
+
+        self.errors_text = tkinter.Text(self.errors_scroll.scrollable_frame, wrap="char")
+        self.errors_text.pack(fill=X)
+
+        for i in range(50):
+            self.errors_text.insert(END, "asddd\n")
+
+        self.errors_refresh()
+
+    def errors_refresh(self):
+        # Do refresh
+        self.tab_errors.after(self.REFRESH_RATE, self.errors_refresh)
 
     def __init__(self,
                  com_queue: queue.Queue,

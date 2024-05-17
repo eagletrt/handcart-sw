@@ -2,6 +2,7 @@ from collections import OrderedDict
 from enum import Enum
 
 from cantools.database import Message
+
 from settings import dbc_primary, CAN_MESSAGE_CHECK_ENABLED, dbc_brusa
 
 """

@@ -2,6 +2,7 @@ import time
 from enum import Enum
 
 from RPi import GPIO
+
 from common.can_classes import STATE
 from settings import PIN
 

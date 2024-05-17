@@ -5,6 +5,7 @@ from datetime import datetime
 
 import can
 from RPi import GPIO
+
 from common.handcart_can import CanListener
 from common.logging import P_TYPE, tprint
 from settings import *
@@ -137,13 +138,15 @@ class FSM(threading.Thread):
 
         if not self.com_queue.empty():
             act_com = self.com_queue.get()
-            # tprint(str(act_com), P_TYPE.DEBUG)
+            if type(act_com) is not dict:
+                return
+            tprint(str(act_com), P_TYPE.DEBUG)
 
             if act_com['com-type'] == 'cutoff':
                 if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
                     self.canread.target_v = int(act_com['value'])
                 else:
-                    print("cutoff command exceeds limits")
+                    tprint("cutoff command exceeds limits", P_TYPE.ERROR)
 
             if act_com['com-type'] == "precharge" and \
                     act_com['value'] is True and \
