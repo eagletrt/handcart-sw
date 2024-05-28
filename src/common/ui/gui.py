@@ -4,7 +4,7 @@ import tkinter
 import pyautogui
 import ttkbootstrap as ttk
 from RPi import GPIO
-from RPi.GPIO import FALLING
+from RPi.GPIO import RISING
 from ttkbootstrap.constants import *
 
 from common.handcart_can import *
@@ -70,13 +70,20 @@ def update_table(values: list[list[str]], entries: list[list[tkinter.Entry]], st
 class Element(Enum):
     BUTTON_WINDOW_LEFT = 0
     BUTTON_WINDOW_RIGHT = 1
-    SETTING_1 = 2
+    SETTING_CUTOFF = 2
+    SETTING_MAX_OUT_CURRENT = 3
+    SETTING_FAN_OVERRIDE_STATUS = 4
+    SETTING_FAN_OVERRIDE_SPEED = 5
+    SETTING_MAX_IN_CURRENT = 6
 
 
-# Multiplier to say how much the value of the settings is inc(dec)remented
-# each encoder step
-SETTING_ELEMENT_MULTIPLIER = {
-    Element.SETTING_1: 1
+# limits for the possible values of the settings in the interface
+SETTING_ELEMENT_LIMIT = {
+    Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
+    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
+    Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
+    Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 100, "step": 1},
+    Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .1}
 }
 
 
@@ -90,7 +97,11 @@ def is_settings_element(el: Element) -> bool:
 
     """
     return el in [
-        Element.SETTING_1
+        Element.SETTING_CUTOFF,
+        Element.SETTING_MAX_OUT_CURRENT,
+        Element.SETTING_FAN_OVERRIDE_STATUS,
+        Element.SETTING_FAN_OVERRIDE_SPEED,
+        Element.SETTING_MAX_IN_CURRENT
     ]
 
 
@@ -133,6 +144,8 @@ class Gui():
     WINDOW_WIDTH = 1024
     WINDOW_HEIGHT = 600
     BORDER_WIDTH = 1
+
+    BOUNCETIME = 200  # ms
 
     ROOT_HEADER_HEIGHT: int  # calculated later
     ROOT_CENTER_HEIGHT: int  # calculated later
@@ -177,7 +190,12 @@ class Gui():
     main_table_handcart: list[list[tkinter.Entry]]
 
     # Settings window
+    settings_name_value: list[list[str]]
+    settings_name_table: list[list[tkinter.Entry]]
     tab_settings: ttk.Frame
+    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
+    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
+    settings_set_value_table: list[list[tkinter.Entry]]
 
     # Errors window
     tab_errors: ttk.Frame
@@ -216,9 +234,9 @@ class Gui():
         """
 
         # restore old value if not confirmed
-        if is_settings_element(self.selected_element) and not self.confirmed:
-            self.settings_set_value[0][self.get_selected_settings_element_index()] \
-                = self.settings_actual_value[0][self.get_selected_settings_element_index()]
+        if is_settings_element(s) and not self.confirmed:
+            self.settings_set_value[self.get_element_index(s)][0] \
+                = self.settings_actual_value[self.get_element_index(s)][0]
         self.selected_element = None
         self.confirmed = False
 
@@ -267,6 +285,11 @@ class Gui():
         tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         pyautogui.press('\t')
 
+    def get_element_index(self, elem: Element):
+        if is_settings_element(elem):
+            index = elem.value - self.ELEMENT_INDEX_OFFSET
+            return index
+
     def get_selected_settings_element_index(self) -> int | None:
         """
         Get selected element only if it is a setting element
@@ -274,9 +297,7 @@ class Gui():
 
         """
         if self.selected_element is not None:
-            if is_settings_element(self.selected_element):
-                index = self.selected_element.value - self.ELEMENT_INDEX_OFFSET
-                return index
+            return self.get_element_index(self.selected_element)
 
         return None
 
@@ -286,9 +307,16 @@ class Gui():
 
         delta = 0
 
-        multiplier = 1
-        if is_settings_element(self.selected_element):
-            multiplier = SETTING_ELEMENT_MULTIPLIER[self.selected_element]
+        if not is_settings_element(self.selected_element):
+            return
+
+        selected_settings_element_index = self.get_selected_settings_element_index()
+
+        if selected_settings_element_index is None:
+            return
+
+        selected_element_limit = SETTING_ELEMENT_LIMIT[self.selected_element]
+        multiplier = selected_element_limit['step']
 
         if CLK_state == GPIO.HIGH and DT_state == GPIO.LOW:
             tprint(f"Rotary Encoder direction: {'CLOCKWISE' if False else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
@@ -300,29 +328,66 @@ class Gui():
 
             delta = 1 * multiplier
 
-        selected_settings_element_index = self.get_selected_settings_element_index()
+        # float values
+        if self.selected_element in [Element.SETTING_CUTOFF,
+                                     Element.SETTING_MAX_OUT_CURRENT,
+                                     Element.SETTING_MAX_IN_CURRENT]:
+            val = float(self.settings_set_value[selected_settings_element_index][0])
+            new_val = round(val + delta, 2)
+            if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
+                return
 
-        if selected_settings_element_index is not None:
-            val = float(self.settings_set_value[0][selected_settings_element_index])
-            self.settings_set_value[0][selected_settings_element_index] = str(val + delta)
+            self.settings_set_value[selected_settings_element_index][0] = str(new_val)
+
+        # int values
+        if self.selected_element in [Element.SETTING_FAN_OVERRIDE_SPEED,
+                                     Element.SETTING_FAN_OVERRIDE_STATUS]:
+            val = int(self.settings_set_value[selected_settings_element_index][0])
+            new_val = int(val + delta)
+            if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
+                return
+
+            self.settings_set_value[selected_settings_element_index][0] = str(new_val)
 
     def button_encoder_callback(self, gpio_pin: int):
         tprint("Pressed confirm button", P_TYPE.DEBUG)
         self.confirmed = True
         # TODO: based on selected item send command to update its value
         # On deselect, you will restore the saved value.
+        tprint(f"Confirm element: {self.selected_element}", P_TYPE.DEBUG)
         if not is_settings_element(self.selected_element):
             return
 
         setting_index = self.get_selected_settings_element_index()
+        tprint(f"Confirm element indx: {setting_index}", P_TYPE.DEBUG)
 
         if setting_index is None:
             return
 
+        tprint(f"Confirm element: {self.selected_element}", P_TYPE.DEBUG)
+
         command_mapping = {
-            Element.SETTING_1: lambda: {
+            Element.SETTING_CUTOFF: lambda: {
                 "com-type": "cutoff",
-                "value": float(self.settings_set_value[0][self.get_selected_settings_element_index()])}
+                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
+            },
+            Element.SETTING_MAX_OUT_CURRENT: lambda: {
+                "com-type": "max-out-current",
+                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
+            },
+            Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
+                "com-type": "fan-override-set-status",
+                "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
+                                     0] == "1" else False
+            },
+            Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
+                "com-type": "fan-override-set-speed",
+                "value": self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]
+            },
+            Element.SETTING_MAX_IN_CURRENT: lambda: {
+                "com-type": "max-in-current",
+                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
+            },
         }
 
         self.com_queue.put(command_mapping[self.selected_element]())
@@ -356,10 +421,11 @@ class Gui():
         self.root_center_tabs.pack(expand=1, fill=tkinter.BOTH)
 
         # Register callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_2.value, FALLING, callback=self.callback_but_2, bouncetime=200)
-        GPIO.add_event_detect(PIN.BUT_4.value, FALLING, callback=self.callback_but_4, bouncetime=200)
-        GPIO.add_event_detect(PIN.ROT_B.value, GPIO.RISING, callback=self.encoder_callback, bouncetime=1)  # encoder
-        GPIO.add_event_detect(PIN.BUT_0.value, FALLING, callback=self.button_encoder_callback, bouncetime=200)
+        GPIO.add_event_detect(PIN.BUT_2.value, RISING, callback=self.callback_but_4, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_4.value, RISING, callback=self.callback_but_2, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.ROT_B.value, RISING, callback=self.encoder_callback, bouncetime=2)  # encoder
+        GPIO.add_event_detect(PIN.BUT_0.value, RISING, callback=self.button_encoder_callback,
+                              bouncetime=self.BOUNCETIME)
 
         self.root_center_tabs.select(self.tab_main)
 
@@ -433,8 +499,8 @@ class Gui():
         self.button_start_balance.grid(column=1, row=0)
 
         # Setup callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=200)
-        GPIO.add_event_detect(PIN.BUT_3.value, FALLING, callback=self.callback_but_3, bouncetime=200)
+        GPIO.add_event_detect(PIN.BUT_1.value, RISING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_3.value, RISING, callback=self.callback_but_3, bouncetime=self.BOUNCETIME)
 
         self.root_bottom_refresh()
 
@@ -594,7 +660,11 @@ class Gui():
         self.settings_another_center_left.pack(fill=BOTH)
 
         self.settings_name_value = [
-            ["BMS target voltage (V)"]
+            ["BMS target voltage (V)"],
+            ["BMS max input current (A)"],
+            ["BMS fan override status"],
+            ["BMS fan override speed"],
+            ["CHARGER max grid current"]
         ]
 
         self.settings_name_table = init_table(self.settings_name_value, self.settings_another_center_left)
@@ -612,10 +682,6 @@ class Gui():
         self.settings_another_center_center = ttk.Frame(self.settings_center_center)
         self.settings_another_center_center.pack(fill=BOTH)
 
-        self.settings_actual_value = [
-            [self.shared_data.target_v]
-        ]
-
         self.settings_actual_value_table = init_table(self.settings_actual_value, self.settings_another_center_center)
 
         # CENTER RIGHT
@@ -632,29 +698,69 @@ class Gui():
         self.settings_another_center_center_right = ttk.Frame(self.settings_center_center_right)
         self.settings_another_center_center_right.pack(fill=BOTH)
 
-        self.settings_set_value = [
-            [self.shared_data.target_v]
-        ]
-
         self.settings_set_value_table = init_table(
             self.settings_set_value, self.settings_another_center_center_right, state=NORMAL)
 
-        self.settings_set_value_table[0][0].bind(
-            "<FocusIn>", lambda ev, el=Element.SETTING_1: self.on_focus_in(ev, el))  # select thing
-        self.settings_set_value_table[0][0].bind(
-            "<FocusOut>", lambda ev, el=Element.SETTING_1: self.on_focus_out(ev, el))
+        for i, j in enumerate(self.settings_set_value_table):
+            tprint(f"{i}, {j}", P_TYPE.DEBUG)
+
+        # Set callbacks to focus in and out in order to update the selected element global var
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CUTOFF)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_CUTOFF: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CUTOFF)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_CUTOFF: self.on_focus_out(ev, el))
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_MAX_OUT_CURRENT: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_MAX_OUT_CURRENT: self.on_focus_out(ev, el))
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_STATUS: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_STATUS: self.on_focus_out(ev, el))
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_out(ev, el))
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_out(ev, el))
 
         self.settings_refresh()
 
     def settings_refresh(self):
         self.settings_actual_value = [
-            [self.shared_data.target_v]
+            [self.shared_data.target_v],
+            [self.shared_data.act_set_out_current],
+            [1 if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 0],
+            [self.shared_data.bms_hv.fans_override_speed],
+            [round(self.shared_data.brusa.act_NLG5_ACT_II.get('NLG5_S_MC_M_CP'), 2)]
         ]
         update_table(self.settings_actual_value, self.settings_actual_value_table)
+
+        if self.selected_element != Element.SETTING_CUTOFF:
+            self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0] \
+                = self.shared_data.target_v
+        if self.selected_element != Element.SETTING_MAX_OUT_CURRENT:
+            self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0] \
+                = self.shared_data.act_set_out_current
+        if self.selected_element != Element.SETTING_FAN_OVERRIDE_STATUS:
+            self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0] \
+                = 1 if self.shared_data.bms_hv.fans_set_override_status == Toggle.ON else 0
+        if self.selected_element != Element.SETTING_FAN_OVERRIDE_SPEED:
+            self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0] \
+                = self.shared_data.bms_hv.fans_set_override_speed
+        if self.selected_element != Element.SETTING_MAX_IN_CURRENT:
+            self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0] \
+                = self.shared_data.act_set_in_current
+
         update_table(self.settings_set_value, self.settings_set_value_table, state=NORMAL)
 
         self.tab_settings.after(self.REFRESH_RATE, self.settings_refresh)
-        pass
 
     # ERRORS WINDOW ----------------------------------------------------------------------------------------------------
     def setup_errors_window(self):
