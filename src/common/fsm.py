@@ -21,7 +21,7 @@ class FSM(threading.Thread):
     start_charge_command = False  # True if received start charge command
     stop_charge_command = False  # True if received stop charge command
     ready_command = False  # True if received a ready command, used only to go from CHARGE_DONE to READY
-    shutdown_asked = False
+    idle_asked = False
 
     balancing_asked_time = 0  # the time of the last precharge message has been sent
     balancing_stop_asked = False
@@ -136,64 +136,81 @@ class FSM(threading.Thread):
         i.e. if an "fast charge" command is found, the value of that command is set in the fsm
         """
 
-        if not self.com_queue.empty():
-            act_com = self.com_queue.get()
-            if type(act_com) is not dict:
+        if self.com_queue.empty():
+            return
+
+        act_com = self.com_queue.get()
+        if type(act_com) is not dict:
+            return
+        tprint(str(act_com), P_TYPE.DEBUG)
+
+        try:
+            com_type = act_com['com-type']
+            value = act_com['value']
+        except KeyError:
+            tprint(f"Key error while trying to read command {act_com}", P_TYPE.ERROR)
+            return
+
+        if com_type == 'cutoff':
+            if type(value) is not int:
+                tprint(f"cutoff command value type is not int: {value}", P_TYPE.ERROR)
                 return
-            tprint(str(act_com), P_TYPE.DEBUG)
 
-            if act_com['com-type'] == 'cutoff':
-                if int(act_com['value']) > 200 and int(act_com['value'] < MAX_TARGET_V_ACC):
-                    self.canread.target_v = int(act_com['value'])
-                else:
-                    tprint("cutoff command exceeds limits", P_TYPE.ERROR)
+            if MIN_TARGET_V_ACC < value < MAX_TARGET_V_ACC:
+                self.canread.target_v = value
+            else:
+                tprint(f"cutoff command exceeds limits: {value}", P_TYPE.ERROR)
 
-            if act_com['com-type'] == "precharge" and \
-                    act_com['value'] is True and \
-                    self.canread.FSM_stat == STATE.IDLE:
-                self.precharge_command = True
+        if com_type == "precharge" and \
+                value is True and \
+                self.canread.FSM_stat == STATE.IDLE:
+            self.precharge_command = True
 
-            if act_com['com-type'] == "charge" and act_com['value'] is True:
+        if com_type == "charge":
+            if value is True:
                 self.start_charge_command = True
-
-            if act_com['com-type'] == "charge" and act_com['value'] is False:
+            elif value is False:
                 self.stop_charge_command = True
 
-            if act_com['com-type'] == "ready" and act_com['value'] is True:
-                self.ready_command = True
+        if com_type == "ready" and value is True:
+            self.ready_command = True
 
-            if act_com['com-type'] == "shutdown" and act_com['value'] is True:
-                self.shutdown_asked = True
+        if com_type == "shutdown" and value is True:
+            self.idle_asked = True
 
-            if act_com['com-type'] == "balancing":
-                if act_com['value'] is False:
-                    self.balancing_stop_asked = True
-                if act_com['value'] is True:
-                    self.balancing_command = True
+        if com_type == "balancing":
+            if value is False:
+                self.balancing_stop_asked = True
+            if value is True:
+                self.balancing_command = True
 
-            if act_com['com-type'] == "fan-override-set-status":
-                if act_com['value'] == False:
-                    self.canread.bms_hv.fans_set_override_status = Toggle.OFF
-                if act_com['value'] == True:
-                    self.canread.bms_hv.fans_set_override_status = Toggle.ON
+        if com_type == "fan-override-set-status":
+            if value is False:
+                self.canread.bms_hv.fans_set_override_status = Toggle.OFF
+            if value is True:
+                self.canread.bms_hv.fans_set_override_status = Toggle.ON
 
-            if act_com['com-type'] == "fan-override-set-speed":
-                if act_com['value'] != "":
-                    speed = int(act_com['value'])
-                    if 0 <= speed <= 100:
-                        self.canread.bms_hv.fans_set_override_speed = int(speed) / 100
+        if com_type == "fan-override-set-speed":
+            if type(value) is not int:
+                tprint(f"fan-override-set-speed command value type is not int: {value}", P_TYPE.ERROR)
+                return
+            if MIN_BMS_FAN_SPEED <= value <= MAX_BMS_FAN_SPEED:
+                self.canread.bms_hv.fans_set_override_speed = value / 100
 
-            if act_com['com-type'] == 'max-out-current':
-                if 0 < act_com['value'] < 12:
-                    self.canread.act_set_out_current = act_com['value']
-                else:
-                    print("max-out-current limits exceded")
+        if com_type == 'max-out-current':
+            if type(value) is not float:
+                tprint(f"max-out-current command value type is not int: {value}", P_TYPE.ERROR)
+                return
+            if MIN_BMS_CHARGE_CURRENT < value < MAX_BMS_CHARGE_CURRENT:
+                self.canread.act_set_out_current = value
+            else:
+                print("max-out-current limits exceded")
 
-            if act_com['com-type'] == "max-in-current":
-                if 0 < act_com['value'] <= 16:
-                    self.canread.act_set_in_current = act_com['value']
-                else:
-                    print("max-in-current limits exceded")
+        if com_type == "max-in-current":
+            if MIN_CHARGER_GRID_CURRENT < value <= MAX_CHARGER_GRID_CURRENT:
+                self.canread.act_set_in_current = value
+            else:
+                print("max-in-current limits exceded")
 
     def doCheck(self):
         """
@@ -479,9 +496,9 @@ class FSM(threading.Thread):
                 else:
                     next_stat = self.doState.get(act_stat)(self)
 
-            if self.shutdown_asked:
+            if self.idle_asked:
                 next_stat = STATE.IDLE
-                self.shutdown_asked = False
+                self.idle_asked = False
 
             if next_stat == STATE.EXIT:
                 tprint("Exiting", P_TYPE.INFO)

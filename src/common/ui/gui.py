@@ -7,6 +7,7 @@ from RPi import GPIO
 from RPi.GPIO import RISING
 from ttkbootstrap.constants import *
 
+from common.buzzer import BuzzerNote
 from common.handcart_can import *
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
@@ -156,6 +157,7 @@ class Gui():
     shared_data: CanListener = None
     lock: threading.Lock
     com_queue: queue.Queue
+    melody_queue: queue.Queue
 
     # Root window
     root: ttk.Window
@@ -172,8 +174,14 @@ class Gui():
     root_bottom: ttk.Frame
     button_left: ttk.Button
     button_right: ttk.Button
+    button_start_precharge: ttk.Button
     button_start_charge: ttk.Button
+    button_stop_charge: ttk.Button
     button_start_balance: ttk.Button
+    button_stop_balance: ttk.Button
+    button_go_idle: ttk.Button
+
+    last_fsm_state: STATE = STATE.CHECK
 
     # Main window
     tab_main: ttk.Frame
@@ -319,13 +327,11 @@ class Gui():
         multiplier = selected_element_limit['step']
 
         if CLK_state == GPIO.HIGH and DT_state == GPIO.LOW:
-            tprint(f"Rotary Encoder direction: {'CLOCKWISE' if False else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
-
+            # tprint(f"Rotary Encoder direction: {'CLOCKWISE' if False else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
             delta = -1 * multiplier
 
         elif CLK_state == GPIO.HIGH and DT_state == GPIO.HIGH:
-            tprint(f"Rotary Encoder direction: {'CLOCKWISE' if True else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
-
+            # tprint(f"Rotary Encoder direction: {'CLOCKWISE' if True else 'ANTICLOCKWISE'}", P_TYPE.DEBUG)
             delta = 1 * multiplier
 
         # float values
@@ -369,7 +375,7 @@ class Gui():
         command_mapping = {
             Element.SETTING_CUTOFF: lambda: {
                 "com-type": "cutoff",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
+                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
             },
             Element.SETTING_MAX_OUT_CURRENT: lambda: {
                 "com-type": "max-out-current",
@@ -382,13 +388,15 @@ class Gui():
             },
             Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
                 "com-type": "fan-override-set-speed",
-                "value": self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]
+                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])
             },
             Element.SETTING_MAX_IN_CURRENT: lambda: {
                 "com-type": "max-in-current",
                 "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
             },
         }
+
+        self.melody_queue.put({"melody": [(BuzzerNote.DO, 0.1)], "repeat": 1})
 
         self.com_queue.put(command_mapping[self.selected_element]())
 
@@ -488,15 +496,41 @@ class Gui():
         # self.root_bottom_center_button_container.grid(column=1, row=0)
 
         self.button_start_charge = ttk.Button(
-            self.root_bottom_center_button_container, text="Charge", bootstyle=(SECONDARY), command=lambda fw=True: None
+            self.root_bottom_center_button_container,
+            text="Charge",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "charge", "value": True})
         )
-        self.button_start_charge.grid(column=0, row=0)
-
+        self.button_stop_charge = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Stop charge",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "charge", "value": False})
+        )
+        self.button_start_precharge = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Precharge",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "precharge", "value": True})
+        )
         self.button_start_balance = ttk.Button(
-            self.root_bottom_center_button_container, text="Balance", bootstyle=(SECONDARY),
-            command=lambda fw=True: None
+            self.root_bottom_center_button_container,
+            text="Balance",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "balancing", "value": True})
         )
-        self.button_start_balance.grid(column=1, row=0)
+        self.button_stop_balance = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Stop balance",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "balancing", "value": False})
+        )
+        self.button_go_idle = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Idle",
+            bootstyle=(SECONDARY),
+            command=lambda: self.com_queue.put({"com-type": "shutdown", "value": True})
+        )
 
         # Setup callbacks for buttons
         GPIO.add_event_detect(PIN.BUT_1.value, RISING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
@@ -504,7 +538,38 @@ class Gui():
 
         self.root_bottom_refresh()
 
+    def root_bottom_button_reset(self):
+        self.button_start_charge.grid_forget()
+        self.button_stop_charge.grid_forget()
+        self.button_start_precharge.grid_forget()
+        self.button_start_balance.grid_forget()
+        self.button_stop_balance.grid_forget()
+        self.button_go_idle.grid_forget()
+
     def root_bottom_refresh(self):
+        if self.last_fsm_state != self.shared_data.FSM_stat:
+            self.root_bottom_button_reset()  # remove all buttons
+
+            if self.shared_data.FSM_stat == STATE.IDLE:
+                self.button_start_precharge.grid(column=0, row=0)
+                self.button_start_balance.grid(column=1, row=0)
+
+            if self.shared_data.FSM_stat == STATE.PRECHARGE:
+                self.button_go_idle.grid(column=0, row=0)
+
+            if self.shared_data.FSM_stat == STATE.READY:
+                self.button_start_charge.grid(column=0, row=0)
+                self.button_go_idle.grid(column=0, row=0)
+
+            if self.shared_data.FSM_stat == STATE.CHARGE:
+                self.button_go_idle.grid(column=1, row=0)
+                self.button_stop_charge.grid(column=0, row=0)
+
+            if self.shared_data.FSM_stat == STATE.BALANCING:
+                self.button_stop_balance.grid(column=0, row=0)
+
+            self.last_fsm_state = self.shared_data.FSM_stat
+
         self.root_bottom.after(self.REFRESH_RATE, self.root_bottom_refresh)
 
     # ROOT CENTER ------------------------------------------------------------------------------------------------------
@@ -783,11 +848,13 @@ class Gui():
     def __init__(self,
                  com_queue: queue.Queue,
                  lock: threading.Lock,
-                 shared_data: CanListener):
+                 shared_data: CanListener,
+                 melody_queue: queue.Queue):
         self.com_queue = com_queue
         self.lock = lock
         self.shared_data = shared_data
         self.setup_root()
+        self.melody_queue = melody_queue
 
     def run(self):
         self.root.mainloop()

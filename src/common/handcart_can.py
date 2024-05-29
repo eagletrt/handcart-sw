@@ -89,7 +89,7 @@ class CanListener:
     based on the msg ID, processes it, and save on itself the msg info.
     This class also stores all the data recived from the devices
     """
-    FSM_stat = STATE.IDLE  # The actual state of the FSM (mirror the main variable)
+    FSM_stat: STATE = STATE.IDLE  # The actual state of the FSM (mirror the main variable)
     FSM_entered_stat = ""  # The moment in time the FSM has entered that state
 
     generic_error = False
@@ -249,7 +249,7 @@ def thread_2_CAN(shared_data: CanListener,
                 if shared_data.can_forward_enabled:
                     with lock:
                         if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
-                                and 0 <= shared_data.act_set_in_current <= MAX_CHARGE_MAINS_AMPERE \
+                                and 0 <= shared_data.act_set_in_current <= MAX_CHARGER_GRID_CURRENT \
                                 and 0 <= shared_data.act_set_out_current < MAX_ACC_CHG_AMPERE:
 
                             mains_ampere = shared_data.act_set_in_current

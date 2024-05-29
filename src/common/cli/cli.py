@@ -489,7 +489,7 @@ class Cli(threading.Thread):
                     self.fast_charge = not self.fast_charge
                     j = {
                         "com-type": "max-in-current",
-                        "value": settings.MAX_CHARGE_MAINS_AMPERE if self.fast_charge else settings.DEFAULT_CHARGE_MAINS_AMPERE
+                        "value": settings.MAX_CHARGER_GRID_CURRENT if self.fast_charge else settings.DEFAULT_CHARGE_MAINS_AMPERE
                     }
                     self.com_queue.put(j)
                     j = {"com-type": "max-out-current",

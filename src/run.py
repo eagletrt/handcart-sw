@@ -14,7 +14,7 @@ import threading
 from RPi import GPIO
 
 import common.accumulator.fans as fans
-from common.buzzer import Buzzer, STARTUP_SOUND
+from common.buzzer import Buzzer
 from common.cli.cli import Cli
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
@@ -109,6 +109,7 @@ if __name__ == "__main__":
         g = Gui(
             com_queue,
             lock,
-            shared_data
+            shared_data,
+            melody_queue
         )
         g.run()  # WARNING, not a thread
