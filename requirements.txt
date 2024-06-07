@@ -1,6 +1,11 @@
 python-can
-RPi.GPIO
-Flask
+rpi-lgpio
 pytz
 cantools
 termcolor
+ttkbootstrap
+spidev
+bitstring
+pyautogui
+adafruit-circuitpython-pca9685
+#python-xlib # needed by pyautogui for execution

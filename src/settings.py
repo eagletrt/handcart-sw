@@ -13,13 +13,19 @@ dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load th
 # If you want to check that the dbc of the canlib has the same names of the messages that are used in the code, enable
 CAN_MESSAGE_CHECK_ENABLED = True
 
-MAX_CHARGE_MAINS_AMPERE = 16
 DEFAULT_CHARGE_MAINS_AMPERE = 6
 MAX_ACC_CHG_AMPERE = 9  # Maximum charging current of accumulator
 DEFAULT_ACC_CHG_AMPERE = 4  # Standard charging current of accumulator
 
 DEFAULT_TARGET_V_ACC = 442  # Default charging voltage of the accumulator
+MIN_TARGET_V_ACC = 390  # Maximum voltage to charge the accumulator to
 MAX_TARGET_V_ACC = 454  # Maximum voltage to charge the accumulator to
+MAX_BMS_FAN_SPEED = 100  # 100%
+MIN_BMS_FAN_SPEED = 0  # 0%
+MAX_BMS_CHARGE_CURRENT = 8  # Maximum bms charging current
+MIN_BMS_CHARGE_CURRENT = 0
+MIN_CHARGER_GRID_CURRENT = 0
+MAX_CHARGER_GRID_CURRENT = 16  # maximum current to be taken from grid by charger
 
 MAX_ACC_CELL_VOLTAGE = 4.2
 
@@ -52,25 +58,30 @@ BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish pr
 RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
 RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 
+
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-ENABLE_CLI = True  # Set to true to enable USB cli
+ENABLE_CLI = False  # Set to true to enable CLI over tty
 ENABLE_WEB = False
-ENABLE_LED = True
+ENABLE_LED = False
+ENABLE_GUI = True
+ENABLE_BUZZER = True
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 
 
 class PIN(Enum):
-    RED_LED = 12  # 31
-    GREEN_LED = 13  # 33
-    BLUE_LED = 16  # 36
-    SD_RELAY = 20
-    PON_CONTROL = 21
-    BUT_0 = 22
-    BUT_1 = 23
-    BUT_2 = 24
-    BUT_3 = 26
-    BUT_4 = 27
-    BUT_5 = 19
-    ROT_A = 18
-    ROT_B = 17
+    BUZZER = 1
+    RED_LED = 12  # (GPIO12) # TODO remove
+    GREEN_LED = 13  # GPIO13 # TODO remove
+    BLUE_LED = 18  # GPIO16 # TODO remove
+    DISCHARGE = 19
+    SD_RELAY = 21
+    PON_CONTROL = 20
+    BUT_0 = 22  # Confirm rotative
+    BUT_1 = 23  # left
+    BUT_2 = 24  # UP
+    BUT_3 = 26  # right
+    BUT_4 = 27  # Down
+    ROT_A = 16
+    ROT_B = 17  # B
+    LED_STRIP_CTRL = 18

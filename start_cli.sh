@@ -6,4 +6,4 @@ echo "Done"
 
 echo "Running python script with CLI"
 
-python3 src/run.py
+bash run.sh
