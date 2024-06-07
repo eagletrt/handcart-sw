@@ -58,8 +58,9 @@ BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish pr
 RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
 RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 
+
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-ENABLE_CLI = False  # Set to true to enable USB cli
+ENABLE_CLI = False  # Set to true to enable CLI over tty
 ENABLE_WEB = False
 ENABLE_LED = False
 ENABLE_GUI = True
@@ -74,8 +75,8 @@ class PIN(Enum):
     GREEN_LED = 13  # GPIO13 # TODO remove
     BLUE_LED = 18  # GPIO16 # TODO remove
     DISCHARGE = 19
-    SD_RELAY = 20
-    PON_CONTROL = 21
+    SD_RELAY = 21
+    PON_CONTROL = 20
     BUT_0 = 22  # Confirm rotative
     BUT_1 = 23  # left
     BUT_2 = 24  # UP
