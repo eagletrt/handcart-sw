@@ -8,11 +8,11 @@ def GPIO_setup():
     This function is used to set-up the GPIO pins
     """
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(PIN.BUT_0.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(PIN.BUT_1.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(PIN.BUT_2.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(PIN.BUT_3.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(PIN.BUT_4.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(PIN.BUT_0.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
+    GPIO.setup(PIN.BUT_1.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
+    GPIO.setup(PIN.BUT_2.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
+    GPIO.setup(PIN.BUT_3.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
+    GPIO.setup(PIN.BUT_4.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
     GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_A.value, GPIO.IN)
     GPIO.setup(PIN.ROT_B.value, GPIO.IN)

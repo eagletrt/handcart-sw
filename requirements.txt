@@ -7,4 +7,5 @@ ttkbootstrap
 spidev
 bitstring
 pyautogui
+adafruit-circuitpython-pca9685
 #python-xlib # needed by pyautogui for execution

@@ -265,14 +265,15 @@ class FSM(threading.Thread):
                         "hv_status_set": Toggle.ON.value,
                     }
                 )
+
+                ts_on_msg = can.Message(arbitration_id=m.frame_id,
+                                        data=data,
+                                        is_extended_id=False)
+
+                self.tx_can_queue.put(ts_on_msg)
             except cantools.database.EncodeError:
                 self.canread.can_err = True
 
-            ts_on_msg = can.Message(arbitration_id=m.frame_id,
-                                    data=data,
-                                    is_extended_id=False)
-
-            self.tx_can_queue.put(ts_on_msg)
             self.precharge_asked = True
             self.precharge_asked_time = time.time()
 

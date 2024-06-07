@@ -4,6 +4,7 @@ import time
 from enum import Enum
 
 import RPi.GPIO as GPIO
+
 from common.logging import tprint, P_TYPE
 from settings import PIN
 
@@ -31,7 +32,7 @@ STARTUP_SOUND = [
     (BuzzerNote.EMPTY, .5),
     (BuzzerNote.DO, 0.05),
     (BuzzerNote.EMPTY, 1),
-    (BuzzerNote.DO, 0.15),  # C for half a second
+    (BuzzerNote.DO, 0.15),
     (BuzzerNote.MI_B, 0.15),
     (BuzzerNote.DO, 0.15),
     (BuzzerNote.MI_B, 0.15)

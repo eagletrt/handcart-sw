@@ -14,7 +14,7 @@ import threading
 from RPi import GPIO
 
 import common.accumulator.fans as fans
-from common.buzzer import Buzzer
+from common.buzzer import Buzzer, STARTUP_SOUND
 from common.cli.cli import Cli
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
@@ -24,9 +24,6 @@ from common.logging import tprint, P_TYPE
 from common.rasp import GPIO_setup, resetGPIOs
 from common.ui.gui import Gui
 from settings import *
-
-# tprint("Env thinks the user is [%s]" % (os.getlogin()), P_TYPE.DEBUG)
-# tprint("Effective user is [%s]" % (getpass.getuser()), P_TYPE.DEBUG)
 
 GPIO.setmode(GPIO.BCM)  # Set Pi to use pin number when referencing GPIO pins.
 

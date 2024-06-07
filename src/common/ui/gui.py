@@ -83,7 +83,7 @@ SETTING_ELEMENT_LIMIT = {
     Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
     Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
-    Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 100, "step": 1},
+    Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
     Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .1}
 }
 
@@ -335,8 +335,8 @@ class Gui():
             delta = 1 * multiplier
 
         # float values
-        if self.selected_element in [Element.SETTING_CUTOFF,
-                                     Element.SETTING_MAX_OUT_CURRENT,
+        if self.selected_element in [Element.SETTING_MAX_OUT_CURRENT,
+                                     Element.SETTING_FAN_OVERRIDE_SPEED,
                                      Element.SETTING_MAX_IN_CURRENT]:
             val = float(self.settings_set_value[selected_settings_element_index][0])
             new_val = round(val + delta, 2)
@@ -346,7 +346,7 @@ class Gui():
             self.settings_set_value[selected_settings_element_index][0] = str(new_val)
 
         # int values
-        if self.selected_element in [Element.SETTING_FAN_OVERRIDE_SPEED,
+        if self.selected_element in [Element.SETTING_CUTOFF,
                                      Element.SETTING_FAN_OVERRIDE_STATUS]:
             val = int(self.settings_set_value[selected_settings_element_index][0])
             new_val = int(val + delta)
@@ -388,7 +388,7 @@ class Gui():
             },
             Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
                 "com-type": "fan-override-set-speed",
-                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])
+                "value": int(float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])*100)
             },
             Element.SETTING_MAX_IN_CURRENT: lambda: {
                 "com-type": "max-in-current",
@@ -559,7 +559,7 @@ class Gui():
 
             if self.shared_data.FSM_stat == STATE.READY:
                 self.button_start_charge.grid(column=0, row=0)
-                self.button_go_idle.grid(column=0, row=0)
+                self.button_go_idle.grid(column=1, row=0)
 
             if self.shared_data.FSM_stat == STATE.CHARGE:
                 self.button_go_idle.grid(column=1, row=0)
@@ -604,6 +604,8 @@ class Gui():
 
         self.main_bms_values = [
             ["State", "-"],
+            ["Pack V", "-"],
+            ["BUS V", "-"],
             ["Max cell V", "-"],
             ["Min cell V", "-"],
             ["Cell delta V", "-"],
@@ -672,6 +674,8 @@ class Gui():
         else:
             self.main_bms_values = [
                 ["State", self.shared_data.bms_hv.status.name],
+                ["Pack V", self.shared_data.bms_hv.act_pack_voltage],
+                ["BUS V", self.shared_data.bms_hv.act_bus_voltage],
                 ["Max cell V", self.shared_data.bms_hv.max_cell_voltage],
                 ["Min cell V", self.shared_data.bms_hv.min_cell_voltage],
                 ["Cell delta V", self.shared_data.bms_hv.act_cell_delta],
