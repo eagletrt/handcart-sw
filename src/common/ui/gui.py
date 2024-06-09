@@ -565,6 +565,9 @@ class Gui():
                 self.button_go_idle.grid(column=1, row=0)
                 self.button_stop_charge.grid(column=0, row=0)
 
+            if self.shared_data.FSM_stat == STATE.CHARGE_DONE:
+                self.button_go_idle.grid(column=0, row=0)
+
             if self.shared_data.FSM_stat == STATE.BALANCING:
                 self.button_stop_balance.grid(column=0, row=0)
 
