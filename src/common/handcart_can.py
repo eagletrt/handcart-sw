@@ -102,6 +102,8 @@ class CanListener:
     brusa = BRUSA()
     bms_hv = bms.BMS_HV()
 
+    feedbacks: list[float] = [0.0 for i in range(11)]
+
     # Maps the incoming can msgs to relative function
     doMsg = {
         # brusa

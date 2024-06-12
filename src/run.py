@@ -16,6 +16,7 @@ from RPi import GPIO
 import common.accumulator.fans as fans
 from common.buzzer import Buzzer, STARTUP_SOUND
 from common.cli.cli import Cli
+from common.feedbacks.feedbacks import Feedbacks
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
 # from backend.common.methods.logging import log_error
@@ -100,6 +101,11 @@ if __name__ == "__main__":
         b.start()
 
         melody_queue.put({"melody": STARTUP_SOUND, "repeat": 1})
+
+    if ENABLE_FEEDBACKS:
+        tprint("Feedbacks reading enabled, starting feedbacks thread", P_TYPE.DEBUG)
+        f = Feedbacks(lock, shared_data)
+        f.start()
 
     if ENABLE_GUI:
         tprint("GUI is enabled, starting gui..", P_TYPE.DEBUG)

@@ -54,6 +54,13 @@ CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH = 4.15
 CLI_CELLS_TEMPS_RED_THRESHOLD_LOW = 5
 CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH = 50
 
+ADC_BUS = 0
+ADC_DEVICE = 1
+ADC_SPI_MODE = 3
+ADC_SPI_MAX_SPEED = 1 * (10 ** 6) # HZ
+ADC_VREF = 3.310  # V
+ADC_V_DIVIDER_CORRECTION = 1.3  # Correction value to match real voltage
+
 BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
 RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
 RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
@@ -65,6 +72,7 @@ ENABLE_WEB = False
 ENABLE_LED = False
 ENABLE_GUI = True
 ENABLE_BUZZER = True
+ENABLE_FEEDBACKS = True
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 

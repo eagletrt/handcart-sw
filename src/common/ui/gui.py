@@ -8,6 +8,7 @@ from RPi.GPIO import RISING
 from ttkbootstrap.constants import *
 
 from common.buzzer import BuzzerNote
+from common.feedbacks.feedbacks import FB
 from common.handcart_can import *
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
@@ -662,7 +663,17 @@ class Gui():
             ["Max current out", "-"],
             ["Max current in", "-"],
             ["Fan override", "-"],
-            ["fan override speed", "-"]
+            ["fan override speed", "-"],
+            [FB.VSD_FB, "-"],
+            [FB.SD_TO_MUSHROOM_FB, "-"],
+            [FB.SD_TO_CHARGER_FB, "-"],
+            [FB.SD_BMS_IN_FB, "-"],
+            [FB.SD_BMS_OUT_FB, "-"],
+            [FB.SD_END_FB, "-"],
+            [FB.COIL_DISCHARGE_FB, "-"],
+            [FB.FB_12_V, "-"],
+            [FB.PON_FB, "-"],
+            [FB.RELAY_SD_FB, "-"]
         ]
 
         self.main_table_handcart = init_table(self.main_handcart_values, self.main_another_center_right)
@@ -705,7 +716,17 @@ class Gui():
                 ["Max current in", self.shared_data.act_set_in_current],
                 ["Fan override",
                  str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
-                ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)]
+                ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
+                [FB.VSD_FB, self.shared_data.feedbacks[FB.VSD_FB.value]],
+                [FB.SD_TO_MUSHROOM_FB,  self.shared_data.feedbacks[FB.SD_TO_MUSHROOM_FB.value]],
+                [FB.SD_TO_CHARGER_FB,  self.shared_data.feedbacks[FB.SD_TO_CHARGER_FB.value]],
+                [FB.SD_BMS_IN_FB,  self.shared_data.feedbacks[FB.SD_BMS_IN_FB.value]],
+                [FB.SD_BMS_OUT_FB,  self.shared_data.feedbacks[FB.SD_BMS_OUT_FB.value]],
+                [FB.SD_END_FB,  self.shared_data.feedbacks[FB.SD_END_FB.value]],
+                [FB.COIL_DISCHARGE_FB,  self.shared_data.feedbacks[FB.COIL_DISCHARGE_FB.value]],
+                [FB.FB_12_V,  self.shared_data.feedbacks[FB.FB_12_V.value]],
+                [FB.PON_FB,  self.shared_data.feedbacks[FB.PON_FB.value]],
+                [FB.RELAY_SD_FB,  self.shared_data.feedbacks[FB.RELAY_SD_FB.value]]
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
