@@ -24,8 +24,8 @@ class BMS_HV:
     hv_temp_history = []
     hv_temp_history_index = 0
 
-    hv_cells_act = [0 for i in range(BMS_CELLS_VOLTAGES_COUNT)]
-    hv_temps_act = [0 for j in range(BMS_CELLS_TEMPS_COUNT)]
+    hv_cells_act = [0 for i in range(ACC_CELLS_VOLTAGES_COUNT)]
+    hv_temps_act = [0 for j in range(ACC_CELLS_TEMPS_COUNT)]
 
     charged_capacity_ah = 0
     charged_capacity_wh = 0
@@ -36,7 +36,8 @@ class BMS_HV:
     max_cell_voltage = -1
     min_cell_voltage = -1
     error = False
-    errors = HvErrors.copy()
+    errors = bms_errors
+    feedbacks = bms_feedbacks
     error_str = ""
     status = HvStatus.INIT
     act_cell_delta = 0
@@ -68,7 +69,7 @@ class BMS_HV:
             return False
         else:
             return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
-                < CAN_BMS_PRESENCE_TIMEOUT
+                < CAN_ACC_PRESENCE_TIMEOUT
 
     def doHV_TOTAL_VOLTAGE(self, msg):
         """
@@ -171,14 +172,12 @@ class BMS_HV:
 
         for i in message.keys():
             try:
-                self.errors[i] = message[i]
-                if message[i] != 0:
-                    tprint("BMS error", P_TYPE.ERROR)
+                self.errors[i] = message.get(i)
+                if self.errors[i] != 0:
+                    tprint(f"BMS error {i}", P_TYPE.ERROR)
                     # self.error = True
             except KeyError:
-                # Could be that it is not an error but a warning
-                self.warnings[i] = message[i]
-                # if it is not both of these, raises key error
+                pass
 
     def doHV_STATUS(self, msg):
         """
@@ -291,3 +290,14 @@ class BMS_HV:
 
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
         # tprint(message.get("component_build_time"), P_TYPE.DEBUG)
+
+    def do_HV_FEEDBACK_STATUS(self, msg):
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+
+        try:
+            for k in message.keys():
+                self.feedbacks[k] = bms_feedback_status.get(str(message.get(k)))
+        except Exception:
+            pass

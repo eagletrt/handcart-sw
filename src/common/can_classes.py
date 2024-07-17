@@ -108,25 +108,63 @@ class HandcartStatus(Enum):
         dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS).signals[5].choices, "error")
 
 
-HvErrors = {
-    # TODO: validate ?
-    "errors_cell_low_voltage": "",
-    "errors_cell_under_voltage": "",
-    "errors_cell_over_voltage": "",
-    "errors_cell_high_temperature": "",
-    "errors_cell_over_temperature": "",
-    "errors_over_current": "",
-    "errors_can": "",
-    "errors_int_voltage_mismatch": "",
-    "errors_cellboard_comm": "",
-    "errors_cellboard_internal": "",
-    "errors_connector_disconnected": "",
-    "errors_fans_disconnected": "",
-    "errors_feedback": "",
-    "errors_feedback_circuitry": "",
-    "errors_eeprom_comm": "",
-    "errors_eeprom_write": ""
+bms_feedbacks = {'feedback_implausibility_detected': 0, 'feedback_imd_cockpit': 0,
+                 'feedback_tsal_green_fault_latched': 0, 'feedback_bms_cockpit': 0, 'feedback_ext_latched': 0,
+                 'feedback_tsal_green': 0, 'feedback_ts_over_60v_status': 0, 'feedback_airn_status': 0,
+                 'feedback_airp_status': 0, 'feedback_airp_gate': 0, 'feedback_airn_gate': 0,
+                 'feedback_precharge_status': 0, 'feedback_tsp_over_60v_status': 0, 'feedback_imd_fault': 0,
+                 'feedback_check_mux': 0, 'feedback_sd_end': 0, 'feedback_sd_out': 0, 'feedback_sd_in': 0,
+                 'feedback_sd_bms': 0, 'feedback_sd_imd': 0}
+
+bms_errors = {'errors_cell_under_voltage': 0, 'errors_cell_over_voltage': 0, 'errors_cell_under_temperature': 0,
+              'errors_cell_over_temperature': 0, 'errors_over_current': 0, 'errors_can': 0,
+              'errors_int_voltage_mismatch': 0, 'errors_cellboard_comm': 0, 'errors_cellboard_internal': 0,
+              'errors_connector_disconnected': 0, 'errors_fans_disconnected': 0, 'errors_feedback': 0,
+              'errors_feedback_circuitry': 0, 'errors_eeprom_comm': 0, 'errors_eeprom_write': 0}
+
+bms_feedback_status = {  # TODO: verify
+    "feedback_state_high": 2,
+    "feedback_state_error": 1,
+    "feedback_state_low": 0
 }
+
+
+def verify_HV_FEEDBACK_STATUS() -> bool:
+    msg: Message = dbc_primary.get_message_by_frame_id(primary_ID_HV_FEEDBACK_STATUS)
+    s_names = []
+
+    for s in msg.signals:
+        s_names.append(s.name)
+
+    for k in bms_feedbacks.keys():
+        try:
+            s_names.remove(k)
+        except ValueError:
+            return False
+
+    if len(s_names) > 0:
+        return False
+
+    return True
+
+
+def verify_HV_ERRORS() -> bool:
+    msg: Message = dbc_primary.get_message_by_frame_id(primary_ID_HV_ERRORS)
+    s_names = []
+
+    for s in msg.signals:
+        s_names.append(s.name)
+
+    for k in bms_errors.keys():
+        try:
+            s_names.remove(k)
+        except ValueError:
+            return False
+
+    if len(s_names) > 0:
+        return False
+
+    return True
 
 
 def verify_HV_TOTAL_VOLTAGE() -> bool:
@@ -408,6 +446,8 @@ if CAN_MESSAGE_CHECK_ENABLED:
     verify_HV_FEEDBACK_MISC_VOLTAGE()
     verify_HV_FEEDBACK_SD_VOLTAGE()
     verify_HV_IMD_STATUS()
+    verify_HV_FEEDBACK_STATUS()
+    verify_HV_ERRORS()
 
 
 class STATE(Enum):

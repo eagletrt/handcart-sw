@@ -83,34 +83,34 @@ class FSM(threading.Thread):
         will ask the BMS_HV to close the airs and it will disable the Brusa
         and all the devices. This will also open the SD_Relay
         """
+
+        self.canread.can_charger_charge_enabled = False
+        # Set PON to off
+        # Open shutdown
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+        time.sleep(0.2)
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
         tprint("staccastacca done", P_TYPE.DEBUG)
 
         self.accumulator_sd()
-
-        # Set PON to off
-        # Open shutdown
         self.precharge_asked = False
         self.precharge_done = False
-        self.canread.can_forward_enabled = False
+
 
     def clrErr(self):
         """
         Function that clears all the errors in the FSM, use with care
         :return:
         """
-        self.canread.brusa_err = False
-        self.canread.bms_err = False
-        self.canread.bms_err_str = ""
-        self.canread.brusa_err_str_list = []
+        self.canread.charger.error = False
+        self.canread.bms_hv.error = False
         self.canread.can_err = False
 
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing == Toggle.ON and \
                 self.last_balancing_stop_asked_time != 0 and \
-                (datetime.now() - self.last_balancing_stop_asked_time).seconds > RETRANSMIT_INTERVAL_CRITICAL:
+                (datetime.now() - self.last_balancing_stop_asked_time).seconds > CAN_RETRANSMIT_INTERVAL_CRITICAL:
 
             m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
                 primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
@@ -156,7 +156,7 @@ class FSM(threading.Thread):
                 tprint(f"cutoff command value type is not int: {value}", P_TYPE.ERROR)
                 return
 
-            if MIN_TARGET_V_ACC < value < MAX_TARGET_V_ACC:
+            if ACC_MIN_TARGET_V < value < ACC_MAX_TARGET_V:
                 self.canread.target_v = value
             else:
                 tprint(f"cutoff command exceeds limits: {value}", P_TYPE.ERROR)
@@ -194,23 +194,17 @@ class FSM(threading.Thread):
             if type(value) is not int:
                 tprint(f"fan-override-set-speed command value type is not int: {value}", P_TYPE.ERROR)
                 return
-            if MIN_BMS_FAN_SPEED <= value <= MAX_BMS_FAN_SPEED:
+            if ACC_MIN_FAN_SPEED <= value <= ACC_MAX_FAN_SPEED:
                 self.canread.bms_hv.fans_set_override_speed = value / 100
 
         if com_type == 'max-out-current':
             if type(value) is not float:
                 tprint(f"max-out-current command value type is not int: {value}", P_TYPE.ERROR)
                 return
-            if MIN_BMS_CHARGE_CURRENT < value < MAX_BMS_CHARGE_CURRENT:
+            if ACC_MIN_CHG_CURRENT < value < ACC_MAX_CHG_CURRENT:
                 self.canread.act_set_out_current = value
             else:
                 print("max-out-current limits exceded")
-
-        if com_type == "max-in-current":
-            if MIN_CHARGER_GRID_CURRENT < value <= MAX_CHARGER_GRID_CURRENT:
-                self.canread.act_set_in_current = value
-            else:
-                print("max-in-current limits exceded")
 
     def doCheck(self):
         """
@@ -219,7 +213,7 @@ class FSM(threading.Thread):
         # Make sure that acc is in ts off
         self.accumulator_sd()
 
-        if self.canread.bms_hv.isConnected() and self.canread.brusa.isConnected():
+        if self.canread.bms_hv.isConnected() and self.canread.charger.isConnected():
             self.precharge_command = False  # Clear before entering IDLE
             return STATE.IDLE
         else:
@@ -287,7 +281,7 @@ class FSM(threading.Thread):
             self.start_charge_command = False  # reset start charge command
             return STATE.READY
         else:
-            if (time.time() - self.precharge_asked_time) > BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT:
+            if (time.time() - self.precharge_asked_time) > ACC_PRECHARGE_FINISH_TIMEOUT:
                 if self.precharge_asked and \
                         (self.canread.bms_hv.status == HvStatus.PRECHARGE or
                          self.canread.bms_hv.status == HvStatus.AIRN_CLOSE or
@@ -332,21 +326,18 @@ class FSM(threading.Thread):
             return STATE.IDLE
 
         with self.forward_lock:
-            self.canread.can_forward_enabled = True
+            self.canread.can_charger_charge_enabled = True
 
             if self.stop_charge_command:
-                self.canread.can_forward_enabled = False
+                self.canread.can_charger_charge_enabled = False
                 self.stop_charge_command = False
                 return STATE.READY
-            try:
-                if (self.canread.brusa.act_NLG5_ACT_I['NLG5_OV_ACT'] >= self.canread.target_v \
-                    and self.canread.brusa.act_NLG5_ACT_I['NLG5_OC_ACT'] < 0.1) or \
-                        self.canread.bms_hv.max_cell_voltage >= MAX_ACC_CELL_VOLTAGE:
-                    self.canread.can_forward_enabled = False
-                    return STATE.CHARGE_DONE
-            except KeyError:
-                print("Error in reading can message from brusa")
-                # canread.can_err = True da rimettere
+
+            if (self.canread.charger.act_voltage >= self.canread.target_v \
+                and self.canread.charger.act_current < 0.1) or \
+                    self.canread.bms_hv.max_cell_voltage >= ACC_MAX_CELL_VOLTAGE:
+                self.canread.can_charger_charge_enabled = False
+                return STATE.CHARGE_DONE
 
         return STATE.CHARGE
 
@@ -375,7 +366,7 @@ class FSM(threading.Thread):
             return STATE.IDLE
 
         if not self.canread.bms_hv.is_balancing == Toggle.ON \
-                and (time.time() - self.balancing_asked_time) > RETRANSMIT_INTERVAL_NORMAL:
+                and (time.time() - self.balancing_asked_time) > CAN_RETRANSMIT_INTERVAL_NORMAL:
             m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
                 primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
 
@@ -402,7 +393,7 @@ class FSM(threading.Thread):
         """
 
         with self.forward_lock:
-            self.canread.can_forward_enabled = False
+            self.canread.can_charger_charge_enabled = False
 
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
         GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
@@ -411,7 +402,7 @@ class FSM(threading.Thread):
         if not self.canread.bms_hv.status == HvStatus.IDLE.value:
             self.staccastacca()
 
-        if self.canread.brusa.error:
+        if self.canread.charger.error:
             pass
             # print("brusa error")
         if self.canread.bms_hv.error:
@@ -486,13 +477,13 @@ class FSM(threading.Thread):
                 if not self.canread.bms_hv.isConnected():
                     tprint("Going back to CHECK, BMS is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
-                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.brusa.isConnected():
+                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.charger.isConnected():
                     tprint("Going back to CHECK, brusa is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
 
             # Checks errors
             if next_stat is None:
-                if self.canread.brusa.error or self.canread.bms_hv.error or self.canread.can_err:
+                if self.canread.charger.error or self.canread.bms_hv.error or self.canread.can_err:
                     next_stat = self.doState.get(STATE.ERROR)(self)
                 else:
                     next_stat = self.doState.get(act_stat)(self)

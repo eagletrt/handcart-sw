@@ -10,7 +10,7 @@ from common.can_classes import Toggle, STATE
 from common.handcart_can import CanListener
 from common.logging import tprint, P_TYPE
 from settings import CLI_DEFAULT_WIDTH, CLI_DEFAULT_HEIGHT, CLI_TTY, CLI_TTY_REDIRECT_ENABLED, \
-    BMS_CELLS_VOLTAGES_PER_SEGMENT, BMS_CELLS_TEMPS_PER_SEGMENT, CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW, \
+    ACC_CELLS_VOLTAGES_PER_SEGMENT, ACC_CELLS_TEMPS_PER_SEGMENT, CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW, \
     CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH, CLI_CELLS_TEMPS_RED_THRESHOLD_LOW
 
 
@@ -308,7 +308,7 @@ class Cli(threading.Thread):
                 actual_tab.addstr(
                     6, self.THIRD_COLUMN_INDEX, "max-cur-out:\t" + str(self.shared_data.act_set_out_current))
                 actual_tab.addstr(
-                    7, self.THIRD_COLUMN_INDEX, "max-in-curr:\t" + str(self.shared_data.act_set_in_current))
+                    7, self.THIRD_COLUMN_INDEX, "max-in-curr:\t" + str(-1))
                 actual_tab.addstr(
                     8,
                     self.THIRD_COLUMN_INDEX, "fan_override:\t" +
@@ -363,7 +363,7 @@ class Cli(threading.Thread):
                     col = 0
 
                     for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
-                        act_row = int(row_offset + (index % BMS_CELLS_VOLTAGES_PER_SEGMENT))
+                        act_row = int(row_offset + (index % ACC_CELLS_VOLTAGES_PER_SEGMENT))
 
                         if voltage < CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW \
                                 or voltage > CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH:
@@ -371,7 +371,7 @@ class Cli(threading.Thread):
                         else:
                             actual_tab.addstr(act_row, col, f" {voltage:.2f} |")
 
-                        if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
+                        if (index + 1) % ACC_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
                             col += 7
 
                 except IndexError:
@@ -390,7 +390,7 @@ class Cli(threading.Thread):
                     actual_tab.addstr(row_offset, col, f"| ")
 
                     for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
-                        act_row = int(row_offset + (index % BMS_CELLS_TEMPS_PER_SEGMENT))
+                        act_row = int(row_offset + (index % ACC_CELLS_TEMPS_PER_SEGMENT))
 
                         if temp > CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH:
                             actual_tab.addstr(act_row, col, f" {temp:.2f} |", curses.color_pair(1))
@@ -399,7 +399,7 @@ class Cli(threading.Thread):
                         else:
                             actual_tab.addstr(act_row, col, f" {temp:.2f} |")
 
-                        if (index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
+                        if (index + 1) % ACC_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
                             col += 9
 
                 except IndexError:
@@ -493,7 +493,7 @@ class Cli(threading.Thread):
                     }
                     self.com_queue.put(j)
                     j = {"com-type": "max-out-current",
-                         "value": settings.MAX_ACC_CHG_AMPERE if self.fast_charge else settings.DEFAULT_ACC_CHG_AMPERE}
+                         "value": settings.ACC_MAX_CHG_CURRENT if self.fast_charge else settings.ACC_DEFAULT_CHG_CURRENT}
                     self.com_queue.put(j)
                 elif key == ord('i'):
                     j = {"com-type": "shutdown", "value": True}

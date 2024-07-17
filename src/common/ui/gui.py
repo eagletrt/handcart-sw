@@ -1,10 +1,11 @@
 import datetime
+import subprocess
 import tkinter
 
 import pyautogui
 import ttkbootstrap as ttk
 from RPi import GPIO
-from RPi.GPIO import RISING
+from RPi.GPIO import RISING, FALLING
 from ttkbootstrap.constants import *
 
 from common.buzzer import BuzzerNote
@@ -76,7 +77,6 @@ class Element(Enum):
     SETTING_MAX_OUT_CURRENT = 3
     SETTING_FAN_OVERRIDE_STATUS = 4
     SETTING_FAN_OVERRIDE_SPEED = 5
-    SETTING_MAX_IN_CURRENT = 6
 
 
 # limits for the possible values of the settings in the interface
@@ -85,7 +85,6 @@ SETTING_ELEMENT_LIMIT = {
     Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
-    Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .1}
 }
 
 
@@ -102,8 +101,7 @@ def is_settings_element(el: Element) -> bool:
         Element.SETTING_CUTOFF,
         Element.SETTING_MAX_OUT_CURRENT,
         Element.SETTING_FAN_OVERRIDE_STATUS,
-        Element.SETTING_FAN_OVERRIDE_SPEED,
-        Element.SETTING_MAX_IN_CURRENT
+        Element.SETTING_FAN_OVERRIDE_SPEED
     ]
 
 
@@ -133,6 +131,19 @@ class ScrollableFrame(ttk.Frame):
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+
+
+def update():
+    """
+    Update the handcart and the submodules and restart the service
+    Returns:
+
+    """
+    try:
+        result = subprocess.run(["git", "pull", "--recurse-submodules"])
+        result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
 
 
 class Gui():
@@ -193,7 +204,7 @@ class Gui():
     MAIN_CENTER_WIDTH: int
     main_bms_values: list[list[str]]
     main_table_bms: list[list[tkinter.Entry]]
-    main_brusa_values: list[list[str]]
+    main_charger_values: list[list[str]]
     main_table_brusa: list[list[tkinter.Entry]]
     main_handcart_values: list[list[str]]
     main_table_handcart: list[list[tkinter.Entry]]
@@ -294,6 +305,13 @@ class Gui():
         tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         pyautogui.press('\t')
 
+    def callback_update_button(self):
+        tprint(f"Pressed update button", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            update()
+
     def get_element_index(self, elem: Element):
         if is_settings_element(elem):
             index = elem.value - self.ELEMENT_INDEX_OFFSET
@@ -337,8 +355,7 @@ class Gui():
 
         # float values
         if self.selected_element in [Element.SETTING_MAX_OUT_CURRENT,
-                                     Element.SETTING_FAN_OVERRIDE_SPEED,
-                                     Element.SETTING_MAX_IN_CURRENT]:
+                                     Element.SETTING_FAN_OVERRIDE_SPEED]:
             val = float(self.settings_set_value[selected_settings_element_index][0])
             new_val = round(val + delta, 2)
             if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
@@ -390,11 +407,7 @@ class Gui():
             Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
                 "com-type": "fan-override-set-speed",
                 "value": int(float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])*100)
-            },
-            Element.SETTING_MAX_IN_CURRENT: lambda: {
-                "com-type": "max-in-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
-            },
+            }
         }
 
         self.melody_queue.put({"melody": [(BuzzerNote.DO, 0.1)], "repeat": 1})
@@ -430,10 +443,10 @@ class Gui():
         self.root_center_tabs.pack(expand=1, fill=tkinter.BOTH)
 
         # Register callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_2.value, RISING, callback=self.callback_but_4, bouncetime=self.BOUNCETIME)
-        GPIO.add_event_detect(PIN.BUT_4.value, RISING, callback=self.callback_but_2, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_2.value, FALLING, callback=self.callback_but_4, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_4.value, FALLING, callback=self.callback_but_2, bouncetime=self.BOUNCETIME)
         GPIO.add_event_detect(PIN.ROT_B.value, RISING, callback=self.encoder_callback, bouncetime=2)  # encoder
-        GPIO.add_event_detect(PIN.BUT_0.value, RISING, callback=self.button_encoder_callback,
+        GPIO.add_event_detect(PIN.BUT_0.value, FALLING, callback=self.button_encoder_callback,
                               bouncetime=self.BOUNCETIME)
 
         self.root_center_tabs.select(self.tab_main)
@@ -534,8 +547,8 @@ class Gui():
         )
 
         # Setup callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_1.value, RISING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
-        GPIO.add_event_detect(PIN.BUT_3.value, RISING, callback=self.callback_but_3, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_3.value, FALLING, callback=self.callback_but_3, bouncetime=self.BOUNCETIME)
 
         self.root_bottom_refresh()
 
@@ -626,24 +639,23 @@ class Gui():
         self.main_center_center.grid(column=1, row=0)
         self.main_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
-        self.main_center_center_lbl_top = ttk.Label(self.main_center_center, text="BRUSA")
+        self.main_center_center_lbl_top = ttk.Label(self.main_center_center, text="Charger")
         self.main_center_center_lbl_top.pack(side=TOP)
 
         self.main_another_center_center = ttk.Frame(self.main_center_center)
         self.main_another_center_center.pack(fill=BOTH)
 
-        self.main_brusa_values = [
+        self.main_charger_values = [
             ["status", "-"],
-            ["Mains in VAC", "-"],
-            ["Mains in A", "-"],
-            ["Mains max in A", "-"],
-            ["Out VDC", "-"],
-            ["Out A", "-"],
-            ["Temperature °C", "-"],
+            ["Actual V out", "-"],
+            ["Actual A out", "-"],
+            ["Temp max", "-"],
+            ["swVersion", "-"],
+            ["Warnings", "-"],
             ["Errors", "-"]
         ]
 
-        self.main_table_brusa = init_table(self.main_brusa_values, self.main_another_center_center)
+        self.main_table_brusa = init_table(self.main_charger_values, self.main_another_center_center)
 
         self.main_center_right = ttk.Frame(
             self.tab_main,
@@ -695,25 +707,34 @@ class Gui():
                 ["Cell delta V", self.shared_data.bms_hv.act_cell_delta],
                 ["Max temp °C", self.shared_data.bms_hv.max_temp],
                 ["Min temp °C", self.shared_data.bms_hv.min_temp],
-                ["Avg temp °C", self.shared_data.bms_hv.act_average_temp]
+                ["Avg temp °C", self.shared_data.bms_hv.act_average_temp],
             ]
 
-            self.main_brusa_values = [
-                ["status", self.shared_data.brusa.isConnected()],
-                ["Mains in VAC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT"), 2))],
-                ["Mains in A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT"), 2))],
-                ["Mains max in A", str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_S_MC_M_CP"), 2))],
-                ["Out VDC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT"), 2))],
-                ["Out A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT"), 2))],
-                ["Temperature °C", str(round(self.shared_data.brusa.act_NLG5_TEMP.get("NLG5_P_TMP"), 2))],
-                ["Errors", str(self.shared_data.brusa.error)]
+            """
+            for i in self.shared_data.bms_hv.errors.keys():
+                if self.shared_data.bms_hv.errors[i] == 1:
+                    self.main_bms_values.append([i, self.shared_data.bms_hv.errors[i]])
+
+            for i in self.shared_data.bms_hv.feedbacks.keys():
+                if self.shared_data.bms_hv.feedbacks[i] == 1:
+                    self.main_bms_values.append([i, self.shared_data.bms_hv.feedbacks[i]])
+            """
+
+            self.main_charger_values = [
+                ["status", self.shared_data.charger.status.name],
+                ["Actual V out", self.shared_data.charger.act_voltage],
+                ["Actual A out", self.shared_data.charger.act_current],
+                ["Temp max", self.shared_data.charger.max_temp],
+                ["swVersion", self.shared_data.charger.sw_version],
+                ["Warnings", str(self.shared_data.charger.warning)],
+                ["Errors", str(self.shared_data.charger.error)]
             ]
 
             self.main_handcart_values = [
                 ["Status", self.shared_data.FSM_stat.name],
                 ["target V", self.shared_data.target_v],
                 ["Max current out", self.shared_data.act_set_out_current],
-                ["Max current in", self.shared_data.act_set_in_current],
+                ["Max current in", 0],
                 ["Fan override",
                  str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
                 ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
@@ -730,7 +751,7 @@ class Gui():
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
-        update_table(self.main_brusa_values, self.main_table_brusa)
+        update_table(self.main_charger_values, self.main_table_brusa)
         update_table(self.main_handcart_values, self.main_table_handcart)
         self.tab_main.after(self.REFRESH_RATE, self.main_refresh)
 
@@ -739,10 +760,22 @@ class Gui():
     def setup_settings_window(self):
         self.tab_settings = ttk.Frame(self.root_center_tabs)
 
+        self.tab_settings_up = ttk.Frame(self.tab_settings)
+        self.tab_settings_up.grid(column=0, row=0)
+        self.tab_settings_down = ttk.Frame(self.tab_settings)
+        self.tab_settings_down.grid(column=0, row=1)
+
+        self.settings_button_update = ttk.Button(self.tab_settings_down,
+            text="Update and restart",
+            bootstyle=(SECONDARY),
+            command=update)
+
+        self.settings_button_update.pack()
+
         # CENTER LEFT
         self.settings_center_left = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_left.grid(column=0, row=0)
         self.settings_center_left.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -764,8 +797,8 @@ class Gui():
 
         # CENTER CENTER
         self.settings_center_center = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_center.grid(column=1, row=0)
         self.settings_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -780,8 +813,8 @@ class Gui():
         # CENTER RIGHT
 
         self.settings_center_center_right = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_center_right.grid(column=2, row=0)
         self.settings_center_center_right.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -818,11 +851,6 @@ class Gui():
         self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
             "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_out(ev, el))
 
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
-            "<FocusIn>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_in(ev, el))  # select thing
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
-            "<FocusOut>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_out(ev, el))
-
         self.settings_refresh()
 
     def settings_refresh(self):
@@ -847,9 +875,6 @@ class Gui():
         if self.selected_element != Element.SETTING_FAN_OVERRIDE_SPEED:
             self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0] \
                 = self.shared_data.bms_hv.fans_set_override_speed
-        if self.selected_element != Element.SETTING_MAX_IN_CURRENT:
-            self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0] \
-                = self.shared_data.act_set_in_current
 
         update_table(self.settings_set_value, self.settings_set_value_table, state=NORMAL)
 

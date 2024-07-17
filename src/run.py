@@ -3,7 +3,11 @@ For more info read the ../../doc section, or contact matteo.bitussi@studenti.uni
 For test purposes, launch start-can.sh before launching this file
 
 Notes:
-    NLG5 - Stands for the BRUSA (also the charger)
+    
+    
+    
+    
+    
     BMS (or BMS HV) - Stands for Battery Manage System (also the accumulator)
 """
 
