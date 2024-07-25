@@ -6,6 +6,7 @@ from datetime import datetime
 import can
 from RPi import GPIO
 
+from common.charger.alpitronic.LittleSIC import HYC_State
 from common.handcart_can import CanListener
 from common.logging import P_TYPE, tprint
 from settings import *
@@ -22,6 +23,7 @@ class FSM(threading.Thread):
     stop_charge_command = False  # True if received stop charge command
     ready_command = False  # True if received a ready command, used only to go from CHARGE_DONE to READY
     idle_asked = False
+    ask_clear_error = False  # Se to true to ask to clear all errors and go back in check
 
     balancing_asked_time = 0  # the time of the last precharge message has been sent
     balancing_stop_asked = False
@@ -77,27 +79,6 @@ class FSM(threading.Thread):
                                   is_extended_id=False)
             self.tx_can_queue.put(message)
 
-    def staccastacca(self):
-        """
-        Function that is to be called in an unsafe environment, this function
-        will ask the BMS_HV to close the airs and it will disable the Brusa
-        and all the devices. This will also open the SD_Relay
-        """
-
-        self.canread.can_charger_charge_enabled = False
-        # Set PON to off
-        # Open shutdown
-        GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
-        time.sleep(0.2)
-        GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
-
-        tprint("staccastacca done", P_TYPE.DEBUG)
-
-        self.accumulator_sd()
-        self.precharge_asked = False
-        self.precharge_done = False
-
-
     def clrErr(self):
         """
         Function that clears all the errors in the FSM, use with care
@@ -106,6 +87,8 @@ class FSM(threading.Thread):
         self.canread.charger.error = False
         self.canread.bms_hv.error = False
         self.canread.can_err = False
+        GPIO.output(PIN.SD_RELAY.value, GPIO.HIGH)
+        self.canread.charger.reset_asked = True
 
     def balancing_disabled_check(self):
         if self.canread.bms_hv.is_balancing == Toggle.ON and \
@@ -206,6 +189,9 @@ class FSM(threading.Thread):
             else:
                 print("max-out-current limits exceded")
 
+        if com_type == "clear-errors" and value is True:
+            self.ask_clear_error = True
+
     def doCheck(self):
         """
         Do check status of the state machine
@@ -213,7 +199,9 @@ class FSM(threading.Thread):
         # Make sure that acc is in ts off
         self.accumulator_sd()
 
-        if self.canread.bms_hv.isConnected() and self.canread.charger.isConnected():
+        GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)  # Enable PON
+
+        if self.canread.bms_hv.isConnected() and self.canread.charger.is_connected():
             self.precharge_command = False  # Clear before entering IDLE
             return STATE.IDLE
         else:
@@ -229,7 +217,9 @@ class FSM(threading.Thread):
         self.precharge_done = False
         self.precharge_asked_time = 0
 
-        GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+        with self.forward_lock:
+            self.canread.can_charger_charge_enabled = False
+
         # Make sure that acc is in ts off
         self.accumulator_sd()
 
@@ -249,6 +239,9 @@ class FSM(threading.Thread):
         """
         # ask pork to do precharge
         # Send req to bms "TS_ON"
+
+        if self.canread.charger.status != HYC_State.STANDBY:
+            return STATE.IDLE
 
         if self.canread.bms_hv.status == HvStatus.IDLE and not self.precharge_asked:
             m = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_STATUS_HANDCART)
@@ -296,6 +289,10 @@ class FSM(threading.Thread):
         """
         Function that do the ready state of the state machine
         """
+        if self.canread.charger.status != HYC_State.STANDBY or \
+                self.canread.charger.status != HYC_State.RUNNING_SHUTDOWN:
+            tprint(f"Going to IDLE, charger is {self.canread.charger.status}", P_TYPE.WARNING)
+            return STATE.IDLE
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
@@ -316,9 +313,6 @@ class FSM(threading.Thread):
         :return:
         """
         # canread has to forward charging msgs from bms to brusa
-
-        # Set Brusa's PON to 12v (relay)
-        GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
@@ -346,8 +340,9 @@ class FSM(threading.Thread):
         Function that do the charge done of the state machine
         :return:
         """
-        # User decide wether charge again or going idle
-        GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
+
+        with self.forward_lock:
+            self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
@@ -393,14 +388,18 @@ class FSM(threading.Thread):
         """
 
         with self.forward_lock:
+            # Disable charging
             self.canread.can_charger_charge_enabled = False
+            time.sleep(.2) # give time to stop charging
 
+        # Turn off charger
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
-        GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)
 
-        # Send to BMS stacca stacca
+        # Send stacca stacca to BMS
         if not self.canread.bms_hv.status == HvStatus.IDLE.value:
-            self.staccastacca()
+            self.accumulator_sd()  # Try to ask accumulator to TS OFF
+
+        GPIO.output(PIN.SD_RELAY.value, GPIO.LOW)  # Turn off SD
 
         if self.canread.charger.error:
             pass
@@ -412,15 +411,10 @@ class FSM(threading.Thread):
             # print("Can Error")
             pass
 
-        if not self.com_queue.empty:
-            act_com = self.com_queue.get()
-            # wait for user command to clear errors or exit
-            if act_com['com_type'] == 'error_clear' and act_com['value'] == True:
-                self.clrErr()
-                return STATE.CHECK
-            else:
-                return STATE.EXIT
-
+        if self.ask_clear_error:
+            self.clrErr()
+            self.ask_clear_error = False
+            return STATE.CHECK
         else:
             return STATE.ERROR
 
@@ -473,11 +467,11 @@ class FSM(threading.Thread):
 
             next_stat = None
 
-            if act_stat != STATE.CHECK:
+            if act_stat != STATE.CHECK and act_stat != STATE.ERROR:
                 if not self.canread.bms_hv.isConnected():
                     tprint("Going back to CHECK, BMS is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
-                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.charger.isConnected():
+                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.charger.is_connected():
                     tprint("Going back to CHECK, brusa is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
 

@@ -55,7 +55,7 @@ MAX_BATCH_CAN_READ = 5  # Maximum number of message read in a single FSM cycle (
 CAN_RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
 CAN_RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 CAN_ACC_PRESENCE_TIMEOUT = 0.5  # in seconds
-CAN_CHARGER_PRESENCE_TIMEOUT = 0.5  # in seconds
+CAN_CHARGER_PRESENCE_TIMEOUT = 0.4  # in seconds
 
 ERROR_LOG_FILE_PATH = "errors.log"
 

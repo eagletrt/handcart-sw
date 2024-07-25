@@ -77,6 +77,8 @@ class Element(Enum):
     SETTING_MAX_OUT_CURRENT = 3
     SETTING_FAN_OVERRIDE_STATUS = 4
     SETTING_FAN_OVERRIDE_SPEED = 5
+    SETTING_CHARGER_FAN_MIN = 6
+    SETTING_CHARGER_FAN_MAX = 7
 
 
 # limits for the possible values of the settings in the interface
@@ -85,6 +87,8 @@ SETTING_ELEMENT_LIMIT = {
     Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
+    Element.SETTING_CHARGER_FAN_MIN: {"min": 0, "max": 100, "step": 5},
+    Element.SETTING_CHARGER_FAN_MAX: {"min": 0, "max": 100, "step": 5}
 }
 
 
@@ -101,7 +105,9 @@ def is_settings_element(el: Element) -> bool:
         Element.SETTING_CUTOFF,
         Element.SETTING_MAX_OUT_CURRENT,
         Element.SETTING_FAN_OVERRIDE_STATUS,
-        Element.SETTING_FAN_OVERRIDE_SPEED
+        Element.SETTING_FAN_OVERRIDE_SPEED,
+        Element.SETTING_CHARGER_FAN_MIN,
+        Element.SETTING_CHARGER_FAN_MAX
     ]
 
 
@@ -141,6 +147,17 @@ def update():
     """
     try:
         result = subprocess.run(["git", "pull", "--recurse-submodules"])
+        result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
+
+def restart():
+    """
+    Update the handcart and the submodules and restart the service
+    Returns:
+
+    """
+    try:
         result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
     except Exception:
         tprint("Error during update", P_TYPE.ERROR)
@@ -205,7 +222,7 @@ class Gui():
     main_bms_values: list[list[str]]
     main_table_bms: list[list[tkinter.Entry]]
     main_charger_values: list[list[str]]
-    main_table_brusa: list[list[tkinter.Entry]]
+    main_table_charger: list[list[tkinter.Entry]]
     main_handcart_values: list[list[str]]
     main_table_handcart: list[list[tkinter.Entry]]
 
@@ -213,8 +230,8 @@ class Gui():
     settings_name_value: list[list[str]]
     settings_name_table: list[list[tkinter.Entry]]
     tab_settings: ttk.Frame
-    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
-    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
+    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
+    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
     settings_set_value_table: list[list[tkinter.Entry]]
 
     # Errors window
@@ -365,7 +382,9 @@ class Gui():
 
         # int values
         if self.selected_element in [Element.SETTING_CUTOFF,
-                                     Element.SETTING_FAN_OVERRIDE_STATUS]:
+                                     Element.SETTING_FAN_OVERRIDE_STATUS,
+                                     Element.SETTING_CHARGER_FAN_MIN,
+                                     Element.SETTING_CHARGER_FAN_MAX]:
             val = int(self.settings_set_value[selected_settings_element_index][0])
             new_val = int(val + delta)
             if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
@@ -390,29 +409,44 @@ class Gui():
 
         tprint(f"Confirm element: {self.selected_element}", P_TYPE.DEBUG)
 
-        command_mapping = {
-            Element.SETTING_CUTOFF: lambda: {
-                "com-type": "cutoff",
-                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
-            },
-            Element.SETTING_MAX_OUT_CURRENT: lambda: {
-                "com-type": "max-out-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
-            },
-            Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
-                "com-type": "fan-override-set-status",
-                "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
-                                     0] == "1" else False
-            },
-            Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
-                "com-type": "fan-override-set-speed",
-                "value": int(float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])*100)
+        if self.selected_element == Element.SETTING_CHARGER_FAN_MIN or \
+            self.selected_element == Element.SETTING_CHARGER_FAN_MAX:
+            with self.lock:
+                self.shared_data.charger.set_min_fan_speed = \
+                int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0])
+
+                self.shared_data.charger.set_max_fan_speed = \
+                int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0])
+        else:
+            # Send via command
+            command_mapping = {
+                Element.SETTING_CUTOFF: lambda: {
+                    "com-type": "cutoff",
+                    "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
+                },
+                Element.SETTING_MAX_OUT_CURRENT: lambda: {
+                    "com-type": "max-out-current",
+                    "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
+                },
+                Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
+                    "com-type": "fan-override-set-status",
+                    "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
+                                         0] == "1" else False
+                },
+                Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
+                    "com-type": "fan-override-set-speed",
+                    "value": int(float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])*100)
+                },
+                Element.SETTING_CHARGER_FAN_MIN: lambda: {
+                    "com-type": "fan-override-set-speed",
+                    "value": int(
+                        float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
+                }
             }
-        }
 
-        self.melody_queue.put({"melody": [(BuzzerNote.DO, 0.1)], "repeat": 1})
+            self.com_queue.put(command_mapping[self.selected_element]())
 
-        self.com_queue.put(command_mapping[self.selected_element]())
+        self.melody_queue.put({"melody": [(BuzzerNote.RE, 0.05)], "repeat": 2})
 
     def on_tab_changed(self, event: tkinter.Event):
         self.current_tab = self.root_center_tabs.index(self.root_center_tabs.select())
@@ -545,6 +579,12 @@ class Gui():
             bootstyle=(SECONDARY),
             command=lambda: self.com_queue.put({"com-type": "shutdown", "value": True})
         )
+        self.button_clear_errors = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Restart handcart",
+            bootstyle=(SECONDARY),
+            command=restart
+        )
 
         # Setup callbacks for buttons
         GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
@@ -584,6 +624,9 @@ class Gui():
 
             if self.shared_data.FSM_stat == STATE.BALANCING:
                 self.button_stop_balance.grid(column=0, row=0)
+
+            if self.shared_data.FSM_stat == STATE.ERROR:
+                self.button_clear_errors.grid(column=0, row=0)
 
             self.last_fsm_state = self.shared_data.FSM_stat
 
@@ -655,7 +698,7 @@ class Gui():
             ["Errors", "-"]
         ]
 
-        self.main_table_brusa = init_table(self.main_charger_values, self.main_another_center_center)
+        self.main_table_charger = init_table(self.main_charger_values, self.main_another_center_center)
 
         self.main_center_right = ttk.Frame(
             self.tab_main,
@@ -751,7 +794,7 @@ class Gui():
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
-        update_table(self.main_charger_values, self.main_table_brusa)
+        update_table(self.main_charger_values, self.main_table_charger)
         update_table(self.main_handcart_values, self.main_table_handcart)
         self.tab_main.after(self.REFRESH_RATE, self.main_refresh)
 
@@ -787,10 +830,11 @@ class Gui():
 
         self.settings_name_value = [
             ["BMS target voltage (V)"],
-            ["BMS max input current (A)"],
+            ["BMS max charge current (A)"],
             ["BMS fan override status"],
             ["BMS fan override speed"],
-            ["CHARGER max grid current"]
+            ["Charger min fan speed"],
+            ["Charger max fan speed"]
         ]
 
         self.settings_name_table = init_table(self.settings_name_value, self.settings_another_center_left)
@@ -851,6 +895,16 @@ class Gui():
         self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
             "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_out(ev, el))
 
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_CHARGER_FAN_MIN: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_CHARGER_FAN_MIN: self.on_focus_out(ev, el))  # select thing
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_CHARGER_FAN_MAX: self.on_focus_in(ev, el))
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_CHARGER_FAN_MAX: self.on_focus_out(ev, el))
+
         self.settings_refresh()
 
     def settings_refresh(self):
@@ -859,7 +913,8 @@ class Gui():
             [self.shared_data.act_set_out_current],
             [1 if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 0],
             [self.shared_data.bms_hv.fans_override_speed],
-            [round(self.shared_data.brusa.act_NLG5_ACT_II.get('NLG5_S_MC_M_CP'), 2)]
+            [self.shared_data.charger.set_min_fan_speed], # don't have a feedback
+            [self.shared_data.charger.set_max_fan_speed] # don't have a feedback
         ]
         update_table(self.settings_actual_value, self.settings_actual_value_table)
 
@@ -875,6 +930,12 @@ class Gui():
         if self.selected_element != Element.SETTING_FAN_OVERRIDE_SPEED:
             self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0] \
                 = self.shared_data.bms_hv.fans_set_override_speed
+        if self.selected_element != Element.SETTING_CHARGER_FAN_MIN:
+            self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0] \
+                = self.shared_data.charger.set_min_fan_speed
+        if self.selected_element != Element.SETTING_CHARGER_FAN_MAX:
+            self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0] \
+                = self.shared_data.charger.set_max_fan_speed
 
         update_table(self.settings_set_value, self.settings_set_value_table, state=NORMAL)
 

@@ -10,7 +10,8 @@ import common.accumulator.bms as bms
 from settings import *
 from .can_classes import STATE
 from .charger.alpitronic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, ID_HYC_Grid_Voltage, \
-    ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, ID_HYC_Target, dbc_littlesic
+    ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, ID_HYC_Target, dbc_littlesic, \
+    ID_HYC_Alive
 from .logging import log_error, tprint, P_TYPE
 
 
@@ -234,11 +235,27 @@ def thread_2_CAN(shared_data: CanListener,
 
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
+    something_attacched_to_bus = False
 
     # Charger periodic control message
     msg_charger_ctrl = can.Message(
         arbitration_id=ID_HYC_Ctrl,
         data=[0x00],
+        is_extended_id=False
+    )
+
+    m_charger_alive = dbc_littlesic.get_message_by_name("HYC_Alive")
+    enc_data = m_charger_alive.encode(
+        {
+            "AliveCnt": 0,
+            "fanMin": 0,
+            "fanMax": 100
+        }
+    )
+
+    msg_charger_alive = can.Message(
+        arbitration_id=ID_HYC_Alive,
+        data=enc_data,
         is_extended_id=False
     )
 
@@ -278,14 +295,15 @@ def thread_2_CAN(shared_data: CanListener,
         "fans_override": shared_data.bms_hv.fans_set_override_status.value,
         "fans_speed": shared_data.bms_hv.fans_set_override_speed,
         "acc_charge_current": shared_data.act_set_out_current,
-        "grid_max_current": 0,
+        "grid_max_current": 1,
         "status": shared_data.FSM_stat.value
     }
 
     try:
         enc_data = m_handcart_settings.encode(data_handcart_settings)
-    except cantools.database.EncodeError:
+    except cantools.database.EncodeError as e:
         shared_data.can_err = True
+        tprint(f"Error in encoding handcart message: {e}", P_TYPE.ERROR)
         return
 
     msg_handcart_settings = can.Message(
@@ -316,18 +334,23 @@ def thread_2_CAN(shared_data: CanListener,
             shared_data.can_err = True
             return
 
-        task_handcart_settings.modify_data(enc_data)
+        msg.data = enc_data
 
     def modify_callback_charger_ctrl(msg: Message):
         with forward_lock:
+            if shared_data.charger.reset_asked:
+                msg.data[0] = 0x01
+                #task_charger_ctrl.modify_data(msg_charger_ctrl)
+                return
+
             if shared_data.can_charger_charge_enabled:
                 if msg_charger_ctrl.data[0] != 0x02:
-                    msg_charger_ctrl.data[0] = 0x02  # Start charge command
-                    task_charger_ctrl.modify_data(msg_charger_ctrl)
+                    msg.data[0] = 0x02  # Start charge command
+                    #task_charger_ctrl.modify_data(msg_charger_ctrl)
             else:
                 if msg_charger_ctrl.data[0] != 0x00:
-                    msg_charger_ctrl.data[0] = 0x00  # Stop charge command
-                    task_charger_ctrl.modify_data(msg_charger_ctrl)
+                    msg.data[0] = 0x00  # Stop charge command
+                    #task_charger_ctrl.modify_data(msg_charger_ctrl)
 
     def modify_callback_charger_target(msg: Message):
         with forward_lock:
@@ -349,30 +372,57 @@ def thread_2_CAN(shared_data: CanListener,
                     "iTarget": shared_data.act_set_out_current
                 }
             )
-            task_charger_ctrl.modify_data(enc_data)
+            msg.data = enc_data
 
+    def modify_callback_charger_alive(msg: Message):
+        with forward_lock:
 
-    task_charger_ctrl: can.ModifiableCyclicTaskABC = canbus.send_periodic(
-        msg_charger_ctrl, 0.01, modifier_callback=modify_callback_charger_ctrl)
-    task_charger_target: can.ModifiableCyclicTaskABC = canbus.send_periodic(
-        msg_charger_target, 0.5, modifier_callback=modify_callback_charger_target
-    )
+            enc_data = m_charger_alive.encode(
+                {
+                    "AliveCnt": 0,
+                    "fanMin": shared_data.charger.set_min_fan_speed,
+                    "fanMax": shared_data.charger.set_max_fan_speed
+                }
+            )
 
-    task_handcart_presence = canbus.send_periodic(msg_handcart_presence, 0.1)
-    task_handcart_settings = canbus.send_periodic(
-        msg_handcart_settings, 0.1, modifier_callback=modify_callback_handcart_settings)
+            msg.data = enc_data
 
-    if not isinstance(task_charger_ctrl, can.ModifiableCyclicTaskABC):
-        shared_data.can_err = True
-        tprint("The can interface doesn't seem to support modification", P_TYPE.ERROR)
-        return
+    def start_periodic_sends():
+        task_charger_ctrl = canbus.send_periodic(
+            msg_charger_ctrl, 0.01, modifier_callback=modify_callback_charger_ctrl)
+        task_charger_target = canbus.send_periodic(
+            msg_charger_target, 0.5, modifier_callback=modify_callback_charger_target
+        )
+        task_charger_alive = canbus.send_periodic(
+            msg_charger_alive, .1, modifier_callback=modify_callback_charger_alive
+        )
+        task_handcart_presence = canbus.send_periodic(msg_handcart_presence, 0.1)
+        task_handcart_settings = canbus.send_periodic(
+            msg_handcart_settings, 0.1, modifier_callback=modify_callback_handcart_settings)
+
+        if not isinstance(task_charger_ctrl, can.ModifiableCyclicTaskABC):
+            shared_data.can_err = True
+            tprint("The can interface doesn't seem to support modification", P_TYPE.ERROR)
+            return
 
     with lock:
         if canbus == False:
             shared_data.can_err = True
 
     while 1:
+        if shared_data.FSM_stat == STATE.CHECK:
+            if (not shared_data.bms_hv.isConnected()) and (not shared_data.charger.is_connected()):
+                tprint("No devices", P_TYPE.DEBUG)
+                if something_attacched_to_bus is True:
+                    canbus.stop_all_periodic_tasks()
+                    something_attacched_to_bus = False
+            else:
+                if something_attacched_to_bus is False:
+                    start_periodic_sends()
+                    something_attacched_to_bus = True
+
         time.sleep(0.001)
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
-            canSend(canbus, act.arbitration_id, act.data, lock, shared_data)
+            if something_attacched_to_bus:
+                canSend(canbus, act.arbitration_id, act.data, lock, shared_data)
