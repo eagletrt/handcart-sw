@@ -221,6 +221,7 @@ def thread_2_CAN(shared_data: CanListener,
             it then put the message in the rx queue
             :param msg: the incoming message
             """
+            """
             if msg.arbitration_id == primary_ID_HANDCART_SET_SETTINGS:
                 # tprint(str(msg), P_TYPE.DEBUG)
                 try:
@@ -230,7 +231,7 @@ def thread_2_CAN(shared_data: CanListener,
                             command_queue.put(c)
                 except can.CanError:
                     shared_data.can_err = True
-
+            """
             rx_can_queue.put(msg)
 
     can_r_w = Can_rx_listener()
@@ -410,9 +411,9 @@ def thread_2_CAN(shared_data: CanListener,
             shared_data.can_err = True
 
     while 1:
+        # This is just to avoid transmitting when there are no devices connected, to avoid filling the buffer
         if shared_data.FSM_stat == STATE.CHECK:
             if (not shared_data.bms_hv.isConnected()) and (not shared_data.charger.is_connected()):
-                tprint("No devices", P_TYPE.DEBUG)
                 if something_attacched_to_bus is True:
                     canbus.stop_all_periodic_tasks()
                     something_attacched_to_bus = False

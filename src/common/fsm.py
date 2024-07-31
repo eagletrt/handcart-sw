@@ -6,7 +6,6 @@ from datetime import datetime
 import can
 from RPi import GPIO
 
-from common.charger.alpitronic.LittleSIC import HYC_State
 from common.handcart_can import CanListener
 from common.logging import P_TYPE, tprint
 from settings import *
@@ -201,6 +200,14 @@ class FSM(threading.Thread):
 
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)  # Enable PON
 
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
+            self.canread.can_charger_charge_enabled = False
+
+        if self.balancing_command:
+            self.balancing_command = False
+            return STATE.BALANCING
+
         if self.canread.bms_hv.isConnected() and self.canread.charger.is_connected():
             self.precharge_command = False  # Clear before entering IDLE
             return STATE.IDLE
@@ -217,7 +224,8 @@ class FSM(threading.Thread):
         self.precharge_done = False
         self.precharge_asked_time = 0
 
-        with self.forward_lock:
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         # Make sure that acc is in ts off
@@ -240,7 +248,9 @@ class FSM(threading.Thread):
         # ask pork to do precharge
         # Send req to bms "TS_ON"
 
-        if self.canread.charger.status != HYC_State.STANDBY:
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
+            self.canread.can_charger_charge_enabled = False
             return STATE.IDLE
 
         if self.canread.bms_hv.status == HvStatus.IDLE and not self.precharge_asked:
@@ -289,10 +299,10 @@ class FSM(threading.Thread):
         """
         Function that do the ready state of the state machine
         """
-        if self.canread.charger.status != HYC_State.STANDBY or \
-                self.canread.charger.status != HYC_State.RUNNING_SHUTDOWN:
-            tprint(f"Going to IDLE, charger is {self.canread.charger.status}", P_TYPE.WARNING)
-            return STATE.IDLE
+
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
+            self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
             tprint(f"BMS_HV is not in TS_ON, it is in {self.canread.bms_hv.status} going back idle", P_TYPE.INFO)
@@ -341,7 +351,8 @@ class FSM(threading.Thread):
         :return:
         """
 
-        with self.forward_lock:
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
@@ -359,6 +370,10 @@ class FSM(threading.Thread):
         if self.balancing_stop_asked:
             self.balancing_stop_asked = False
             return STATE.IDLE
+
+        # Check that charger is not charging
+        if self.canread.charger.is_charging():
+            self.canread.can_charger_charge_enabled = False
 
         if not self.canread.bms_hv.is_balancing == Toggle.ON \
                 and (time.time() - self.balancing_asked_time) > CAN_RETRANSMIT_INTERVAL_NORMAL:
@@ -390,7 +405,7 @@ class FSM(threading.Thread):
         with self.forward_lock:
             # Disable charging
             self.canread.can_charger_charge_enabled = False
-            time.sleep(.2) # give time to stop charging
+            time.sleep(.2)  # give time to stop charging
 
         # Turn off charger
         GPIO.output(PIN.PON_CONTROL.value, GPIO.LOW)
@@ -471,7 +486,9 @@ class FSM(threading.Thread):
                 if not self.canread.bms_hv.isConnected():
                     tprint("Going back to CHECK, BMS is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
-                if (act_stat == STATE.CHARGE or act_stat == STATE.CHARGE_DONE) and not self.canread.charger.is_connected():
+                if not self.canread.charger.is_connected() and act_stat != STATE.BALANCING:
+                    # If not in check or error and charger is not present, AND not in balancing go to check
+                    # You can do balancing even without the charger
                     tprint("Going back to CHECK, brusa is not connected", P_TYPE.INFO)
                     next_stat = self.doState.get(STATE.CHECK)(self)
 

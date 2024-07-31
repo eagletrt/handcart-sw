@@ -19,7 +19,6 @@ from RPi import GPIO
 
 import common.accumulator.fans as fans
 from common.buzzer import Buzzer, STARTUP_SOUND
-from common.cli.cli import Cli
 from common.feedbacks.feedbacks import Feedbacks
 from common.fsm import FSM
 from common.handcart_can import CanListener, thread_2_CAN
@@ -87,15 +86,6 @@ if __name__ == "__main__":
         t5.start()
     else:
         tprint("starting without fan control", P_TYPE.WARNING)
-
-    if ENABLE_CLI:
-        tprint("CLI is enabled, starting cli..", P_TYPE.DEBUG)
-        t6 = Cli(
-            com_queue,
-            lock,
-            shared_data
-        )
-        t6.start()
 
     if ENABLE_BUZZER:
         tprint("Buzzer enabled, starting buzzer thread", P_TYPE.DEBUG)

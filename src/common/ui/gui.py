@@ -210,7 +210,7 @@ class Gui():
     button_stop_balance: ttk.Button
     button_go_idle: ttk.Button
 
-    last_fsm_state: STATE = STATE.CHECK
+    last_fsm_state: STATE = None
 
     # Main window
     tab_main: ttk.Frame
@@ -599,10 +599,14 @@ class Gui():
         self.button_start_balance.grid_forget()
         self.button_stop_balance.grid_forget()
         self.button_go_idle.grid_forget()
+        self.button_clear_errors.grid_forget()
 
     def root_bottom_refresh(self):
         if self.last_fsm_state != self.shared_data.FSM_stat:
             self.root_bottom_button_reset()  # remove all buttons
+
+            if self.shared_data.FSM_stat == STATE.CHECK:
+                self.button_start_balance.grid(column=0, row=0)
 
             if self.shared_data.FSM_stat == STATE.IDLE:
                 self.button_start_precharge.grid(column=0, row=0)

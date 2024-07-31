@@ -31,16 +31,6 @@ ACC_CELLS_TEMPS_PER_SEGMENT = ACC_CELLS_TEMPS_COUNT / ACC_SEGMENT_COUNT
 ACC_CELLBOARD_COUNT = 6
 ACC_PRECHARGE_FINISH_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
 
-# CLI config
-CLI_TTY = "/dev/serial0"
-CLI_TTY_REDIRECT_ENABLED = False
-CLI_DEFAULT_WIDTH = 80
-CLI_DEFAULT_HEIGHT = 24
-CLI_CELLS_VOLTAGE_RED_THRESHOLD_LOW = 3.6
-CLI_CELLS_VOLTAGE_RED_THRESHOLD_HIGH = 4.15
-CLI_CELLS_TEMPS_RED_THRESHOLD_LOW = 5
-CLI_CELLS_TEMPS_RED_THRESHOLD_HIGH = 50
-
 # Feedbacks ADC stuff
 ADC_BUS = 0
 ADC_DEVICE = 1
@@ -60,7 +50,6 @@ CAN_CHARGER_PRESENCE_TIMEOUT = 0.4  # in seconds
 ERROR_LOG_FILE_PATH = "errors.log"
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
-ENABLE_CLI = False  # deprecated for new charger
 ENABLE_WEB = False  # deprecated for new charger
 ENABLE_LED = False
 ENABLE_GUI = True
