@@ -7,7 +7,7 @@ from can import Listener
 from cantools.database import DecodeError
 
 import common.accumulator.bms as bms
-from common.brusa.brusa import *
+from common.charger.brusa.brusa import *
 from settings import *
 from .can_classes import STATE
 from .logging import log_error, tprint

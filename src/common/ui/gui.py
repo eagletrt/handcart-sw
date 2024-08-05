@@ -82,10 +82,10 @@ class Element(Enum):
 # limits for the possible values of the settings in the interface
 SETTING_ELEMENT_LIMIT = {
     Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
-    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
+    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .2},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
-    Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .1}
+    Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .5}
 }
 
 
