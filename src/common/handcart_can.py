@@ -18,6 +18,8 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
     Processes the HANDCART SETTING SET message from the telemetry and returns a list containing dict with the command
     for the FSM
     """
+    if not ENABLE_TELEMETRY_SETTINGS:
+        return
 
     try:
         data = dbc_primary.decode_message(msg.arbitration_id, msg.data)
@@ -40,12 +42,12 @@ def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | No
         com = {}
 
         com['com-type'] = 'fan-override-set-speed'
-        com['value'] = data['fans_speed'] * 100
+        com['value'] = int(data['fans_speed'] * 100)
         com_list.append(com)
         com = {}
 
         com['com-type'] = 'max-out-current'
-        com['value'] = int(data['acc_charge_current'])
+        com['value'] = float(data['acc_charge_current'])
         com_list.append(com)
         com = {}
 

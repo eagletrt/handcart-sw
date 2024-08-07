@@ -199,7 +199,7 @@ class FSM(threading.Thread):
 
         if com_type == 'max-out-current':
             if type(value) is not float:
-                tprint(f"max-out-current command value type is not int: {value}", P_TYPE.ERROR)
+                tprint(f"max-out-current command value type is not float: {value}", P_TYPE.ERROR)
                 return
             if MIN_BMS_CHARGE_CURRENT < value < MAX_BMS_CHARGE_CURRENT:
                 self.canread.act_set_out_current = value

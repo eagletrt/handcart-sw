@@ -65,6 +65,7 @@ BMS_PRECHARGE_STATUS_CHANGE_TIMEOUT = 3  # Time allowed for the BMS to finish pr
 RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non-critical request message (seconds)
 RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 
+ENABLE_TELEMETRY_SETTINGS = False  # Set to true to enable receiving commands from telemetry
 
 ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
 ENABLE_CLI = False  # Set to true to enable CLI over tty
