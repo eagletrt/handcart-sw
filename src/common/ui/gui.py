@@ -1,4 +1,5 @@
 import datetime
+import subprocess
 import tkinter
 
 import pyautogui
@@ -134,6 +135,41 @@ class ScrollableFrame(ttk.Frame):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
+def update_everything():
+    """
+    Update the handcart and the submodules and restart the service
+    Returns:
+
+    """
+    try:
+        result = subprocess.run(["git", "pull", "--recurse-submodules"])
+        result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
+
+def restart():
+    """
+    Update the handcart and the submodules and restart the service
+    Returns:
+
+    """
+    try:
+        result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
+
+def update_telemetry():
+    """
+        Update the handcart and the submodules and restart the service
+        Returns:
+
+        """
+    try:
+        #result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+        # TODO
+        pass
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
 
 class Gui():
     FULL_SCREEN = True
@@ -293,6 +329,27 @@ class Gui():
         """
         tprint(f"Pressed button: {PIN(ch)}", P_TYPE.DEBUG)
         pyautogui.press('\t')
+
+    def callback_update_button(self):
+        tprint(f"Pressed update button", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            update_everything()
+
+    def callback_restart_button(self):
+        tprint(f"Pressed restart button", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            restart()
+
+    def callback_uptade_telemetry_button(self):
+        tprint(f"Pressed update telemetry", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            update_telemetry()
 
     def get_element_index(self, elem: Element):
         if is_settings_element(elem):
@@ -739,10 +796,35 @@ class Gui():
     def setup_settings_window(self):
         self.tab_settings = ttk.Frame(self.root_center_tabs)
 
+        self.tab_settings_up = ttk.Frame(self.tab_settings)
+        self.tab_settings_up.grid(column=0, row=0)
+        self.tab_settings_down = ttk.Frame(self.tab_settings)
+        self.tab_settings_down.grid(column=0, row=1)
+
+        self.settings_button_update = ttk.Button(self.tab_settings_down,
+            text="Update everything and restart",
+            bootstyle=(SECONDARY),
+            command=self.callback_update_button)
+
+        self.settings_button_restart = ttk.Button(self.tab_settings_down,
+                                                 text="Restart handcart",
+                                                 bootstyle=(SECONDARY),
+                                                 command=self.callback_restart_button)
+
+
+        self.settings_button_update_tele = ttk.Button(self.tab_settings_down,
+                                                 text="Update telemetry and restart",
+                                                 bootstyle=(SECONDARY),
+                                                 command=self.callback_uptade_telemetry_button)
+
+        self.settings_button_update.grid(column=0, row=0)
+        self.settings_button_restart.grid(column=1, row=0)
+        #self.settings_button_update_tele.grid(column=2, row=0)
+
         # CENTER LEFT
         self.settings_center_left = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_left.grid(column=0, row=0)
         self.settings_center_left.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -764,8 +846,8 @@ class Gui():
 
         # CENTER CENTER
         self.settings_center_center = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_center.grid(column=1, row=0)
         self.settings_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -780,8 +862,8 @@ class Gui():
         # CENTER RIGHT
 
         self.settings_center_center_right = ttk.Frame(
-            self.tab_settings,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            self.tab_settings_up,
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
         self.settings_center_center_right.grid(column=2, row=0)
         self.settings_center_center_right.pack_propagate(False)  # prevents the frame to resize automatically
 
