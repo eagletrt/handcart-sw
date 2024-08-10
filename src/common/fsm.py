@@ -118,7 +118,7 @@ class FSM(threading.Thread):
                 data = m.encode(
                     {
                         "set_balancing_status": Toggle.OFF.value,
-                        "balancing_threshold": 50
+                        "balancing_threshold": 10
                     }
                 )
             except cantools.database.EncodeError:
