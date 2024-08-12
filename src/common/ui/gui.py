@@ -996,10 +996,10 @@ class Gui():
             for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
                 act_row = int(row_offset + (index % BMS_CELLS_VOLTAGES_PER_SEGMENT))
 
-                self.bms_voltages_values[act_row][col] = f"{voltage:.2f}"
+                self.bms_voltages_values[col-1][act_row-1] = f"{voltage:.2f}"
 
                 if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
-                    col += 7
+                    col += 1
 
         except IndexError:
             tprint("Index error in building voltage grid", P_TYPE.ERROR)
@@ -1023,10 +1023,10 @@ class Gui():
             for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
                 act_row = int(row_offset + (index % BMS_CELLS_TEMPS_PER_SEGMENT))
 
-                self.bms_temperatures_values[act_row][col] = f"{temp:.2f}"
+                self.bms_temperatures_values[col-1][act_row-1] = f"{temp:.2f}"
 
                 if (index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
-                    col += 9
+                    col += 1
 
         except IndexError:
             tprint("Index error in building temperature grid", P_TYPE.ERROR)
@@ -1050,5 +1050,7 @@ class Gui():
 
 
 if __name__ == "__main__":
-    t = Gui(None, None, None)
+    c = CanListener()
+    #c.bms_hv.hv_cells_act =
+    t = Gui(None, None, c, None)
     t.run()
