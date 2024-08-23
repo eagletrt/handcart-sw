@@ -261,13 +261,13 @@ class Gui():
     # voltages window
     tab_voltages: ttk.Frame
     bms_voltages_values = [
-        ["" for j in range(BMS_CELLS_VOLTAGES_PER_SEGMENT)] for i in range(BMS_SEGMENT_COUNT)
+        ["" for j in range(BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Temperatures window
     tab_temperatures: ttk.Frame
     bms_temperatures_values = [
-        ["" for j in range(BMS_CELLS_TEMPS_PER_SEGMENT)] for i in range(BMS_SEGMENT_COUNT)
+        ["" for j in range(BMS_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Logic
@@ -990,14 +990,16 @@ class Gui():
     def voltages_refresh(self):
         # Do refresh
         try:
-            row_offset = 1
+            row_offset = 0
             col = 0
 
             for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
-                act_row = int(row_offset + (index % BMS_CELLS_VOLTAGES_PER_SEGMENT))
+                act_row = int(row_offset + (index % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)))
 
-                self.bms_voltages_values[col-1][act_row-1] = f"{voltage:.2f}"
+                self.bms_voltages_values[col][act_row] = f"{voltage:.2f}"
 
+                if (index + 1) % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
+                    col += 1
                 if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
                     col += 1
 
@@ -1017,15 +1019,17 @@ class Gui():
     def temperatures_refresh(self):
         # do refresh
         try:
-            row_offset = 1
+            row_offset = 0
             col = 0
 
             for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
-                act_row = int(row_offset + (index % BMS_CELLS_TEMPS_PER_SEGMENT))
+                act_row = int(row_offset + (index % (BMS_CELLS_TEMPS_PER_SEGMENT // 2)))
 
-                self.bms_temperatures_values[col-1][act_row-1] = f"{temp:.2f}"
+                self.bms_temperatures_values[col][act_row] = f"{temp:.2f}"
 
-                if (index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT == 0 and index != 0:
+                if (index + 1) % (BMS_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
+                    col += 1
+                if ((index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
                     col += 1
 
         except IndexError:
@@ -1051,6 +1055,6 @@ class Gui():
 
 if __name__ == "__main__":
     c = CanListener()
-    #c.bms_hv.hv_cells_act =
+    # c.bms_hv.hv_cells_act =
     t = Gui(None, None, c, None)
     t.run()
