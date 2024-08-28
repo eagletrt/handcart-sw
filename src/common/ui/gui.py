@@ -84,7 +84,7 @@ class Element(Enum):
 # limits for the possible values of the settings in the interface
 SETTING_ELEMENT_LIMIT = {
     Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
-    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .1},
+    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .2},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
     Element.SETTING_CHARGER_FAN_MIN: {"min": 0, "max": 100, "step": 5},
@@ -139,7 +139,7 @@ class ScrollableFrame(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
 
 
-def update():
+def update_everything():
     """
     Update the handcart and the submodules and restart the service
     Returns:
@@ -151,6 +151,19 @@ def update():
     except Exception:
         tprint("Error during update", P_TYPE.ERROR)
 
+
+def stop_handcart_service():
+    """
+    Stop the handcart service
+    Returns:
+
+    """
+    try:
+        result = subprocess.run(["sudo", "systemctl", "stop", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
+
+
 def restart():
     """
     Update the handcart and the submodules and restart the service
@@ -159,6 +172,20 @@ def restart():
     """
     try:
         result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+    except Exception:
+        tprint("Error during update", P_TYPE.ERROR)
+
+
+def update_telemetry():
+    """
+        Update the handcart and the submodules and restart the service
+        Returns:
+
+        """
+    try:
+        # result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
+        # TODO
+        pass
     except Exception:
         tprint("Error during update", P_TYPE.ERROR)
 
@@ -234,8 +261,17 @@ class Gui():
     settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
     settings_set_value_table: list[list[tkinter.Entry]]
 
-    # Errors window
-    tab_errors: ttk.Frame
+    # voltages window
+    tab_voltages: ttk.Frame
+    bms_voltages_values = [
+        ["" for j in range(BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+    ]
+
+    # Temperatures window
+    tab_temperatures: ttk.Frame
+    bms_temperatures_values = [
+        ["" for j in range(BMS_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+    ]
 
     # Logic
     selected_element: Element = None
@@ -327,7 +363,28 @@ class Gui():
         if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
             return
         else:
-            update()
+            update_everything()
+
+    def callback_stop_handcart(self):
+        tprint(f"Pressed stop handcart button", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            stop_handcart_service()
+
+    def callback_restart_button(self):
+        tprint(f"Pressed restart button", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            restart()
+
+    def callback_uptade_telemetry_button(self):
+        tprint(f"Pressed update telemetry", P_TYPE.DEBUG)
+        if self.shared_data.FSM_stat not in [STATE.IDLE, STATE.CHECK]:
+            return
+        else:
+            update_telemetry()
 
     def get_element_index(self, elem: Element):
         if is_settings_element(elem):
@@ -414,6 +471,30 @@ class Gui():
             with self.lock:
                 self.shared_data.charger.set_min_fan_speed = \
                 int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0])
+        command_mapping = {
+            Element.SETTING_CUTOFF: lambda: {
+                "com-type": "cutoff",
+                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
+            },
+            Element.SETTING_MAX_OUT_CURRENT: lambda: {
+                "com-type": "max-out-current",
+                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
+            },
+            Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
+                "com-type": "fan-override-set-status",
+                "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
+                                     0] == "1" else False
+            },
+            Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
+                "com-type": "fan-override-set-speed",
+                "value": int(
+                    float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
+            },
+            Element.SETTING_MAX_IN_CURRENT: lambda: {
+                "com-type": "max-in-current",
+                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
+            },
+        }
 
                 self.shared_data.charger.set_max_fan_speed = \
                 int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0])
@@ -468,11 +549,13 @@ class Gui():
 
         self.setup_main_window()
         self.setup_settings_window()
-        self.setup_errors_window()
+        self.voltages_window()
+        self.temperatures_window()
 
         self.root_center_tabs.add(self.tab_main, text="main")  # 0
         self.root_center_tabs.add(self.tab_settings, text="settings")  # 1
-        self.root_center_tabs.add(self.tab_errors, text="errors")  # 2
+        self.root_center_tabs.add(self.tab_voltages, text="BMS cells voltages")  # 2
+        self.root_center_tabs.add(self.tab_temperatures, text="BMS cells temperature")  # 3
         self.root_center_tabs.bind('<<NotebookTabChanged>>', lambda ev: self.on_tab_changed(ev))
         self.root_center_tabs.pack(expand=1, fill=tkinter.BOTH)
 
@@ -786,15 +869,15 @@ class Gui():
                  str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
                 ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
                 [FB.VSD_FB, self.shared_data.feedbacks[FB.VSD_FB.value]],
-                [FB.SD_TO_MUSHROOM_FB,  self.shared_data.feedbacks[FB.SD_TO_MUSHROOM_FB.value]],
-                [FB.SD_TO_CHARGER_FB,  self.shared_data.feedbacks[FB.SD_TO_CHARGER_FB.value]],
-                [FB.SD_BMS_IN_FB,  self.shared_data.feedbacks[FB.SD_BMS_IN_FB.value]],
-                [FB.SD_BMS_OUT_FB,  self.shared_data.feedbacks[FB.SD_BMS_OUT_FB.value]],
-                [FB.SD_END_FB,  self.shared_data.feedbacks[FB.SD_END_FB.value]],
-                [FB.COIL_DISCHARGE_FB,  self.shared_data.feedbacks[FB.COIL_DISCHARGE_FB.value]],
-                [FB.FB_12_V,  self.shared_data.feedbacks[FB.FB_12_V.value]],
-                [FB.PON_FB,  self.shared_data.feedbacks[FB.PON_FB.value]],
-                [FB.RELAY_SD_FB,  self.shared_data.feedbacks[FB.RELAY_SD_FB.value]]
+                [FB.SD_TO_MUSHROOM_FB, self.shared_data.feedbacks[FB.SD_TO_MUSHROOM_FB.value]],
+                [FB.SD_TO_CHARGER_FB, self.shared_data.feedbacks[FB.SD_TO_CHARGER_FB.value]],
+                [FB.SD_BMS_IN_FB, self.shared_data.feedbacks[FB.SD_BMS_IN_FB.value]],
+                [FB.SD_BMS_OUT_FB, self.shared_data.feedbacks[FB.SD_BMS_OUT_FB.value]],
+                [FB.SD_END_FB, self.shared_data.feedbacks[FB.SD_END_FB.value]],
+                [FB.COIL_DISCHARGE_FB, self.shared_data.feedbacks[FB.COIL_DISCHARGE_FB.value]],
+                [FB.FB_12_V, self.shared_data.feedbacks[FB.FB_12_V.value]],
+                [FB.PON_FB, self.shared_data.feedbacks[FB.PON_FB.value]],
+                [FB.RELAY_SD_FB, self.shared_data.feedbacks[FB.RELAY_SD_FB.value]]
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
@@ -813,16 +896,35 @@ class Gui():
         self.tab_settings_down.grid(column=0, row=1)
 
         self.settings_button_update = ttk.Button(self.tab_settings_down,
-            text="Update and restart",
-            bootstyle=(SECONDARY),
-            command=update)
+                                                 text="Update everything and restart",
+                                                 bootstyle=(SECONDARY),
+                                                 command=self.callback_update_button)
 
-        self.settings_button_update.pack()
+        self.settings_button_restart = ttk.Button(self.tab_settings_down,
+                                                  text="Restart handcart",
+                                                  bootstyle=(SECONDARY),
+                                                  command=self.callback_restart_button)
+
+        self.settings_button_update_tele = ttk.Button(self.tab_settings_down,
+                                                      text="Update telemetry and restart",
+                                                      bootstyle=(SECONDARY),
+                                                      command=self.callback_uptade_telemetry_button)
+
+        self.settings_button_stop_handcart = ttk.Button(self.tab_settings_down,
+                                                        text="Stop handcart service",
+                                                        bootstyle=(SECONDARY),
+                                                        command=self.callback_stop_handcart)
+
+        self.settings_button_update.grid(column=0, row=0)
+        self.settings_button_restart.grid(column=1, row=0)
+        self.settings_button_stop_handcart.grid(column=2, row=0)
+        # self.settings_button_update_tele.grid(column=2, row=0)
 
         # CENTER LEFT
         self.settings_center_left = ttk.Frame(
             self.tab_settings_up,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT * 0.8, borderwidth=self.BORDER_WIDTH,
+            relief=GROOVE)
         self.settings_center_left.grid(column=0, row=0)
         self.settings_center_left.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -846,7 +948,8 @@ class Gui():
         # CENTER CENTER
         self.settings_center_center = ttk.Frame(
             self.tab_settings_up,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT * 0.8, borderwidth=self.BORDER_WIDTH,
+            relief=GROOVE)
         self.settings_center_center.grid(column=1, row=0)
         self.settings_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -862,7 +965,8 @@ class Gui():
 
         self.settings_center_center_right = ttk.Frame(
             self.tab_settings_up,
-            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT*0.8, borderwidth=self.BORDER_WIDTH, relief=GROOVE)
+            width=self.MAIN_CENTER_WIDTH, height=self.ROOT_CENTER_HEIGHT * 0.8, borderwidth=self.BORDER_WIDTH,
+            relief=GROOVE)
         self.settings_center_center_right.grid(column=2, row=0)
         self.settings_center_center_right.pack_propagate(False)  # prevents the frame to resize automatically
 
@@ -945,23 +1049,63 @@ class Gui():
 
         self.tab_settings.after(self.REFRESH_RATE, self.settings_refresh)
 
-    # ERRORS WINDOW ----------------------------------------------------------------------------------------------------
-    def setup_errors_window(self):
-        self.tab_errors = ttk.Frame(self.root_center_tabs)
-        self.errors_scroll = ScrollableFrame(self.tab_errors)
-        self.errors_scroll.pack(side=BOTTOM)
+    # VOLTAGES WINDOW --------------------------------------------------------------------------------------------------
+    def voltages_window(self):
+        self.tab_voltages = ttk.Frame(self.root_center_tabs)
+        self.table_voltages = init_table(self.bms_voltages_values, self.tab_voltages)
 
-        self.errors_text = tkinter.Text(self.errors_scroll.scrollable_frame, wrap="char")
-        self.errors_text.pack(fill=X)
+        self.voltages_refresh()
 
-        for i in range(50):
-            self.errors_text.insert(END, "asddd\n")
-
-        self.errors_refresh()
-
-    def errors_refresh(self):
+    def voltages_refresh(self):
         # Do refresh
-        self.tab_errors.after(self.REFRESH_RATE, self.errors_refresh)
+        try:
+            row_offset = 0
+            col = 0
+
+            for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
+                act_row = int(row_offset + (index % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)))
+
+                self.bms_voltages_values[col][act_row] = f"{voltage:.2f}"
+
+                if (index + 1) % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
+                    col += 1
+                if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
+                    col += 1
+
+        except IndexError:
+            tprint("Index error in building voltage grid", P_TYPE.ERROR)
+
+        update_table(self.bms_voltages_values, self.table_voltages, state=DISABLED)
+        self.tab_voltages.after(self.REFRESH_RATE, self.voltages_refresh)
+
+    # TEMPERATURES WINDOW ----------------------------------------------------------------------------------------------
+    def temperatures_window(self):
+        self.tab_temperatures = ttk.Frame(self.root_center_tabs)
+        self.table_temperatures = init_table(self.bms_temperatures_values, self.tab_temperatures)
+
+        self.temperatures_refresh()
+
+    def temperatures_refresh(self):
+        # do refresh
+        try:
+            row_offset = 0
+            col = 0
+
+            for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
+                act_row = int(row_offset + (index % (BMS_CELLS_TEMPS_PER_SEGMENT // 2)))
+
+                self.bms_temperatures_values[col][act_row] = f"{temp:.2f}"
+
+                if (index + 1) % (BMS_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
+                    col += 1
+                if ((index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
+                    col += 1
+
+        except IndexError:
+            tprint("Index error in building temperature grid", P_TYPE.ERROR)
+
+        update_table(self.bms_temperatures_values, self.table_temperatures, state=DISABLED)
+        self.tab_temperatures.after(self.REFRESH_RATE, self.temperatures_refresh)
 
     def __init__(self,
                  com_queue: queue.Queue,
@@ -979,5 +1123,7 @@ class Gui():
 
 
 if __name__ == "__main__":
-    t = Gui(None, None, None)
+    c = CanListener()
+    # c.bms_hv.hv_cells_act =
+    t = Gui(None, None, c, None)
     t.run()

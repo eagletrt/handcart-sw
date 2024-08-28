@@ -100,7 +100,7 @@ class FSM(threading.Thread):
                 data = m.encode(
                     {
                         "set_balancing_status": Toggle.OFF.value,
-                        "balancing_threshold": 50
+                        "balancing_threshold": 10
                     }
                 )
             except cantools.database.EncodeError:
@@ -181,7 +181,7 @@ class FSM(threading.Thread):
 
         if com_type == 'max-out-current':
             if type(value) is not float:
-                tprint(f"max-out-current command value type is not int: {value}", P_TYPE.ERROR)
+                tprint(f"max-out-current command value type is not float: {value}", P_TYPE.ERROR)
                 return
             if ACC_MIN_CHG_CURRENT < value < ACC_MAX_CHG_CURRENT:
                 self.canread.act_set_out_current = value
