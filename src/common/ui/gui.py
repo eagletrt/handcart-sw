@@ -83,8 +83,8 @@ class Element(Enum):
 
 # limits for the possible values of the settings in the interface
 SETTING_ELEMENT_LIMIT = {
-    Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
-    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .2},
+    Element.SETTING_CUTOFF: {"min": ACC_MIN_TARGET_V, "max": ACC_MAX_TARGET_V, "step": 1},
+    Element.SETTING_MAX_OUT_CURRENT: {"min": ACC_MIN_CHG_CURRENT, "max": ACC_MAX_CHG_CURRENT, "step": .2},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
     Element.SETTING_CHARGER_FAN_MIN: {"min": 0, "max": 100, "step": 5},
@@ -264,13 +264,13 @@ class Gui():
     # voltages window
     tab_voltages: ttk.Frame
     bms_voltages_values = [
-        ["" for j in range(BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+        ["" for j in range(ACC_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((ACC_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Temperatures window
     tab_temperatures: ttk.Frame
     bms_temperatures_values = [
-        ["" for j in range(BMS_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+        ["" for j in range(ACC_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((ACC_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Logic
@@ -467,37 +467,12 @@ class Gui():
         tprint(f"Confirm element: {self.selected_element}", P_TYPE.DEBUG)
 
         if self.selected_element == Element.SETTING_CHARGER_FAN_MIN or \
-            self.selected_element == Element.SETTING_CHARGER_FAN_MAX:
+                self.selected_element == Element.SETTING_CHARGER_FAN_MAX:
             with self.lock:
                 self.shared_data.charger.set_min_fan_speed = \
-                int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0])
-        command_mapping = {
-            Element.SETTING_CUTOFF: lambda: {
-                "com-type": "cutoff",
-                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
-            },
-            Element.SETTING_MAX_OUT_CURRENT: lambda: {
-                "com-type": "max-out-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
-            },
-            Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
-                "com-type": "fan-override-set-status",
-                "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
-                                     0] == "1" else False
-            },
-            Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
-                "com-type": "fan-override-set-speed",
-                "value": int(
-                    float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
-            },
-            Element.SETTING_MAX_IN_CURRENT: lambda: {
-                "com-type": "max-in-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
-            },
-        }
-
+                    int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0])
                 self.shared_data.charger.set_max_fan_speed = \
-                int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0])
+                    int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0])
         else:
             # Send via command
             command_mapping = {
@@ -511,17 +486,20 @@ class Gui():
                 },
                 Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
                     "com-type": "fan-override-set-status",
-                    "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
-                                         0] == "1" else False
+                    "value": True if
+                    self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
+                        0] == "1" else False
                 },
                 Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
                     "com-type": "fan-override-set-speed",
-                    "value": int(float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0])*100)
+                    "value": float(float(
+                        self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
                 },
                 Element.SETTING_CHARGER_FAN_MIN: lambda: {
                     "com-type": "fan-override-set-speed",
                     "value": int(
-                        float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
+                        float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][
+                                  0]) * 100)
                 }
             }
 
@@ -1021,8 +999,8 @@ class Gui():
             [self.shared_data.act_set_out_current],
             [1 if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 0],
             [self.shared_data.bms_hv.fans_override_speed],
-            [self.shared_data.charger.set_min_fan_speed], # don't have a feedback
-            [self.shared_data.charger.set_max_fan_speed] # don't have a feedback
+            [self.shared_data.charger.set_min_fan_speed],  # don't have a feedback
+            [self.shared_data.charger.set_max_fan_speed]  # don't have a feedback
         ]
         update_table(self.settings_actual_value, self.settings_actual_value_table)
 
@@ -1063,13 +1041,13 @@ class Gui():
             col = 0
 
             for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
-                act_row = int(row_offset + (index % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)))
+                act_row = int(row_offset + (index % (ACC_CELLS_VOLTAGES_PER_SEGMENT // 2)))
 
                 self.bms_voltages_values[col][act_row] = f"{voltage:.2f}"
 
-                if (index + 1) % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
+                if (index + 1) % (ACC_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
                     col += 1
-                if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
+                if (index + 1) % ACC_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
                     col += 1
 
         except IndexError:
@@ -1092,13 +1070,13 @@ class Gui():
             col = 0
 
             for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
-                act_row = int(row_offset + (index % (BMS_CELLS_TEMPS_PER_SEGMENT // 2)))
+                act_row = int(row_offset + (index % (ACC_CELLS_TEMPS_PER_SEGMENT // 2)))
 
                 self.bms_temperatures_values[col][act_row] = f"{temp:.2f}"
 
-                if (index + 1) % (BMS_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
+                if (index + 1) % (ACC_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
                     col += 1
-                if ((index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
+                if ((index + 1) % ACC_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
                     col += 1
 
         except IndexError:

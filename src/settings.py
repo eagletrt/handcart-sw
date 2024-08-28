@@ -16,9 +16,9 @@ CAN_MESSAGE_CHECK_ENABLED = True
 # Accumulator (BMS) settings
 ACC_MAX_CHG_CURRENT = 8  # (A DC) Maximum charging current of accumulator
 ACC_MIN_CHG_CURRENT = 0  # To prevent discharge
-ACC_DEFAULT_CHG_CURRENT = 4  # Standard charging current of accumulator
+ACC_DEFAULT_CHG_CURRENT = 6  # Standard charging current of accumulator
 ACC_DEFAULT_TARGET_V = 442  # (V DC) Default charging voltage of the accumulator
-ACC_MIN_TARGET_V = 390  # Maximum voltage to charge the accumulator to
+ACC_MIN_TARGET_V = 370  # Maximum voltage to charge the accumulator to
 ACC_MAX_TARGET_V = 454  # Maximum voltage to charge the accumulator to
 ACC_MAX_FAN_SPEED = 100  # 100%
 ACC_MIN_FAN_SPEED = 0  # 0%
@@ -26,16 +26,17 @@ ACC_MAX_CELL_VOLTAGE = 4.2  # Maximum voltage allowed for a cell. If this voltag
 ACC_CELLS_VOLTAGES_COUNT = 108
 ACC_CELLS_TEMPS_COUNT = 216
 ACC_SEGMENT_COUNT = 6
-ACC_CELLS_VOLTAGES_PER_SEGMENT = ACC_CELLS_VOLTAGES_COUNT / ACC_SEGMENT_COUNT
-ACC_CELLS_TEMPS_PER_SEGMENT = ACC_CELLS_TEMPS_COUNT / ACC_SEGMENT_COUNT
+ACC_CELLS_VOLTAGES_PER_SEGMENT = ACC_CELLS_VOLTAGES_COUNT // ACC_SEGMENT_COUNT
+ACC_CELLS_TEMPS_PER_SEGMENT = ACC_CELLS_TEMPS_COUNT // ACC_SEGMENT_COUNT
 ACC_CELLBOARD_COUNT = 6
 ACC_PRECHARGE_FINISH_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
+ACC_BALANCING_THRESHOLD = 10  # mV
 
 # Feedbacks ADC stuff
 ADC_BUS = 0
 ADC_DEVICE = 1
 ADC_SPI_MODE = 3
-ADC_SPI_MAX_SPEED = 1 * (10 ** 6) # HZ
+ADC_SPI_MAX_SPEED = 1 * (10 ** 6)  # HZ
 ADC_VREF = 3.310  # V
 ADC_V_DIVIDER_CORRECTION = 1.3  # Correction value to match real voltage
 
@@ -55,6 +56,7 @@ ENABLE_LED = False
 ENABLE_GUI = True
 ENABLE_BUZZER = True
 ENABLE_FEEDBACKS = True
+ENABLE_TELEMETRY_SETTINGS = False
 
 from common.can_classes import *  # This inits all the enums in the can_classes.py file, not move
 

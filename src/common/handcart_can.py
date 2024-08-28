@@ -10,9 +10,9 @@ import common.accumulator.bms as bms
 from settings import *
 from .can_classes import STATE
 from .charger.alpitronic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, ID_HYC_Grid_Voltage, \
-    ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, ID_HYC_Target, dbc_littlesic, \
+    ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, dbc_littlesic, \
     ID_HYC_Alive
-from .logging import log_error, tprint, P_TYPE
+from .logging import tprint, P_TYPE
 
 
 def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
@@ -277,7 +277,8 @@ def thread_2_CAN(shared_data: CanListener,
     )
 
     m_handcart_status: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
-    m_handcart_settings: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS)
+    m_handcart_settings: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+        primary_ID_HANDCART_SETTINGS)
 
     try:
         enc_data = m_handcart_status.encode({
@@ -321,7 +322,7 @@ def thread_2_CAN(shared_data: CanListener,
         Returns:
 
         """
-        #TODO test
+        # TODO test
         data_handcart_settings = {
             "target_voltage": shared_data.target_v,
             "fans_override": shared_data.bms_hv.fans_set_override_status.value,
@@ -343,17 +344,17 @@ def thread_2_CAN(shared_data: CanListener,
         with forward_lock:
             if shared_data.charger.reset_asked:
                 msg.data[0] = 0x01
-                #task_charger_ctrl.modify_data(msg_charger_ctrl)
+                # task_charger_ctrl.modify_data(msg_charger_ctrl)
                 return
 
             if shared_data.can_charger_charge_enabled:
                 if msg_charger_ctrl.data[0] != 0x02:
                     msg.data[0] = 0x02  # Start charge command
-                    #task_charger_ctrl.modify_data(msg_charger_ctrl)
+                    # task_charger_ctrl.modify_data(msg_charger_ctrl)
             else:
                 if msg_charger_ctrl.data[0] != 0x00:
                     msg.data[0] = 0x00  # Stop charge command
-                    #task_charger_ctrl.modify_data(msg_charger_ctrl)
+                    # task_charger_ctrl.modify_data(msg_charger_ctrl)
 
     def modify_callback_charger_target(msg: Message):
         with forward_lock:
@@ -379,7 +380,6 @@ def thread_2_CAN(shared_data: CanListener,
 
     def modify_callback_charger_alive(msg: Message):
         with forward_lock:
-
             enc_data = m_charger_alive.encode(
                 {
                     "AliveCnt": 0,
