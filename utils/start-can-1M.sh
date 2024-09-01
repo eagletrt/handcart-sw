@@ -1,4 +1,5 @@
 #!/bin/bash
+sudo ifconfig can0 down
 sudo modprobe can
 sudo ip link set can0 type can bitrate 1000000
 sudo ip link set can0 up

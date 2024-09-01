@@ -492,14 +492,8 @@ class Gui():
                 },
                 Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
                     "com-type": "fan-override-set-speed",
-                    "value": float(float(
+                    "value": int(float(
                         self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
-                },
-                Element.SETTING_CHARGER_FAN_MIN: lambda: {
-                    "com-type": "fan-override-set-speed",
-                    "value": int(
-                        float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][
-                                  0]) * 100)
                 }
             }
 
@@ -755,10 +749,13 @@ class Gui():
 
         self.main_charger_values = [
             ["status", "-"],
-            ["Actual V out", "-"],
+            ["Actual VDC out", "-"],
             ["Actual A out", "-"],
             ["Temp max", "-"],
             ["swVersion", "-"],
+            ["Phase L1 VAC", "-"],
+            ["Phase L2 VAC", "-"],
+            ["Phase L3 VAC", "-"],
             ["Warnings", "-"],
             ["Errors", "-"]
         ]
@@ -781,7 +778,6 @@ class Gui():
             ["Status", "-"],
             ["target V", "-"],
             ["Max current out", "-"],
-            ["Max current in", "-"],
             ["Fan override", "-"],
             ["fan override speed", "-"],
             [FB.VSD_FB, "-"],
@@ -834,6 +830,9 @@ class Gui():
                 ["Actual A out", self.shared_data.charger.act_current],
                 ["Temp max", self.shared_data.charger.max_temp],
                 ["swVersion", self.shared_data.charger.sw_version],
+                ["Phase L1 VAC", self.shared_data.charger.act_mains_L1_voltage],
+                ["Phase L2 VAC", self.shared_data.charger.act_mains_L2_voltage],
+                ["Phase L3 VAC", self.shared_data.charger.act_mains_L3_voltage],
                 ["Warnings", str(self.shared_data.charger.warning)],
                 ["Errors", str(self.shared_data.charger.error)]
             ]
@@ -842,7 +841,6 @@ class Gui():
                 ["Status", self.shared_data.FSM_stat.name],
                 ["target V", self.shared_data.target_v],
                 ["Max current out", self.shared_data.act_set_out_current],
-                ["Max current in", 0],
                 ["Fan override",
                  str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
                 ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
