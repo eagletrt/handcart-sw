@@ -2,13 +2,13 @@
 
 Handcart documentation -> docs/ folder
 
-## Start the backend directly (When telemetry dead)
+## Start the backend without telemetry
 
 ```bash
 bash start_cli_no_tele.sh
 ```
 
-## Start the backend service (to be used through telemetry)
+## Restart handcart service
 ```bash
 bash utils/restart_service.sh
 ```

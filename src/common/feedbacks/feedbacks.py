@@ -61,8 +61,8 @@ class Feedbacks(threading.Thread):
             done = False
             while not done:
                 data = self.spi.readbytes(2)
-                if data == [0,0]:
-                    done = True # nothing more to read
+                if data == [0, 0]:
+                    done = True  # nothing more to read
                 b: bytes = bytes(data)
                 val = int.from_bytes(b, byteorder="big")
 

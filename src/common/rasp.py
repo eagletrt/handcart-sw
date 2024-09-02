@@ -14,6 +14,7 @@ def GPIO_setup():
     GPIO.setup(PIN.BUT_3.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
     GPIO.setup(PIN.BUT_4.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set pullup only if PCB has not
     GPIO.setup(PIN.PON_CONTROL.value, GPIO.OUT)
+    GPIO.setup(PIN.DISCHARGE.value, GPIO.OUT)
     GPIO.setup(PIN.ROT_A.value, GPIO.IN)
     GPIO.setup(PIN.ROT_B.value, GPIO.IN)
     GPIO.setup(PIN.SD_RELAY.value, GPIO.OUT)
@@ -28,3 +29,4 @@ def resetGPIOs():
     GPIO.output(PIN.GREEN_LED.value, GPIO.LOW)
     GPIO.output(PIN.BLUE_LED.value, GPIO.LOW)
     GPIO.output(PIN.RED_LED.value, GPIO.LOW)
+    GPIO.output(PIN.DISCHARGE.value, GPIO.LOW)

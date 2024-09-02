@@ -7,10 +7,12 @@ from can import Listener
 from cantools.database import DecodeError
 
 import common.accumulator.bms as bms
-from common.charger.brusa.brusa import *
 from settings import *
 from .can_classes import STATE
-from .logging import log_error, tprint
+from .charger.alpitronic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, ID_HYC_Grid_Voltage, \
+    ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, dbc_littlesic, \
+    ID_HYC_Alive
+from .logging import tprint, P_TYPE
 
 
 def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
@@ -96,24 +98,26 @@ class CanListener:
 
     generic_error = False
     can_err = False
-    target_v = DEFAULT_TARGET_V_ACC
-    act_set_out_current = DEFAULT_ACC_CHG_AMPERE
-    act_set_in_current = DEFAULT_CHARGE_MAINS_AMPERE
-    can_forward_enabled = False
+    target_v = ACC_DEFAULT_TARGET_V
+    act_set_out_current = ACC_DEFAULT_CHG_CURRENT
+    can_charger_charge_enabled = False
 
-    brusa = BRUSA()
+    charger = LittleSIC()
     bms_hv = bms.BMS_HV()
 
     feedbacks: list[float] = [0.0 for i in range(11)]
 
     # Maps the incoming can msgs to relative function
     doMsg = {
-        # brusa
-        CAN_BRUSA_MSG_ID.NLG5_ST.value: brusa.doNLG5_ST,
-        CAN_BRUSA_MSG_ID.NLG5_ACT_I.value: brusa.doNLG5_ACT_I,
-        CAN_BRUSA_MSG_ID.NLG5_ACT_II.value: brusa.doNLG5_ACT_II,
-        CAN_BRUSA_MSG_ID.NLG5_ERR.value: brusa.doNLG5_ERR,
-        CAN_BRUSA_MSG_ID.NLG5_TEMP.value: brusa.doNLG5_TEMP,
+        # charger
+        ID_HYC_Status: charger.do_HYC_Status,
+        ID_HYC_Actual: charger.do_HYC_Actual,
+        ID_HYC_Grid_Voltage: charger.do_HYC_Grid_Voltage,
+        ID_HYC_Maintenance2: charger.do_HYC_Maintenance,
+        ID_HYC_Temperature: charger.do_HYC_Temperature,
+        ID_HYC_Version: charger.do_HYC_Version,
+        ID_HYC_Error: charger.do_HYC_Error,
+        ID_HYC_Warning: charger.do_HYC_Warnings,
 
         # BMS_HV Fenice
         primary_ID_HV_TOTAL_VOLTAGE: bms_hv.doHV_TOTAL_VOLTAGE,
@@ -128,7 +132,8 @@ class CanListener:
         primary_ID_HV_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
         primary_ID_HV_FANS_STATUS: bms_hv.doHV_FANS_STATUS,
         primary_ID_HV_MAINBOARD_VERSION: bms_hv.do_HV_MAINBOARD_VERSION,
-        primary_ID_HV_CELLBOARD_VERSION: bms_hv.do_HV_CELLBOARD_VERSION
+        primary_ID_HV_CELLBOARD_VERSION: bms_hv.do_HV_CELLBOARD_VERSION,
+        primary_ID_HV_FEEDBACK_STATUS: bms_hv.do_HV_FEEDBACK_STATUS
     }
 
     # Function called when a new message arrive, maps it to
@@ -177,11 +182,11 @@ def canInit(listener):
     :return:
     """
     try:
-        canbus = can.interface.Bus(interface="socketcan", channel=CAN_INTERFACE)
+        bus = can.interface.Bus(interface="socketcan", channel=CAN_INTERFACE)
         # links the bus with the listener
-        notif = can.Notifier(canbus, [listener])
+        notif = can.Notifier(bus, [listener])
 
-        return canbus
+        return bus
     except ValueError:
         print("Can channel not recognized")
         # canread.can_err = True
@@ -218,6 +223,7 @@ def thread_2_CAN(shared_data: CanListener,
             it then put the message in the rx queue
             :param msg: the incoming message
             """
+            """
             if msg.arbitration_id == primary_ID_HANDCART_SET_SETTINGS:
                 # tprint(str(msg), P_TYPE.DEBUG)
                 try:
@@ -227,110 +233,199 @@ def thread_2_CAN(shared_data: CanListener,
                             command_queue.put(c)
                 except can.CanError:
                     shared_data.can_err = True
-
+            """
             rx_can_queue.put(msg)
 
     can_r_w = Can_rx_listener()
     canbus = canInit(can_r_w)
+    something_attacched_to_bus = False
+
+    # Charger periodic control message
+    msg_charger_ctrl = can.Message(
+        arbitration_id=ID_HYC_Ctrl,
+        data=[0x00],
+        is_extended_id=False
+    )
+
+    m_charger_alive = dbc_littlesic.get_message_by_name("HYC_Alive")
+    enc_data = m_charger_alive.encode(
+        {
+            "AliveCnt": 0,
+            "fanMin": 0,
+            "fanMax": 100
+        }
+    )
+
+    msg_charger_alive = can.Message(
+        arbitration_id=ID_HYC_Alive,
+        data=enc_data,
+        is_extended_id=False
+    )
+
+    m_charger_target = dbc_littlesic.get_message_by_name("HYC_Target")
+    enc_data = m_charger_target.encode(
+        {
+            "uTarget": 0,
+            "iTarget": 0
+        }
+    )
+
+    msg_charger_target = can.Message(
+        arbitration_id=m_charger_target.frame_id,
+        data=enc_data,
+        is_extended_id=False
+    )
+
+    m_handcart_status: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
+    m_handcart_settings: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+        primary_ID_HANDCART_SETTINGS)
+
+    try:
+        enc_data = m_handcart_status.encode({
+            "connected": Toggle.ON.value
+        })
+    except cantools.database.EncodeError:
+        shared_data.can_err = True
+        return
+
+    msg_handcart_presence = can.Message(
+        arbitration_id=m_handcart_status.frame_id,
+        data=enc_data,
+        is_extended_id=False
+    )
+
+    data_handcart_settings = {
+        "target_voltage": shared_data.target_v,
+        "fans_override": shared_data.bms_hv.fans_set_override_status.value,
+        "fans_speed": shared_data.bms_hv.fans_set_override_speed,
+        "acc_charge_current": shared_data.act_set_out_current,
+        "grid_max_current": 1,
+        "status": shared_data.FSM_stat.value
+    }
+
+    try:
+        enc_data = m_handcart_settings.encode(data_handcart_settings)
+    except cantools.database.EncodeError as e:
+        shared_data.can_err = True
+        tprint(f"Error in encoding handcart message: {e}", P_TYPE.ERROR)
+        return
+
+    msg_handcart_settings = can.Message(
+        arbitration_id=m_handcart_settings.frame_id,
+        data=enc_data,
+        is_extended_id=False
+    )
+
+    def modify_callback_handcart_settings(msg: Message):
+        """
+        Called every time the handcart settings message is sent
+        Returns:
+
+        """
+        # TODO test
+        data_handcart_settings = {
+            "target_voltage": shared_data.target_v,
+            "fans_override": shared_data.bms_hv.fans_set_override_status.value,
+            "fans_speed": shared_data.bms_hv.fans_set_override_speed,
+            "acc_charge_current": shared_data.act_set_out_current,
+            "grid_max_current": 0,
+            "status": shared_data.FSM_stat.value
+        }
+
+        try:
+            enc_data = m_handcart_settings.encode(data_handcart_settings)
+        except cantools.database.EncodeError:
+            shared_data.can_err = True
+            return
+
+        msg.data = enc_data
+
+    def modify_callback_charger_ctrl(msg: Message):
+        with forward_lock:
+            if shared_data.charger.reset_asked:
+                msg.data[0] = 0x01
+                # task_charger_ctrl.modify_data(msg_charger_ctrl)
+                return
+
+            if shared_data.can_charger_charge_enabled:
+                if msg_charger_ctrl.data[0] != 0x02:
+                    msg.data[0] = 0x02  # Start charge command
+                    # task_charger_ctrl.modify_data(msg_charger_ctrl)
+            else:
+                if msg_charger_ctrl.data[0] != 0x00:
+                    msg.data[0] = 0x00  # Stop charge command
+                    # task_charger_ctrl.modify_data(msg_charger_ctrl)
+
+    def modify_callback_charger_target(msg: Message):
+        with forward_lock:
+            m_charger_target = dbc_littlesic.get_message_by_name("HYC_Target")
+
+            # Check voltage command
+            if ACC_MIN_TARGET_V > shared_data.target_v > ACC_MAX_TARGET_V:
+                shared_data.can_err = True
+                return
+
+            # Check current command
+            if ACC_MIN_CHG_CURRENT > shared_data.act_set_out_current > ACC_MAX_CHG_CURRENT:
+                shared_data.can_err = True
+                return
+
+            enc_data = m_charger_target.encode(
+                {
+                    "uTarget": shared_data.target_v,
+                    "iTarget": shared_data.act_set_out_current
+                }
+            )
+            msg.data = enc_data
+
+    def modify_callback_charger_alive(msg: Message):
+        with forward_lock:
+            enc_data = m_charger_alive.encode(
+                {
+                    "AliveCnt": 0,
+                    "fanMin": shared_data.charger.set_min_fan_speed,
+                    "fanMax": shared_data.charger.set_max_fan_speed
+                }
+            )
+
+            msg.data = enc_data
+
+    def start_periodic_sends():
+        task_charger_ctrl = canbus.send_periodic(
+            msg_charger_ctrl, 0.01, modifier_callback=modify_callback_charger_ctrl)
+        task_charger_target = canbus.send_periodic(
+            msg_charger_target, 0.5, modifier_callback=modify_callback_charger_target
+        )
+        task_charger_alive = canbus.send_periodic(
+            msg_charger_alive, .1, modifier_callback=modify_callback_charger_alive
+        )
+        task_handcart_presence = canbus.send_periodic(msg_handcart_presence, 0.1)
+        task_handcart_settings = canbus.send_periodic(
+            msg_handcart_settings, 0.1, modifier_callback=modify_callback_handcart_settings)
+
+        if not isinstance(task_charger_ctrl, can.ModifiableCyclicTaskABC):
+            shared_data.can_err = True
+            tprint("The can interface doesn't seem to support modification", P_TYPE.ERROR)
+            return
 
     with lock:
         if canbus == False:
             shared_data.can_err = True
 
-    last_brusa_ctl_sent = 0
-    last_hc_presence_sent = 0
-
     while 1:
+        # This is just to avoid transmitting when there are no devices connected, to avoid filling the buffer
+        if shared_data.FSM_stat == STATE.CHECK:
+            if (not shared_data.bms_hv.isConnected()) and (not shared_data.charger.is_connected()):
+                if something_attacched_to_bus is True:
+                    canbus.stop_all_periodic_tasks()
+                    something_attacched_to_bus = False
+            else:
+                if something_attacched_to_bus is False:
+                    start_periodic_sends()
+                    something_attacched_to_bus = True
+
         time.sleep(0.001)
         while not tx_can_queue.empty():
             act = tx_can_queue.get()
-            canSend(canbus, act.arbitration_id, act.data, lock, shared_data)
-
-        # Handles the brusa ctl messages
-        with forward_lock:
-            # TODO change to can library
-            if time.time() - last_brusa_ctl_sent > 0.10:  # every tot time send a message
-                if shared_data.can_forward_enabled:
-                    with lock:
-                        if 0 < shared_data.target_v <= MAX_TARGET_V_ACC \
-                                and 0 <= shared_data.act_set_in_current <= MAX_CHARGER_GRID_CURRENT \
-                                and 0 <= shared_data.act_set_out_current < MAX_ACC_CHG_AMPERE:
-
-                            mains_ampere = shared_data.act_set_in_current
-                            out_ampere = shared_data.act_set_out_current
-                            try:
-                                data = message_NLG5_CTL.encode({
-                                    'NLG5_C_C_EN': 1,
-                                    'NLG5_C_C_EL': 0,
-                                    'NLG5_C_CP_V': 0,
-                                    'NLG5_C_MR': 0,
-                                    'NLG5_MC_MAX': mains_ampere,
-                                    'NLG5_OV_COM': shared_data.target_v,
-                                    'NLG5_OC_COM': out_ampere
-                                })
-                            except cantools.database.EncodeError:
-                                shared_data.can_err = True
-                        else:
-                            shared_data.generic_error = True
-                            tprint(f"Invalid settings for charging: {shared_data.target_v} V,"
-                                   f" in current: {shared_data.act_set_in_current} A,"
-                                   f" out current {shared_data.act_set_out_current}")
-                            log_error(f"Invalid settings to charge accumulator, got "
-                                      f"target volt:{shared_data.target_v}V, "
-                                      f"in_current:{shared_data.act_set_in_current}A,"
-                                      f"out_current:{shared_data.act_set_out_current}A")
-                else:
-                    # Brusa need to constantly keep to receive this msg, otherwise it will go in error
-                    try:
-                        data = message_NLG5_CTL.encode({
-                            'NLG5_C_C_EN': 0,
-                            'NLG5_C_C_EL': 0,
-                            'NLG5_C_CP_V': 0,
-                            'NLG5_C_MR': 0,
-                            'NLG5_MC_MAX': 0,
-                            'NLG5_OV_COM': 0,
-                            'NLG5_OC_COM': 0
-                        })
-                    except cantools.database.EncodeError:
-                        shared_data.can_err = True
-                NLG5_CTL_message = can.Message(arbitration_id=message_NLG5_CTL.frame_id,
-                                               data=data,
-                                               is_extended_id=False)
-                tx_can_queue.put(NLG5_CTL_message)
-                last_brusa_ctl_sent = time.time()
-            if time.time() - last_hc_presence_sent > 0.08:
-                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
-
-                try:
-                    data = m.encode({
-                        "connected": Toggle.ON.value
-                    })
-                except cantools.database.EncodeError:
-                    shared_data.can_err = True
-
-                status_message = can.Message(arbitration_id=m.frame_id,
-                                             data=data,
-                                             is_extended_id=False)
-                tx_can_queue.put(status_message)
-
-                # Send settings to telemetry
-                m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS)
-                data_ = {
-                    "target_voltage": shared_data.target_v,
-                    "fans_override": shared_data.bms_hv.fans_set_override_status.value,
-                    "fans_speed": shared_data.bms_hv.fans_set_override_speed,
-                    "acc_charge_current": shared_data.act_set_out_current,
-                    "grid_max_current": shared_data.act_set_in_current,
-                    "status": shared_data.FSM_stat.value
-                }
-                # tprint(str(data_), P_TYPE.DEBUG)
-                try:
-                    data = m.encode(data_)
-                except cantools.database.EncodeError:
-                    shared_data.can_err = True
-
-                status_message = can.Message(arbitration_id=m.frame_id,
-                                             data=data,
-                                             is_extended_id=False)
-                tx_can_queue.put(status_message)
-                last_hc_presence_sent = time.time()
+            if something_attacched_to_bus:
+                canSend(canbus, act.arbitration_id, act.data, lock, shared_data)

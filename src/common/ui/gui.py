@@ -5,7 +5,7 @@ import tkinter
 import pyautogui
 import ttkbootstrap as ttk
 from RPi import GPIO
-from RPi.GPIO import RISING
+from RPi.GPIO import RISING, FALLING
 from ttkbootstrap.constants import *
 
 from common.buzzer import BuzzerNote
@@ -77,16 +77,18 @@ class Element(Enum):
     SETTING_MAX_OUT_CURRENT = 3
     SETTING_FAN_OVERRIDE_STATUS = 4
     SETTING_FAN_OVERRIDE_SPEED = 5
-    SETTING_MAX_IN_CURRENT = 6
+    SETTING_CHARGER_FAN_MIN = 6
+    SETTING_CHARGER_FAN_MAX = 7
 
 
 # limits for the possible values of the settings in the interface
 SETTING_ELEMENT_LIMIT = {
-    Element.SETTING_CUTOFF: {"min": 350, "max": 450, "step": 1},
-    Element.SETTING_MAX_OUT_CURRENT: {"min": 0, "max": 8, "step": .2},
+    Element.SETTING_CUTOFF: {"min": ACC_MIN_TARGET_V, "max": ACC_MAX_TARGET_V, "step": 1},
+    Element.SETTING_MAX_OUT_CURRENT: {"min": ACC_MIN_CHG_CURRENT, "max": ACC_MAX_CHG_CURRENT, "step": .2},
     Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
     Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
-    Element.SETTING_MAX_IN_CURRENT: {"min": 0, "max": 16, "step": .5}
+    Element.SETTING_CHARGER_FAN_MIN: {"min": 0, "max": 100, "step": 5},
+    Element.SETTING_CHARGER_FAN_MAX: {"min": 0, "max": 100, "step": 5}
 }
 
 
@@ -104,7 +106,8 @@ def is_settings_element(el: Element) -> bool:
         Element.SETTING_MAX_OUT_CURRENT,
         Element.SETTING_FAN_OVERRIDE_STATUS,
         Element.SETTING_FAN_OVERRIDE_SPEED,
-        Element.SETTING_MAX_IN_CURRENT
+        Element.SETTING_CHARGER_FAN_MIN,
+        Element.SETTING_CHARGER_FAN_MAX
     ]
 
 
@@ -234,7 +237,7 @@ class Gui():
     button_stop_balance: ttk.Button
     button_go_idle: ttk.Button
 
-    last_fsm_state: STATE = STATE.CHECK
+    last_fsm_state: STATE = None
 
     # Main window
     tab_main: ttk.Frame
@@ -245,8 +248,8 @@ class Gui():
     MAIN_CENTER_WIDTH: int
     main_bms_values: list[list[str]]
     main_table_bms: list[list[tkinter.Entry]]
-    main_brusa_values: list[list[str]]
-    main_table_brusa: list[list[tkinter.Entry]]
+    main_charger_values: list[list[str]]
+    main_table_charger: list[list[tkinter.Entry]]
     main_handcart_values: list[list[str]]
     main_table_handcart: list[list[tkinter.Entry]]
 
@@ -254,20 +257,20 @@ class Gui():
     settings_name_value: list[list[str]]
     settings_name_table: list[list[tkinter.Entry]]
     tab_settings: ttk.Frame
-    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
-    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1]]
+    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
+    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
     settings_set_value_table: list[list[tkinter.Entry]]
 
     # voltages window
     tab_voltages: ttk.Frame
     bms_voltages_values = [
-        ["" for j in range(BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+        ["" for j in range(ACC_CELLS_VOLTAGES_PER_SEGMENT // 2)] for i in range((ACC_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Temperatures window
     tab_temperatures: ttk.Frame
     bms_temperatures_values = [
-        ["" for j in range(BMS_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((BMS_SEGMENT_COUNT * 3) - 1)
+        ["" for j in range(ACC_CELLS_TEMPS_PER_SEGMENT // 2)] for i in range((ACC_SEGMENT_COUNT * 3) - 1)
     ]
 
     # Logic
@@ -426,8 +429,7 @@ class Gui():
 
         # float values
         if self.selected_element in [Element.SETTING_MAX_OUT_CURRENT,
-                                     Element.SETTING_FAN_OVERRIDE_SPEED,
-                                     Element.SETTING_MAX_IN_CURRENT]:
+                                     Element.SETTING_FAN_OVERRIDE_SPEED]:
             val = float(self.settings_set_value[selected_settings_element_index][0])
             new_val = round(val + delta, 2)
             if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
@@ -437,7 +439,9 @@ class Gui():
 
         # int values
         if self.selected_element in [Element.SETTING_CUTOFF,
-                                     Element.SETTING_FAN_OVERRIDE_STATUS]:
+                                     Element.SETTING_FAN_OVERRIDE_STATUS,
+                                     Element.SETTING_CHARGER_FAN_MIN,
+                                     Element.SETTING_CHARGER_FAN_MAX]:
             val = int(self.settings_set_value[selected_settings_element_index][0])
             new_val = int(val + delta)
             if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
@@ -462,34 +466,40 @@ class Gui():
 
         tprint(f"Confirm element: {self.selected_element}", P_TYPE.DEBUG)
 
-        command_mapping = {
-            Element.SETTING_CUTOFF: lambda: {
-                "com-type": "cutoff",
-                "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
-            },
-            Element.SETTING_MAX_OUT_CURRENT: lambda: {
-                "com-type": "max-out-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
-            },
-            Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
-                "com-type": "fan-override-set-status",
-                "value": True if self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
-                                     0] == "1" else False
-            },
-            Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
-                "com-type": "fan-override-set-speed",
-                "value": int(
-                    float(self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
-            },
-            Element.SETTING_MAX_IN_CURRENT: lambda: {
-                "com-type": "max-in-current",
-                "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0])
-            },
-        }
+        if self.selected_element == Element.SETTING_CHARGER_FAN_MIN or \
+                self.selected_element == Element.SETTING_CHARGER_FAN_MAX:
+            with self.lock:
+                self.shared_data.charger.set_min_fan_speed = \
+                    int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0])
+                self.shared_data.charger.set_max_fan_speed = \
+                    int(self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0])
+        else:
+            # Send via command
+            command_mapping = {
+                Element.SETTING_CUTOFF: lambda: {
+                    "com-type": "cutoff",
+                    "value": int(self.settings_set_value[self.get_element_index(Element.SETTING_CUTOFF)][0])
+                },
+                Element.SETTING_MAX_OUT_CURRENT: lambda: {
+                    "com-type": "max-out-current",
+                    "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
+                },
+                Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
+                    "com-type": "fan-override-set-status",
+                    "value": True if
+                    self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
+                        0] == "1" else False
+                },
+                Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
+                    "com-type": "fan-override-set-speed",
+                    "value": int(float(
+                        self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
+                }
+            }
 
-        self.melody_queue.put({"melody": [(BuzzerNote.DO, 0.1)], "repeat": 1})
+            self.com_queue.put(command_mapping[self.selected_element]())
 
-        self.com_queue.put(command_mapping[self.selected_element]())
+        self.melody_queue.put({"melody": [(BuzzerNote.RE, 0.05)], "repeat": 2})
 
     def on_tab_changed(self, event: tkinter.Event):
         self.current_tab = self.root_center_tabs.index(self.root_center_tabs.select())
@@ -522,10 +532,10 @@ class Gui():
         self.root_center_tabs.pack(expand=1, fill=tkinter.BOTH)
 
         # Register callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_2.value, RISING, callback=self.callback_but_4, bouncetime=self.BOUNCETIME)
-        GPIO.add_event_detect(PIN.BUT_4.value, RISING, callback=self.callback_but_2, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_2.value, FALLING, callback=self.callback_but_4, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_4.value, FALLING, callback=self.callback_but_2, bouncetime=self.BOUNCETIME)
         GPIO.add_event_detect(PIN.ROT_B.value, RISING, callback=self.encoder_callback, bouncetime=2)  # encoder
-        GPIO.add_event_detect(PIN.BUT_0.value, RISING, callback=self.button_encoder_callback,
+        GPIO.add_event_detect(PIN.BUT_0.value, FALLING, callback=self.button_encoder_callback,
                               bouncetime=self.BOUNCETIME)
 
         self.root_center_tabs.select(self.tab_main)
@@ -624,10 +634,16 @@ class Gui():
             bootstyle=(SECONDARY),
             command=lambda: self.com_queue.put({"com-type": "shutdown", "value": True})
         )
+        self.button_clear_errors = ttk.Button(
+            self.root_bottom_center_button_container,
+            text="Restart handcart",
+            bootstyle=(SECONDARY),
+            command=restart
+        )
 
         # Setup callbacks for buttons
-        GPIO.add_event_detect(PIN.BUT_1.value, RISING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
-        GPIO.add_event_detect(PIN.BUT_3.value, RISING, callback=self.callback_but_3, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_1.value, FALLING, callback=self.callback_but_1, bouncetime=self.BOUNCETIME)
+        GPIO.add_event_detect(PIN.BUT_3.value, FALLING, callback=self.callback_but_3, bouncetime=self.BOUNCETIME)
 
         self.root_bottom_refresh()
 
@@ -638,10 +654,14 @@ class Gui():
         self.button_start_balance.grid_forget()
         self.button_stop_balance.grid_forget()
         self.button_go_idle.grid_forget()
+        self.button_clear_errors.grid_forget()
 
     def root_bottom_refresh(self):
         if self.last_fsm_state != self.shared_data.FSM_stat:
             self.root_bottom_button_reset()  # remove all buttons
+
+            if self.shared_data.FSM_stat == STATE.CHECK:
+                self.button_start_balance.grid(column=0, row=0)
 
             if self.shared_data.FSM_stat == STATE.IDLE:
                 self.button_start_precharge.grid(column=0, row=0)
@@ -663,6 +683,9 @@ class Gui():
 
             if self.shared_data.FSM_stat == STATE.BALANCING:
                 self.button_stop_balance.grid(column=0, row=0)
+
+            if self.shared_data.FSM_stat == STATE.ERROR:
+                self.button_clear_errors.grid(column=0, row=0)
 
             self.last_fsm_state = self.shared_data.FSM_stat
 
@@ -718,24 +741,26 @@ class Gui():
         self.main_center_center.grid(column=1, row=0)
         self.main_center_center.pack_propagate(False)  # prevents the frame to resize automatically
 
-        self.main_center_center_lbl_top = ttk.Label(self.main_center_center, text="BRUSA")
+        self.main_center_center_lbl_top = ttk.Label(self.main_center_center, text="Charger")
         self.main_center_center_lbl_top.pack(side=TOP)
 
         self.main_another_center_center = ttk.Frame(self.main_center_center)
         self.main_another_center_center.pack(fill=BOTH)
 
-        self.main_brusa_values = [
+        self.main_charger_values = [
             ["status", "-"],
-            ["Mains in VAC", "-"],
-            ["Mains in A", "-"],
-            ["Mains max in A", "-"],
-            ["Out VDC", "-"],
-            ["Out A", "-"],
-            ["Temperature °C", "-"],
+            ["Actual VDC out", "-"],
+            ["Actual A out", "-"],
+            ["Temp max", "-"],
+            ["swVersion", "-"],
+            ["Phase L1 VAC", "-"],
+            ["Phase L2 VAC", "-"],
+            ["Phase L3 VAC", "-"],
+            ["Warnings", "-"],
             ["Errors", "-"]
         ]
 
-        self.main_table_brusa = init_table(self.main_brusa_values, self.main_another_center_center)
+        self.main_table_charger = init_table(self.main_charger_values, self.main_another_center_center)
 
         self.main_center_right = ttk.Frame(
             self.tab_main,
@@ -753,7 +778,6 @@ class Gui():
             ["Status", "-"],
             ["target V", "-"],
             ["Max current out", "-"],
-            ["Max current in", "-"],
             ["Fan override", "-"],
             ["fan override speed", "-"],
             [FB.VSD_FB, "-"],
@@ -787,25 +811,36 @@ class Gui():
                 ["Cell delta V", self.shared_data.bms_hv.act_cell_delta],
                 ["Max temp °C", self.shared_data.bms_hv.max_temp],
                 ["Min temp °C", self.shared_data.bms_hv.min_temp],
-                ["Avg temp °C", self.shared_data.bms_hv.act_average_temp]
+                ["Avg temp °C", self.shared_data.bms_hv.act_average_temp],
             ]
 
-            self.main_brusa_values = [
-                ["status", self.shared_data.brusa.isConnected()],
-                ["Mains in VAC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MV_ACT"), 2))],
-                ["Mains in A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_MC_ACT"), 2))],
-                ["Mains max in A", str(round(self.shared_data.brusa.act_NLG5_ACT_II.get("NLG5_S_MC_M_CP"), 2))],
-                ["Out VDC", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OV_ACT"), 2))],
-                ["Out A", str(round(self.shared_data.brusa.act_NLG5_ACT_I.get("NLG5_OC_ACT"), 2))],
-                ["Temperature °C", str(round(self.shared_data.brusa.act_NLG5_TEMP.get("NLG5_P_TMP"), 2))],
-                ["Errors", str(self.shared_data.brusa.error)]
+            """
+            for i in self.shared_data.bms_hv.errors.keys():
+                if self.shared_data.bms_hv.errors[i] == 1:
+                    self.main_bms_values.append([i, self.shared_data.bms_hv.errors[i]])
+
+            for i in self.shared_data.bms_hv.feedbacks.keys():
+                if self.shared_data.bms_hv.feedbacks[i] == 1:
+                    self.main_bms_values.append([i, self.shared_data.bms_hv.feedbacks[i]])
+            """
+
+            self.main_charger_values = [
+                ["status", self.shared_data.charger.status.name],
+                ["Actual V out", self.shared_data.charger.act_voltage],
+                ["Actual A out", self.shared_data.charger.act_current],
+                ["Temp max", self.shared_data.charger.max_temp],
+                ["swVersion", self.shared_data.charger.sw_version],
+                ["Phase L1 VAC", self.shared_data.charger.act_mains_L1_voltage],
+                ["Phase L2 VAC", self.shared_data.charger.act_mains_L2_voltage],
+                ["Phase L3 VAC", self.shared_data.charger.act_mains_L3_voltage],
+                ["Warnings", str(self.shared_data.charger.warning)],
+                ["Errors", str(self.shared_data.charger.error)]
             ]
 
             self.main_handcart_values = [
                 ["Status", self.shared_data.FSM_stat.name],
                 ["target V", self.shared_data.target_v],
                 ["Max current out", self.shared_data.act_set_out_current],
-                ["Max current in", self.shared_data.act_set_in_current],
                 ["Fan override",
                  str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
                 ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
@@ -822,7 +857,7 @@ class Gui():
             ]
 
         update_table(self.main_bms_values, self.main_table_bms)
-        update_table(self.main_brusa_values, self.main_table_brusa)
+        update_table(self.main_charger_values, self.main_table_charger)
         update_table(self.main_handcart_values, self.main_table_handcart)
         self.tab_main.after(self.REFRESH_RATE, self.main_refresh)
 
@@ -877,10 +912,11 @@ class Gui():
 
         self.settings_name_value = [
             ["BMS target voltage (V)"],
-            ["BMS max input current (A)"],
+            ["BMS max charge current (A)"],
             ["BMS fan override status"],
             ["BMS fan override speed"],
-            ["CHARGER max grid current"]
+            ["Charger min fan speed"],
+            ["Charger max fan speed"]
         ]
 
         self.settings_name_table = init_table(self.settings_name_value, self.settings_another_center_left)
@@ -943,10 +979,15 @@ class Gui():
         self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
             "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_out(ev, el))
 
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
-            "<FocusIn>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_in(ev, el))  # select thing
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0].bind(
-            "<FocusOut>", lambda ev, el=Element.SETTING_MAX_IN_CURRENT: self.on_focus_out(ev, el))
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_CHARGER_FAN_MIN: self.on_focus_in(ev, el))  # select thing
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_CHARGER_FAN_MIN: self.on_focus_out(ev, el))  # select thing
+
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0].bind(
+            "<FocusIn>", lambda ev, el=Element.SETTING_CHARGER_FAN_MAX: self.on_focus_in(ev, el))
+        self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0].bind(
+            "<FocusOut>", lambda ev, el=Element.SETTING_CHARGER_FAN_MAX: self.on_focus_out(ev, el))
 
         self.settings_refresh()
 
@@ -956,7 +997,8 @@ class Gui():
             [self.shared_data.act_set_out_current],
             [1 if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 0],
             [self.shared_data.bms_hv.fans_override_speed],
-            [round(self.shared_data.brusa.act_NLG5_ACT_II.get('NLG5_S_MC_M_CP'), 2)]
+            [self.shared_data.charger.set_min_fan_speed],  # don't have a feedback
+            [self.shared_data.charger.set_max_fan_speed]  # don't have a feedback
         ]
         update_table(self.settings_actual_value, self.settings_actual_value_table)
 
@@ -972,9 +1014,12 @@ class Gui():
         if self.selected_element != Element.SETTING_FAN_OVERRIDE_SPEED:
             self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0] \
                 = self.shared_data.bms_hv.fans_set_override_speed
-        if self.selected_element != Element.SETTING_MAX_IN_CURRENT:
-            self.settings_set_value[self.get_element_index(Element.SETTING_MAX_IN_CURRENT)][0] \
-                = self.shared_data.act_set_in_current
+        if self.selected_element != Element.SETTING_CHARGER_FAN_MIN:
+            self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0] \
+                = self.shared_data.charger.set_min_fan_speed
+        if self.selected_element != Element.SETTING_CHARGER_FAN_MAX:
+            self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MAX)][0] \
+                = self.shared_data.charger.set_max_fan_speed
 
         update_table(self.settings_set_value, self.settings_set_value_table, state=NORMAL)
 
@@ -994,13 +1039,13 @@ class Gui():
             col = 0
 
             for index, voltage in enumerate(self.shared_data.bms_hv.hv_cells_act):
-                act_row = int(row_offset + (index % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2)))
+                act_row = int(row_offset + (index % (ACC_CELLS_VOLTAGES_PER_SEGMENT // 2)))
 
                 self.bms_voltages_values[col][act_row] = f"{voltage:.2f}"
 
-                if (index + 1) % (BMS_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
+                if (index + 1) % (ACC_CELLS_VOLTAGES_PER_SEGMENT // 2) == 0 and index != 0:
                     col += 1
-                if (index + 1) % BMS_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
+                if (index + 1) % ACC_CELLS_VOLTAGES_PER_SEGMENT == 0 and index != 0:
                     col += 1
 
         except IndexError:
@@ -1023,13 +1068,13 @@ class Gui():
             col = 0
 
             for index, temp in enumerate(self.shared_data.bms_hv.hv_temps_act):
-                act_row = int(row_offset + (index % (BMS_CELLS_TEMPS_PER_SEGMENT // 2)))
+                act_row = int(row_offset + (index % (ACC_CELLS_TEMPS_PER_SEGMENT // 2)))
 
                 self.bms_temperatures_values[col][act_row] = f"{temp:.2f}"
 
-                if (index + 1) % (BMS_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
+                if (index + 1) % (ACC_CELLS_TEMPS_PER_SEGMENT // 2) == 0 and index != 0:
                     col += 1
-                if ((index + 1) % BMS_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
+                if ((index + 1) % ACC_CELLS_TEMPS_PER_SEGMENT) == 0 and index != 0:
                     col += 1
 
         except IndexError:

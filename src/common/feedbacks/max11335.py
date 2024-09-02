@@ -1,8 +1,5 @@
 # datasheet https://www.analog.com/media/en/technical-documentation/data-sheets/max11335-max11340.pdf
 
-import time
-
-import spidev
 from bitstring import BitArray
 
 
