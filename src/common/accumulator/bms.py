@@ -264,7 +264,7 @@ class BMS_HV:
         self.is_balancing = Toggle(int(message.get("balancing_status").value))
         if self.is_balancing == Toggle.ON:
             self.balancing_cells = message.get("balancing_cells")  # TODO: check
-            #tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
+            # tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
 
     def doHV_FANS_STATUS(self, msg):
         """

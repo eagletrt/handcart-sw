@@ -248,6 +248,8 @@ class FSM(threading.Thread):
         # ask pork to do precharge
         # Send req to bms "TS_ON"
 
+        GPIO.output(PIN.DISCHARGE.value, GPIO.HIGH)  # pin discharge high (open discharge relay)
+
         # Check that charger is not charging
         if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
@@ -498,6 +500,15 @@ class FSM(threading.Thread):
                     next_stat = self.doState.get(STATE.ERROR)(self)
                 else:
                     next_stat = self.doState.get(act_stat)(self)
+
+            # Discharge
+            if self.canread.bms_hv.status not in [
+                HvStatus.PRECHARGE,
+                HvStatus.AIRN_CLOSE,
+                HvStatus.AIRP_CLOSE,
+                HvStatus.TS_ON]:
+                # If ts is not on, discharge pin is LOW (discharge relay closed)
+                GPIO.output(PIN.DISCHARGE.value, GPIO.LOW)
 
             if self.idle_asked:
                 next_stat = STATE.IDLE
