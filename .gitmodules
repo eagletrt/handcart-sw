@@ -3,3 +3,6 @@
 	path = src/can_eagle
 	url = https://github.com/eagletrt/can.git
 	branch = build
+[submodule "src/common/charger/littlesic"]
+	path = src/common/charger/littlesic
+	url = git@github.com:eagletrt/littlesic.git

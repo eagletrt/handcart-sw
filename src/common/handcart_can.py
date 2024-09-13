@@ -9,7 +9,7 @@ from cantools.database import DecodeError
 import common.accumulator.bms as bms
 from settings import *
 from .can_classes import STATE
-from .charger.alpitronic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, ID_HYC_Grid_Voltage, \
+from .charger.littlesic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, ID_HYC_Grid_Voltage, \
     ID_HYC_Maintenance2, ID_HYC_Temperature, ID_HYC_Version, ID_HYC_Error, ID_HYC_Warning, dbc_littlesic, \
     ID_HYC_Alive
 from .logging import tprint, P_TYPE

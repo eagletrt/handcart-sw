@@ -115,6 +115,7 @@ class Tab(Enum):
     TAB_MAIN = 0
     TAB_SETTINGS = 1
     TAB_ERRORS = 2
+    TAB_TEMP = 3
 
 
 class ScrollableFrame(ttk.Frame):
@@ -171,6 +172,8 @@ def restart():
 
     """
     try:
+        result = subprocess.run(["sudo", "ifconfig", "can0", "down"])
+        result = subprocess.run(["sudo", "ifconfig", "can0", "up"])
         result = subprocess.run(["sudo", "systemctl", "restart", "handcart-backend.service"])
     except Exception:
         tprint("Error during update", P_TYPE.ERROR)
@@ -317,13 +320,13 @@ class Gui():
 
     def change_tab(self, forward: bool):
         if forward:
-            if self.current_tab == Tab.TAB_ERRORS.value:
+            if self.current_tab == Tab.TAB_TEMP.value:
                 self.current_tab = Tab.TAB_MAIN.value
             else:
                 self.current_tab += 1
         elif not forward:
             if self.current_tab == Tab.TAB_MAIN.value:
-                self.current_tab = Tab.TAB_ERRORS.value
+                self.current_tab = Tab.TAB_TEMP.value
             else:
                 self.current_tab -= 1
 
