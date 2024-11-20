@@ -201,7 +201,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)  # Enable PON
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
 
         if self.balancing_command:
@@ -225,7 +225,7 @@ class FSM(threading.Thread):
         self.precharge_asked_time = 0
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
 
         # Make sure that acc is in ts off
@@ -251,7 +251,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.DISCHARGE.value, GPIO.HIGH)  # pin discharge high (open discharge relay)
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
             return STATE.IDLE
 
@@ -303,7 +303,7 @@ class FSM(threading.Thread):
         """
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
@@ -354,7 +354,7 @@ class FSM(threading.Thread):
         """
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
@@ -374,7 +374,7 @@ class FSM(threading.Thread):
             return STATE.IDLE
 
         # Check that charger is not charging
-        if self.canread.charger.is_charging():
+        if self.canread.charger.is_enabled():
             self.canread.can_charger_charge_enabled = False
 
         if not self.canread.bms_hv.is_balancing == Toggle.ON \
