@@ -4,7 +4,6 @@ import time
 
 import can
 from can import Listener
-from cantools.database import DecodeError
 
 import common.accumulator.bms as bms
 from common.charger.littlesic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_Status, ID_HYC_Actual, \
@@ -14,78 +13,6 @@ from common.charger.littlesic.LittleSIC import LittleSIC, ID_HYC_Ctrl, ID_HYC_St
 from settings import *
 from .can_classes import STATE
 from .logging import tprint, P_TYPE
-
-
-def do_HANDCART_SETTING_SET(msg: can.Message) -> list[dict[str, str | int]] | None:
-    """
-    Processes the HANDCART SETTING SET message from the telemetry and returns a list containing dict with the command
-    for the FSM
-    """
-    if not ENABLE_TELEMETRY_SETTINGS:
-        return
-
-    try:
-        data = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-    except DecodeError:
-        raise can.CanError
-
-    com_list = []
-    com: dict[str, str | bool] = {}
-
-    try:
-        com['com-type'] = 'cutoff'
-        com['value'] = int(data["target_voltage"])
-        com_list.append(com)
-        com = {}
-
-        com['com-type'] = 'fan-override-set-status'
-        fan_override_set_status = Toggle(int(data['fans_override'].value))
-        com['value'] = True if fan_override_set_status == Toggle.ON else False
-        com_list.append(com)
-        com = {}
-
-        com['com-type'] = 'fan-override-set-speed'
-        com['value'] = int(data['fans_speed'] * 100)
-        com_list.append(com)
-        com = {}
-
-        com['com-type'] = 'max-out-current'
-        com['value'] = float(data['acc_charge_current'])
-        com_list.append(com)
-        com = {}
-
-        com['com-type'] = 'max-in-current'
-        com['value'] = int(data['grid_max_current'])
-        com_list.append(com)
-
-        req_status = HandcartStatus(int(data['status'].value))
-
-        if req_status == HandcartStatus.BALANCING:
-            com['com-type'] = 'balancing'
-            com['value'] = True
-        if req_status == HandcartStatus.IDLE:
-            com['com-type'] = 'shutdown'
-            com['value'] = True
-        elif req_status == HandcartStatus.ERROR:
-            # TODO ?
-            pass
-        elif req_status == HandcartStatus.READY:
-            com['com-type'] = 'ready'
-            com['value'] = True
-        elif req_status == HandcartStatus.PRECHARGE:
-            com['com-type'] = 'precharge'
-            com['value'] = True
-        elif req_status == HandcartStatus.CHARGE:
-            com['com-type'] = 'charge'
-            com['value'] = True
-        elif req_status == HandcartStatus.CHARGE_DONE:
-            com['com-type'] = 'charge'
-            com['value'] = False
-
-    except KeyError:
-        raise can.CanError
-
-    return com_list
 
 
 class CanListener:
@@ -110,7 +37,7 @@ class CanListener:
 
     # Maps the incoming can msgs to relative function
     doMsg = {
-        # charger
+        # charger (littlesic)
         ID_HYC_Status: charger.do_HYC_Status,
         ID_HYC_Actual: charger.do_HYC_Actual,
         ID_HYC_Grid_Voltage: charger.do_HYC_Grid_Voltage,
@@ -120,22 +47,25 @@ class CanListener:
         ID_HYC_Error: charger.do_HYC_Error,
         ID_HYC_Warning: charger.do_HYC_Warnings,
 
-        # BMS_HV Fenice
-        primary_ID_HV_TOTAL_VOLTAGE: bms_hv.doHV_TOTAL_VOLTAGE,
-        primary_ID_HV_CURRENT: bms_hv.doHV_CURRENT,
-        primary_ID_HV_ENERGY: bms_hv.doHV_ENERGY,
-        primary_ID_HV_ERRORS: bms_hv.doHV_ERRORS,
-        primary_ID_HV_CELLS_TEMP_STATS: bms_hv.doHV_CELLS_TEMP_STATS,
-        primary_ID_HV_STATUS: bms_hv.doHV_STATUS,
-        primary_ID_HV_CELLS_VOLTAGE: bms_hv.doHV_CELLS_VOLTAGE,
-        primary_ID_HV_CELLS_VOLTAGE_STATS: bms_hv.doHV_CELLS_VOLTAGE_STATS,
-        primary_ID_HV_CELLS_TEMP: bms_hv.doHV_CELLS_TEMP,
-        primary_ID_HV_BALANCING_STATUS: bms_hv.doHV_BALANCING_STATUS,
-        primary_ID_HV_FANS_STATUS: bms_hv.doHV_FANS_STATUS,
-        primary_ID_HV_MAINBOARD_VERSION: bms_hv.do_HV_MAINBOARD_VERSION,
-        primary_ID_HV_CELLBOARD_VERSION: bms_hv.do_HV_CELLBOARD_VERSION,
-        primary_ID_HV_FEEDBACK_STATUS: bms_hv.do_HV_FEEDBACK_STATUS
+        # TSAC mainboard (accumulator) on the primary bus
+        primary_ID_TSAC_STATUS: bms_hv.doTSAC_STATUS,
+        primary_ID_TSAC_MB_VOLTAGE: bms_hv.doTSAC_MB_VOLTAGE,
+        primary_ID_TSAC_MB_CURRENT: bms_hv.doTSAC_MB_CURRENT,
+        primary_ID_TSAC_MB_TEMP: bms_hv.doTSAC_MB_TEMP,
+        primary_ID_TSAC_MB_ERROR: bms_hv.doTSAC_MB_ERROR,
+        primary_ID_TSAC_MB_FEEDBACK: bms_hv.doTSAC_MB_FEEDBACK,
+        primary_ID_TSAC_MB_VERSION: bms_hv.doTSAC_MB_VERSION,
     }
+    # TSAC cellboards: one frame per board, the handler resolves the board from the id
+    for _id in primary_ID_TSAC_CELLBOARD_VOLTAGE:
+        doMsg[_id] = bms_hv.doTSAC_CELLBOARD_VOLTAGE
+    for _id in primary_ID_TSAC_CELLBOARD_TEMP:
+        doMsg[_id] = bms_hv.doTSAC_CELLBOARD_TEMP
+    for _id in primary_ID_TSAC_CELLBOARD_BALANCING:
+        doMsg[_id] = bms_hv.doTSAC_CELLBOARD_BALANCING
+    for _id in primary_ID_TSAC_CELLBOARD_VERSION:
+        doMsg[_id] = bms_hv.doTSAC_CELLBOARD_VERSION
+    del _id
 
     # Function called when a new message arrive, maps it to
     # relative function based on ID
@@ -143,13 +73,10 @@ class CanListener:
         """
         This function is called whether a new message arrives, it then
         calls the corresponding function to process the message
-        :param msg: the incoming message
         """
         # print(f"[DEBUG] {msg}")
         if self.doMsg.get(msg.arbitration_id) is not None:
             try:
-                # message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-                # print(f"[DEBUG] received message: {message}")
                 self.doMsg.get(msg.arbitration_id)(msg)
             except KeyError:
                 self.can_err = True
@@ -224,17 +151,6 @@ def thread_2_CAN(shared_data: CanListener,
             it then put the message in the rx queue
             :param msg: the incoming message
             """
-            """
-            if msg.arbitration_id == primary_ID_HANDCART_SET_SETTINGS:
-                # tprint(str(msg), P_TYPE.DEBUG)
-                try:
-                    commands = do_HANDCART_SETTING_SET(msg)
-                    if commands is not None:
-                        for c in commands:
-                            command_queue.put(c)
-                except can.CanError:
-                    shared_data.can_err = True
-            """
             rx_can_queue.put(msg)
 
     can_r_w = Can_rx_listener()
@@ -276,70 +192,6 @@ def thread_2_CAN(shared_data: CanListener,
         data=enc_data,
         is_extended_id=False
     )
-
-    m_handcart_status: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
-    m_handcart_settings: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-        primary_ID_HANDCART_SETTINGS)
-
-    try:
-        enc_data = m_handcart_status.encode({
-            "connected": Toggle.ON.value
-        })
-    except cantools.database.EncodeError:
-        shared_data.can_err = True
-        return
-
-    msg_handcart_presence = can.Message(
-        arbitration_id=m_handcart_status.frame_id,
-        data=enc_data,
-        is_extended_id=False
-    )
-
-    data_handcart_settings = {
-        "target_voltage": shared_data.target_v,
-        "fans_override": shared_data.bms_hv.fans_set_override_status.value,
-        "fans_speed": shared_data.bms_hv.fans_set_override_speed,
-        "acc_charge_current": shared_data.act_set_out_current,
-        "grid_max_current": 1,
-        "status": shared_data.FSM_stat.value
-    }
-
-    try:
-        enc_data = m_handcart_settings.encode(data_handcart_settings)
-    except cantools.database.EncodeError as e:
-        shared_data.can_err = True
-        tprint(f"Error in encoding handcart message: {e}", P_TYPE.ERROR)
-        return
-
-    msg_handcart_settings = can.Message(
-        arbitration_id=m_handcart_settings.frame_id,
-        data=enc_data,
-        is_extended_id=False
-    )
-
-    def modify_callback_handcart_settings(msg: Message):
-        """
-        Called every time the handcart settings message is sent
-        Returns:
-
-        """
-        # TODO test
-        data_handcart_settings = {
-            "target_voltage": shared_data.target_v,
-            "fans_override": shared_data.bms_hv.fans_set_override_status.value,
-            "fans_speed": shared_data.bms_hv.fans_set_override_speed,
-            "acc_charge_current": shared_data.act_set_out_current,
-            "grid_max_current": 0,
-            "status": shared_data.FSM_stat.value
-        }
-
-        try:
-            enc_data = m_handcart_settings.encode(data_handcart_settings)
-        except cantools.database.EncodeError:
-            shared_data.can_err = True
-            return
-
-        msg.data = enc_data
 
     def modify_callback_charger_ctrl(msg: Message):
         with forward_lock:
@@ -400,9 +252,6 @@ def thread_2_CAN(shared_data: CanListener,
         task_charger_alive = canbus.send_periodic(
             msg_charger_alive, .1, modifier_callback=modify_callback_charger_alive
         )
-        task_handcart_presence = canbus.send_periodic(msg_handcart_presence, 0.1)
-        task_handcart_settings = canbus.send_periodic(
-            msg_handcart_settings, 0.1, modifier_callback=modify_callback_handcart_settings)
 
         if not isinstance(task_charger_ctrl, can.ModifiableCyclicTaskABC):
             shared_data.can_err = True

@@ -5,7 +5,7 @@ from cantools.database import Database
 
 # Import the dbc files -------------------------------------------------------------------------------------------------
 brusa_dbc_file = join(dirname(dirname(realpath(__file__))), "NLG5_BRUSA.dbc")
-DBC_PRIMARY_PATH = join(dirname(realpath(__file__)), "can_eagle", "dbc", "primary", "primary.dbc")
+DBC_PRIMARY_PATH = join(dirname(realpath(__file__)), "libcan", "dbc", "primary", "primary.dbc")
 dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
 dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
 # ----------------------------------------------------------------------------------------------------------------------
@@ -20,17 +20,16 @@ ACC_DEFAULT_CHG_CURRENT = 6  # Standard charging current of accumulator
 ACC_DEFAULT_TARGET_V = 442  # (V DC) Default charging voltage of the accumulator
 ACC_MIN_TARGET_V = 370  # Maximum voltage to charge the accumulator to
 ACC_MAX_TARGET_V = 454  # Maximum voltage to charge the accumulator to
-ACC_MAX_FAN_SPEED = 100  # 100%
-ACC_MIN_FAN_SPEED = 0  # 0%
 ACC_MAX_CELL_VOLTAGE = 4.2  # Maximum voltage allowed for a cell. If this voltage is reached, charge is stopped
-ACC_CELLS_VOLTAGES_COUNT = 108
-ACC_CELLS_TEMPS_COUNT = 216
-ACC_SEGMENT_COUNT = 6
-ACC_CELLS_VOLTAGES_PER_SEGMENT = ACC_CELLS_VOLTAGES_COUNT // ACC_SEGMENT_COUNT
-ACC_CELLS_TEMPS_PER_SEGMENT = ACC_CELLS_TEMPS_COUNT // ACC_SEGMENT_COUNT
+ACC_MIN_CELL_VOLTAGE = 2.0  # Lowest cell voltage we ever ask the pack to balance down to (RaspberryBalancingSet floor)
 ACC_CELLBOARD_COUNT = 6
+ACC_SEGMENT_COUNT = ACC_CELLBOARD_COUNT
+ACC_CELLS_VOLTAGES_PER_SEGMENT = 24
+ACC_CELLS_TEMPS_PER_SEGMENT = 48
+ACC_CELLS_VOLTAGES_COUNT = ACC_CELLS_VOLTAGES_PER_SEGMENT * ACC_CELLBOARD_COUNT
+ACC_CELLS_TEMPS_COUNT = ACC_CELLS_TEMPS_PER_SEGMENT * ACC_CELLBOARD_COUNT
 ACC_PRECHARGE_FINISH_TIMEOUT = 3  # Time allowed for the BMS to finish precharge
-ACC_BALANCING_THRESHOLD = 10  # mV
+ACC_BALANCING_THRESHOLD = 10  # mV (converted to V when encoding RaspberryBalancingSet.threshold)
 
 # Feedbacks ADC stuff
 ADC_BUS = 0
@@ -50,7 +49,6 @@ CAN_CHARGER_PRESENCE_TIMEOUT = 0.4  # in seconds
 
 ERROR_LOG_FILE_PATH = "errors.log"
 
-ENABLE_FAN_CONTROL = True  # Put false to disable handcart fan control over bms
 ENABLE_WEB = False  # deprecated for new charger
 ENABLE_LED = False
 ENABLE_GUI = True

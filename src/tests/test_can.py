@@ -1,144 +1,130 @@
-from os.path import join, dirname, realpath
+"""
+Tests for the primary-CAN handling after the libcan-sw swap.
 
-import can
-import cantools
-from cantools.database import Database
-from cantools.database.can import message
+These exercise the encode/decode paths only, so they run without any CAN hardware
+(they build frames straight from the dbc and feed them to the decoders).
+"""
+import sys
+import time
+from os.path import dirname, realpath
 
-import common.handcart_can as handcart_can
-from common.can_classes import HandcartStatus, primary_ID_HV_STATUS, primary_ID_HANDCART_STATUS, \
-    primary_ID_HANDCART_SET_SETTINGS
+# Make ``settings`` / ``common`` importable no matter the cwd pytest is invoked from
+SRC = dirname(dirname(realpath(__file__)))
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
 
-brusa_dbc_file = join(dirname(dirname(dirname(realpath(__file__)))), "NLG5_BRUSA.dbc")
-BMS_DBC_PATH = join(dirname(dirname(realpath(__file__))), "can_eagle", "dbc", "bms", "bms.dbc")
-DBC_PRIMARY_PATH = join(dirname(dirname(realpath(__file__))), "can_eagle", "dbc", "primary", "primary.dbc")
-dbc_brusa: Database = cantools.database.load_file(brusa_dbc_file)
-dbc_bms: Database = cantools.database.load_file(BMS_DBC_PATH)  # load the bms dbc file
-dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load the bms dbc file
-
-
-def test_1():
-    for i in dbc_primary.messages:
-        print(i)
-    m: message = dbc_primary.get_message_by_frame_id("HV_MAINBOARD_VERSION")
-
-    for j in m.signals:
-        print(j)
-
-    data = m.encode({"component_build_time": 12, "canlib_build_time": 123})
-
-    can_message = can.Message(arbitration_id=m.frame_id, data=data)
-
-    recv_data = dbc_primary.decode_message(can_message.arbitration_id, can_message.data)
-
-    print(recv_data)
+from settings import dbc_primary, ACC_CELLS_VOLTAGES_PER_SEGMENT, ACC_BALANCING_THRESHOLD
+from common.accumulator.bms import BMS_HV
+from common.can_classes import (
+    HvStatus, Toggle,
+    primary_ID_BMS_SET, primary_ID_RASPBERRY_BALANCING_SET,
+)
 
 
-m: message = dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS)
+class FakeMsg:
+    """Minimal stand-in for a python-can Message (what the BMS decoders touch)."""
+
+    def __init__(self, arbitration_id, data, timestamp=None):
+        self.arbitration_id = arbitration_id
+        self.data = data
+        self.timestamp = time.time() if timestamp is None else timestamp
 
 
-def test_2():
-    for i in dbc_primary.messages:
-        print(i)
-    m: message = dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_STATUS)
-
-    print(m)
-    print(m.signals)
-    for j in m.signals:
-        print(f"\"{j.name}\" : None,")
+def _frame(name: str, signals: dict) -> FakeMsg:
+    m = dbc_primary.get_message_by_name(name)
+    return FakeMsg(m.frame_id, m.encode(signals))
 
 
-def test_HANDCART_SET_COMMAND():
-    message = dbc_primary.get_message_by_name(primary_ID_HANDCART_SET_SETTINGS)
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 0,
-        "fans_speed": 0,
-        "acc_charge_current": 4,
-        "grid_max_current": 4,
-        "status": HandcartStatus.NONE.value
+def test_primary_has_expected_messages():
+    for name in ["TsacStatus", "TsacMainboardVoltageInfo", "TsacMainboardCurrentInfo",
+                 "TsacMainboardTemperatureInfo", "TsacMainboardError", "TsacMainboardFeedback",
+                 "TsacCellboard1Voltage", "TsacCellboard1Temperature", "TsacCellboard1Balancing",
+                 "BmsSet", "RaspberryBalancingSet"]:
+        assert dbc_primary.get_message_by_name(name) is not None
+
+
+def _status_frame(mainboard_status: int) -> FakeMsg:
+    return _frame("TsacStatus", {
+        "mainboardStatus": mainboard_status,
+        "cellboard1Status": 1, "cellboard2Status": 1, "cellboard3Status": 1,
+        "cellboard4Status": 1, "cellboard5Status": 1, "cellboard6Status": 1,
     })
-    print(HandcartStatus.CHECK.value)
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
 
-    assert commands == [{'com-type': 'cutoff', 'value': 449.7725490196078},
-                        {'com-type': 'fan-override-set-status', 'value': False},
-                        {'com-type': 'fan-override-set-speed', 'value': 0.0},
-                        {'com-type': 'max-out-current', 'value': 4.0}, {'com-type': 'max-in-current', 'value': 4.0}]
 
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 1,
-        "fans_speed": 0.59,
-        "acc_charge_current": 6,
-        "grid_max_current": 6,
-        "status": HandcartStatus.NONE.value
-    })
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
+def test_tsac_status_decode():
+    bms = BMS_HV()
 
-    assert {"com-type": "fan-override-set-status", "value": True} in commands
-    for i in commands:
-        if i["com-type"] == "fan-override-set-speed":
-            assert (58 <= i["value"] <= 59)
+    bms.doTSAC_STATUS(_status_frame(HvStatus.TS_ON.value))
+    assert bms.status == HvStatus.TS_ON
+    assert bms.is_balancing == Toggle.OFF
 
-        if i["com-type"] == "max-out-current":
-            assert i["value"] == 6
+    bms.doTSAC_STATUS(_status_frame(HvStatus.BALANCING.value))
+    assert bms.status == HvStatus.BALANCING
+    assert bms.is_balancing == Toggle.ON
 
-        if i["com-type"] == "max-in-current":
-            assert i["value"] == 6
 
-    # Check set status IDLE
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 1,
-        "fans_speed": 0.59,
-        "acc_charge_current": 6,
-        "grid_max_current": 6,
-        "status": HandcartStatus.IDLE.value
-    })
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type": "shutdown", "value": True} in commands
+def test_mainboard_voltage_decode():
+    bms = BMS_HV()
+    bms.doTSAC_MB_VOLTAGE(_frame("TsacMainboardVoltageInfo", {
+        "ts": 400, "total": 410, "cellSum": 405, "average": 3.8, "min": 3.5, "max": 4.0,
+    }))
+    assert bms.act_pack_voltage == 410
+    assert bms.act_bus_voltage == 400
+    assert abs(bms.min_cell_voltage - 3.5) < 1e-6
+    assert abs(bms.max_cell_voltage - 4.0) < 1e-6
+    assert abs(bms.act_cell_delta - 0.5) < 1e-6
 
-    # Check set status PRECHARGE
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 1,
-        "fans_speed": 0.59,
-        "acc_charge_current": 6,
-        "grid_max_current": 6,
-        "status": HandcartStatus.PRECHARGE.value
-    })
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type": "precharge", "value": True} in commands
 
-    # Check set status CHARGE
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 1,
-        "fans_speed": 0.59,
-        "acc_charge_current": 6,
-        "grid_max_current": 6,
-        "status": HandcartStatus.CHARGE.value
-    })
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type": "charge", "value": True} in commands
+def test_mainboard_current_decode():
+    bms = BMS_HV()
+    bms.doTSAC_MB_CURRENT(_frame("TsacMainboardCurrentInfo", {"current": 12.3, "power": 5.0}))
+    assert abs(bms.act_current - 12.3) < 0.1  # abs value, 0.1 A resolution
+    assert abs(bms.act_power - 5.0) < 0.1
 
-    # Check set status CHARGE_DONE
-    data = message.encode({
-        "target_voltage": 450,
-        "fans_override": 1,
-        "fans_speed": 0.59,
-        "acc_charge_current": 6,
-        "grid_max_current": 6,
-        "status": HandcartStatus.CHARGE_DONE.value
-    })
-    can_message = can.Message(arbitration_id=message.frame_id, data=data, is_extended_id=False)
-    commands = handcart_can.do_HANDCART_SETTING_SET(can_message)
-    assert {"com-type": "charge", "value": False} in commands
 
-    print(commands)
+def test_cellboard_voltage_placed_at_right_index():
+    bms = BMS_HV()
+    # Cellboard 3 (index 2), multiplexer group 0 carries cell1..cell6
+    m = dbc_primary.get_message_by_name("TsacCellboard3Voltage")
+    data = m.encode({"group": 0, "cell1": 3.1, "cell2": 3.2, "cell3": 3.3,
+                     "cell4": 3.4, "cell5": 3.5, "cell6": 3.6})
+    bms.doTSAC_CELLBOARD_VOLTAGE(FakeMsg(m.frame_id, data))
+
+    base = 2 * ACC_CELLS_VOLTAGES_PER_SEGMENT
+    assert abs(bms.hv_cells_act[base + 0] - 3.1) < 1e-3
+    assert abs(bms.hv_cells_act[base + 5] - 3.6) < 1e-3
+
+
+def test_cellboard_balancing_collects_cells():
+    bms = BMS_HV()
+    bms.balancing_cells = []
+    m = dbc_primary.get_message_by_name("TsacCellboard1Balancing")
+    signals = {f"cell{i}": 0 for i in range(1, 25)}
+    signals["cell1"] = 1
+    signals["cell5"] = 1
+    bms.doTSAC_CELLBOARD_BALANCING(FakeMsg(m.frame_id, m.encode(signals)))
+    assert 0 in bms.balancing_cells   # cell1 -> index 0
+    assert 4 in bms.balancing_cells   # cell5 -> index 4
+
+
+def test_bms_set_roundtrip():
+    m = dbc_primary.get_message_by_frame_id(primary_ID_BMS_SET)
+    data = m.encode({"status": Toggle.ON.value})
+    assert int(dbc_primary.decode_message(primary_ID_BMS_SET, data)["status"]) == 1
+
+
+def test_raspberry_balancing_set_roundtrip():
+    m = dbc_primary.get_message_by_frame_id(primary_ID_RASPBERRY_BALANCING_SET)
+    data = m.encode({"start": Toggle.ON.value, "target": 3.5, "threshold": ACC_BALANCING_THRESHOLD / 1000.0})
+    dec = dbc_primary.decode_message(primary_ID_RASPBERRY_BALANCING_SET, data)
+    assert int(dec["start"]) == 1
+    assert abs(dec["target"] - 3.5) < 0.005
+    assert abs(dec["threshold"] - ACC_BALANCING_THRESHOLD / 1000.0) < 0.005
+
+
+if __name__ == "__main__":
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()
+            print(f"PASS {name}")
+    print("all tests passed")
