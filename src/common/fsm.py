@@ -29,6 +29,8 @@ class FSM(threading.Thread):
     balancing_command = False
     last_balancing_stop_asked_time: datetime = 0
 
+    last_ecu_status_time = 0  # time of the last ECU-status heartbeat sent to the accumulator
+
     tx_can_queue: queue.Queue
     rx_can_queue: queue.Queue
     com_queue: queue.Queue
@@ -68,6 +70,19 @@ class FSM(threading.Thread):
         m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_BMS_SET)
         try:
             data = m.encode({"status": Toggle.ON.value if on else Toggle.OFF.value})
+        except cantools.database.EncodeError:
+            self.canread.can_err = True
+            return
+
+        self.tx_can_queue.put(can.Message(arbitration_id=m.frame_id, data=data, is_extended_id=False))
+
+    def _send_ecu_status(self):
+        """
+        Send a heartbeat to the accumulator, so it doesn't time out.
+        """
+        m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_ECU_STATUS)
+        try:
+            data = m.encode({"vehicleStatus": 1, "krakenStatus": 2})
         except cantools.database.EncodeError:
             self.canread.can_err = True
             return
@@ -436,6 +451,13 @@ class FSM(threading.Thread):
 
         while 1:
             time.sleep(0.001)
+
+            # Periodic ECU-status heartbeat: the accumulator runs a software watchdog on
+            # the ECU status, so the handcart must keep it alive on the primary bus.
+            if (time.time() - self.last_ecu_status_time) > CAN_ECU_STATUS_INTERVAL:
+                self._send_ecu_status()
+                self.last_ecu_status_time = time.time()
+
             # Controllo coda rec can messages, in caso li processo. Controllo anche errori
 
             if not self.rx_can_queue.empty():

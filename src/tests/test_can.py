@@ -17,7 +17,7 @@ from settings import dbc_primary, ACC_CELLS_VOLTAGES_PER_SEGMENT, ACC_BALANCING_
 from common.accumulator.bms import BMS_HV
 from common.can_classes import (
     HvStatus, Toggle,
-    primary_ID_BMS_SET, primary_ID_RASPBERRY_BALANCING_SET,
+    primary_ID_BMS_SET, primary_ID_RASPBERRY_BALANCING_SET, primary_ID_ECU_STATUS,
 )
 
 
@@ -120,6 +120,15 @@ def test_raspberry_balancing_set_roundtrip():
     assert int(dec["start"]) == 1
     assert abs(dec["target"] - 3.5) < 0.005
     assert abs(dec["threshold"] - ACC_BALANCING_THRESHOLD / 1000.0) < 0.005
+
+
+def test_ecu_status_heartbeat_roundtrip():
+    # Same payload the FSM heartbeat sends every CAN_ECU_STATUS_INTERVAL: ECU "idle"
+    m = dbc_primary.get_message_by_frame_id(primary_ID_ECU_STATUS)
+    data = m.encode({"vehicleStatus": 1, "krakenStatus": 2})
+    dec = dbc_primary.decode_message(primary_ID_ECU_STATUS, data)
+    assert str(dec["vehicleStatus"]) == "IDLE"
+    assert str(dec["krakenStatus"]) == "IDLE"
 
 
 if __name__ == "__main__":

@@ -46,6 +46,7 @@ CAN_RETRANSMIT_INTERVAL_NORMAL = 0.5  # Time to wait before retransmitting a non
 CAN_RETRANSMIT_INTERVAL_CRITICAL = 0.1  # time to wait before retransmitting a critical request message (seconds)
 CAN_ACC_PRESENCE_TIMEOUT = 0.5  # in seconds
 CAN_CHARGER_PRESENCE_TIMEOUT = 0.4  # in seconds
+CAN_ECU_STATUS_INTERVAL = 0.2  # ECU-status heartbeat period (s) to keep the BMS software watchdog happy
 
 ERROR_LOG_FILE_PATH = "errors.log"
 
