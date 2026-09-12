@@ -38,6 +38,50 @@ STARTUP_SOUND = [
     (BuzzerNote.MI_B, 0.15)
 ]
 
+OTHER_SOUND = [
+    (BuzzerNote.FA, 0.2),
+    (BuzzerNote.EMPTY, 0.08),
+    (BuzzerNote.FA, 0.2),
+    (BuzzerNote.EMPTY, 0.08),
+    (BuzzerNote.FA, 0.2),
+    (BuzzerNote.EMPTY, 0.08),
+    (BuzzerNote.MI, 0.4),
+    (BuzzerNote.RE, 0.05),
+    (BuzzerNote.EMPTY, 0.05),
+    (BuzzerNote.DO, 0.5)
+]
+
+OTHER_SOUND_2 = [
+    (BuzzerNote.DO, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.DO, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.SOL, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.SOL, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.LA, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.LA, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.SOL, 1),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.FA, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.FA, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.MI, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.MI, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.RE, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.RE, 0.5),
+    (BuzzerNote.EMPTY, 0.1),
+    (BuzzerNote.DO, 1),
+    (BuzzerNote.EMPTY, 0.1),
+]
+
 
 class Buzzer(threading.Thread):
     pwm = None

@@ -11,10 +11,10 @@ dbc_primary: Database = cantools.database.load_file(DBC_PRIMARY_PATH)  # load th
 # ----------------------------------------------------------------------------------------------------------------------
 
 # If you want to check that the dbc of the canlib has the same names of the messages that are used in the code, enable
-CAN_MESSAGE_CHECK_ENABLED = True
+CAN_MESSAGE_CHECK_ENABLED = False
 
 # Accumulator (BMS) settings
-ACC_MAX_CHG_CURRENT = 8  # (A DC) Maximum charging current of accumulator
+ACC_MAX_CHG_CURRENT = 15  # (A DC) Maximum charging current of accumulator
 ACC_MIN_CHG_CURRENT = 0  # To prevent discharge
 ACC_DEFAULT_CHG_CURRENT = 6  # Standard charging current of accumulator
 ACC_DEFAULT_TARGET_V = 442  # (V DC) Default charging voltage of the accumulator

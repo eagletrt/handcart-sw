@@ -67,7 +67,8 @@ class FSM(threading.Thread):
             try:
                 data = m.encode(
                     {
-                        "hv_status_set": Toggle.OFF.value,
+                        "status": False,
+                        "hv_status_set": Toggle.OFF.value, # For retrocompatibility with the old BMS
                     }
                 )
             except cantools.database.EncodeError:
@@ -261,7 +262,8 @@ class FSM(threading.Thread):
             try:
                 data = m.encode(
                     {
-                        "hv_status_set": Toggle.ON.value,
+                        "status": True,
+                        "hv_status_set": Toggle.ON.value, # For retrocompatibility with the old BMS
                     }
                 )
 

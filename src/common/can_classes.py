@@ -24,38 +24,38 @@ def get_key_by_value(d: OrderedDict, value: str):
         if v == value:
             return k
 
-    raise KeyError(f"No key found for value \"{k}\"")
+    raise KeyError(f"No key found for value \"{value}\"")
 
 
 # Used to verify that names are present in dbc
 
-primary_ID_HV_TOTAL_VOLTAGE = dbc_primary.get_message_by_name("HV_TOTAL_VOLTAGE").frame_id
-primary_ID_HV_CURRENT = dbc_primary.get_message_by_name("HV_CURRENT").frame_id
-primary_ID_HV_ERRORS = dbc_primary.get_message_by_name("HV_ERRORS").frame_id
-primary_ID_HV_CELLS_TEMP_STATS = dbc_primary.get_message_by_name("HV_CELLS_TEMP_STATS").frame_id
-primary_ID_HV_STATUS = dbc_primary.get_message_by_name("HV_STATUS").frame_id
-primary_ID_HV_CELLS_VOLTAGE = dbc_primary.get_message_by_name("HV_CELLS_VOLTAGE").frame_id
-primary_ID_HV_CELLS_VOLTAGE_STATS = dbc_primary.get_message_by_name("HV_CELLS_VOLTAGE_STATS").frame_id
-primary_ID_HV_CELLS_TEMP = dbc_primary.get_message_by_name("HV_CELLS_TEMP").frame_id
-primary_ID_HV_BALANCING_STATUS = dbc_primary.get_message_by_name("HV_BALANCING_STATUS").frame_id
-primary_ID_HV_FANS_STATUS = dbc_primary.get_message_by_name("HV_FANS_STATUS").frame_id
-primary_ID_HANDCART_SET_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SET_SETTINGS").frame_id
-primary_ID_HV_SET_STATUS_HANDCART = dbc_primary.get_message_by_name("HV_SET_STATUS_HANDCART").frame_id
+primary_ID_HV_TOTAL_VOLTAGE = dbc_primary.get_message_by_name("HV_BMS_TS_VOLTAGE").frame_id
+primary_ID_HV_CURRENT = dbc_primary.get_message_by_name("HV_BMS_CURRENT").frame_id
+primary_ID_HV_ERRORS = dbc_primary.get_message_by_name("HV_BMS_ERRORS").frame_id
+primary_ID_HV_CELLS_TEMP_STATS = dbc_primary.get_message_by_name("HV_BMS_CELLBOARD_TEMPERATURES_INFO").frame_id
+primary_ID_HV_STATUS = dbc_primary.get_message_by_name("HV_BMS_STATUS").frame_id
+primary_ID_HV_CELLS_VOLTAGE = dbc_primary.get_message_by_name("HV_BMS_CELLBOARD_VOLTAGES").frame_id
+primary_ID_HV_CELLS_VOLTAGE_STATS = dbc_primary.get_message_by_name("HV_BMS_CELLBOARD_VOLTAGES_INFO").frame_id
+primary_ID_HV_CELLS_TEMP = dbc_primary.get_message_by_name("HV_BMS_CELLBOARD_TEMPERATURES").frame_id
+primary_ID_HV_BALANCING_STATUS = dbc_primary.get_message_by_name("HV_BMS_BALANCING_STATUS").frame_id
+# primary_ID_HV_FANS_STATUS = dbc_primary.get_message_by_name("HV_FANS_STATUS").frame_id
+# primary_ID_HANDCART_SET_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SET_SETTINGS").frame_id
+primary_ID_HV_SET_STATUS_HANDCART = dbc_primary.get_message_by_name("ECU_SET_HV_BMS_STATUS").frame_id
 primary_ID_HV_SET_BALANCING_STATUS_HANDCART = dbc_primary.get_message_by_name(
-    "HV_SET_BALANCING_STATUS_HANDCART").frame_id
-primary_ID_HANDCART_STATUS = dbc_primary.get_message_by_name("HANDCART_STATUS").frame_id
-primary_ID_HANDCART_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SETTINGS").frame_id
-primary_ID_HV_SET_FANS_STATUS = dbc_primary.get_message_by_name("HV_SET_FANS_STATUS").frame_id
-primary_ID_HV_ENERGY = dbc_primary.get_message_by_name("HV_ENERGY").frame_id
+    "STEERING_WHEEL_SET_HV_BMS_BALANCING_STATUS").frame_id
+# primary_ID_HANDCART_STATUS = dbc_primary.get_message_by_name("HANDCART_STATUS").frame_id
+# primary_ID_HANDCART_SETTINGS = dbc_primary.get_message_by_name("HANDCART_SETTINGS").frame_id
+# primary_ID_HV_SET_FANS_STATUS = dbc_primary.get_message_by_name("HV_SET_FANS_STATUS").frame_id
+# primary_ID_HV_ENERGY = dbc_primary.get_message_by_name("HV_ENERGY").frame_id
 
-primary_ID_HV_MAINBOARD_VERSION = dbc_primary.get_message_by_name("HV_MAINBOARD_VERSION").frame_id
-primary_ID_HV_CELLBOARD_VERSION = dbc_primary.get_message_by_name("HV_CELLBOARD_VERSION").frame_id
-primary_ID_HV_DEBUG_SIGNALS = dbc_primary.get_message_by_name("HV_DEBUG_SIGNALS").frame_id
-primary_ID_HV_FEEDBACK_STATUS = dbc_primary.get_message_by_name("HV_FEEDBACK_STATUS").frame_id
-primary_ID_HV_FEEDBACK_TS_VOLTAGE = dbc_primary.get_message_by_name("HV_FEEDBACK_TS_VOLTAGE").frame_id
-primary_ID_HV_MISC_VOLTAGE = dbc_primary.get_message_by_name("HV_FEEDBACK_MISC_VOLTAGE").frame_id
-primary_ID_HV_FEEDBACK_SD_VOLTAGE = dbc_primary.get_message_by_name("HV_FEEDBACK_SD_VOLTAGE").frame_id
-primary_ID_HV_HV_IMD_STATUS = dbc_primary.get_message_by_name("HV_IMD_STATUS").frame_id
+primary_ID_HV_MAINBOARD_VERSION = dbc_primary.get_message_by_name("HV_BMS_VERSION").frame_id
+primary_ID_HV_CELLBOARD_VERSION = dbc_primary.get_message_by_name("HV_BMS_CELLBOARD_VERSION").frame_id
+# primary_ID_HV_DEBUG_SIGNALS = dbc_primary.get_message_by_name("HV_DEBUG_SIGNALS").frame_id
+primary_ID_HV_FEEDBACK_STATUS = dbc_primary.get_message_by_name("HV_BMS_FEEDBACK_STATUS").frame_id
+primary_ID_HV_FEEDBACK_TS_VOLTAGE = dbc_primary.get_message_by_name("HV_BMS_FEEDBACK_TS_VOLTAGE").frame_id
+primary_ID_HV_MISC_VOLTAGE = dbc_primary.get_message_by_name("HV_BMS_FEEDBACK_MISC_VOLTAGE").frame_id
+primary_ID_HV_FEEDBACK_SD_VOLTAGE = dbc_primary.get_message_by_name("HV_BMS_FEEDBACK_SD_VOLTAGE").frame_id
+primary_ID_HV_HV_IMD_STATUS = dbc_primary.get_message_by_name("HV_BMS_IMD").frame_id
 
 # Instantiate some messages of the brusa
 message_NLG5_CTL: Message = dbc_brusa.get_message_by_name('NLG5_CTL')
@@ -67,19 +67,19 @@ message_NLG5_ERR: Message = dbc_brusa.get_message_by_name('NLG5_ERR')
 class HvStatus(Enum):
     # VAL_ 84 ts_status 0 "INIT" 1 "IDLE" 2 "AIRN_CLOSE" 3 "PRECHARGE" 4 "AIRP_CLOSE" 5 "TS_ON" 6 "FATAL_ERROR" ;
     INIT = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "init")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "INIT")
     IDLE = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "idle")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "IDLE")
     AIRN_CLOSE = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "airn_close")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "WAIT_AIRN_CLOSE")
     AIRP_CLOSE = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "airp_close")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "WAIT_AIRP_CLOSE")
     PRECHARGE = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "precharge")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "WAIT_PRECHARGE")
     TS_ON = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "ts_on")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "TS_ON")
     FATAL_ERROR = get_key_by_value(
-        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "fatal_error")
+        dbc_primary.get_message_by_frame_id(primary_ID_HV_STATUS).signals[0].choices, "FATAL")
 
 
 class Toggle(Enum):
@@ -88,6 +88,17 @@ class Toggle(Enum):
 
 
 class HandcartStatus(Enum):
+    NONE = 0
+    CHECK = 1
+    IDLE = 2
+    PRECHARGE = 3
+    READY = 4
+    CHARGE = 5
+    CHARGE_DONE = 6
+    BALANCING = 7
+    ERROR = 8
+
+    """
     NONE = get_key_by_value(
         dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS).signals[5].choices, "none")
     CHECK = get_key_by_value(
@@ -106,6 +117,7 @@ class HandcartStatus(Enum):
         dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS).signals[5].choices, "balancing")
     ERROR = get_key_by_value(
         dbc_primary.get_message_by_frame_id(primary_ID_HANDCART_SETTINGS).signals[5].choices, "error")
+    """
 
 
 bms_feedbacks = {'feedback_implausibility_detected': 0, 'feedback_imd_cockpit': 0,
@@ -286,7 +298,7 @@ def verify_HV_SET_STATUS_HANDCART() -> bool:
     for s in msg.signals:
         s_names.append(s.name)
 
-    res = "hv_status_set" in s_names
+    res = "status" in s_names
     return res
 
 
