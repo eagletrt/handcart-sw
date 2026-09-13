@@ -75,11 +75,13 @@ class CanListener:
         calls the corresponding function to process the message
         """
         # print(f"[DEBUG] {msg}")
-        if self.doMsg.get(msg.arbitration_id) is not None:
-            try:
-                self.doMsg.get(msg.arbitration_id)(msg)
-            except KeyError:
-                self.can_err = True
+        handler = self.doMsg.get(msg.arbitration_id)
+        if handler is None:
+            return
+        try:
+            handler(msg)
+        except Exception as e:
+            tprint(f"dropping CAN id 0x{msg.arbitration_id:X} (len {len(msg.data)}): {e}", P_TYPE.ERROR)
 
 
 def canSend(bus, msg_id, data, lock: threading.Lock, shared_data):
