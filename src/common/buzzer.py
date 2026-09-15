@@ -9,34 +9,62 @@ from common.logging import tprint, P_TYPE
 from settings import PIN
 
 
+# class BuzzerNote(Enum):
+#     DO = 2090
+#     RE_B = 2215
+#     RE = 2350
+#     MI_B = 2490
+#     MI = 2640
+#     FA = 2790
+#     SOL_B = 2690
+#     SOL = 3285  # to fix
+#     LA_B = 3320
+#     LA = 3510
+#     SI_B = 3730
+#     SI = 3950
+#     EMPTY = 0
+
+# Buzzer frequency range goes from 1000 to 3000 Hz
 class BuzzerNote(Enum):
-    DO = 2090
-    RE_B = 2215
-    RE = 2350
-    MI_B = 2490
-    MI = 2640
-    FA = 2790
-    SOL_B = 2690
-    SOL = 3285  # to fix
-    LA_B = 3320
-    LA = 3510
-    SI_B = 3730
-    SI = 3950
+    LA6 = 1760
+    LA6_D = 1865
+    SI6_B = 1865
+    SI6 = 1976
+    DO7 = 2093
+    DO7_D = 2217
+    RE7_B = 2217
+    RE7 = 2349
     EMPTY = 0
 
-
 STARTUP_SOUND = [
-    (BuzzerNote.DO, 0.05),
-    (BuzzerNote.EMPTY, .5),
-    (BuzzerNote.DO, 0.05),
-    (BuzzerNote.EMPTY, .5),
-    (BuzzerNote.DO, 0.05),
-    (BuzzerNote.EMPTY, 1),
-    (BuzzerNote.DO, 0.15),
-    (BuzzerNote.MI_B, 0.15),
-    (BuzzerNote.DO, 0.15),
-    (BuzzerNote.MI_B, 0.15)
+    (BuzzerNote.RE7,    0.35),
+    (BuzzerNote.EMPTY,  0.05),
+    (BuzzerNote.RE7,    0.35),
+    (BuzzerNote.EMPTY,  0.05),
+    (BuzzerNote.RE7,    0.35),
+    (BuzzerNote.EMPTY,  0.05),
+
+    (BuzzerNote.DO7_D,  0.60),
+    (BuzzerNote.EMPTY,  0.05),
+    (BuzzerNote.SI6,    0.10),
+    (BuzzerNote.EMPTY,  0.05),
+    (BuzzerNote.LA6,    1.35),
+    (BuzzerNote.EMPTY,  0.05),
 ]
+
+
+# STARTUP_SOUND = [
+#     (BuzzerNote.DO, 0.05),
+#     (BuzzerNote.EMPTY, .5),
+#     (BuzzerNote.DO, 0.05),
+#     (BuzzerNote.EMPTY, .5),
+#     (BuzzerNote.DO, 0.05),
+#     (BuzzerNote.EMPTY, 1),
+#     (BuzzerNote.DO, 0.15),
+#     (BuzzerNote.MI_B, 0.15),
+#     (BuzzerNote.DO, 0.15),
+#     (BuzzerNote.MI_B, 0.15)
+# ]
 
 
 class Buzzer(threading.Thread):

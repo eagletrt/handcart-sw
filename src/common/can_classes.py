@@ -10,7 +10,7 @@ This file should be called only once, when the program starts.
 
 There are no longer any handcart-specific messages:
     * TS on/off  -> ``BmsSet``               (status: bool)
-    * balancing  -> ``RaspberryBalancingSet`` (start / target / threshold)
+    * balancing  -> ``RaspberryTsacBalancingSet`` (start / threshold)
 """
 
 
@@ -74,7 +74,7 @@ primary_ID_TSAC_CELLBOARD_ERROR = [_mid("TsacCellboardErrorA"), _mid("TsacCellbo
 # Commands the handcart sends to the accumulator
 primary_ID_BMS_SET = _mid("BmsSet")  # status: bool  -> TS on/off
 primary_ID_ECU_STATUS = _mid("EcuFsm")  # vehicleStatus/krakenStatus enums -> ECU-alive heartbeat (BMS watchdog)
-primary_ID_RASPBERRY_BALANCING_SET = _mid("RaspberryBalancingSet")  # start / target / threshold
+primary_ID_RASPBERRY_BALANCING_SET = _mid("RaspberryTsacBalancingSet")  # start / threshold
 
 # Instantiate some messages of the brusa (legacy charger, dbc still shipped)
 message_NLG5_CTL: Message = dbc_brusa.get_message_by_name('NLG5_CTL')
@@ -154,7 +154,7 @@ def verify_can_messages() -> bool:
     ok &= _verify_signals("TsacCellboard1Temperature", ["group", "cell1"])
     ok &= _verify_signals("TsacCellboard1Balancing", ["cell1"])
     ok &= _verify_signals("BmsSet", ["status"])
-    ok &= _verify_signals("RaspberryBalancingSet", ["start", "target", "threshold"])
+    ok &= _verify_signals("RaspberryTsacBalancingSet", ["start", "threshold"])
     return ok
 
 

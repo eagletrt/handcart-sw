@@ -46,8 +46,13 @@ class Feedbacks(threading.Thread):
         self.spi.max_speed_hz = ADC_SPI_MAX_SPEED
 
     def run(self):
-        # Done because it was throwing an error when trying a readback
         self.spi.xfer(self.adc.get_default_adc_config().tobytes())
+        # print(f"sent: {self.adc.get_default_adc_config().tobytes()}")
+        # data = self.spi.xfer(self.adc.get_default_adc_config().tobytes())
+        # data = bytes(data)
+
+        # if data != self.adc.get_default_adc_config().tobytes():
+        #     tprint(f"Received config is not the same as sent: {data}", P_TYPE.ERROR)
 
         while 1:
             data = self.spi.xfer(self.adc.get_default_adc_mode_control().tobytes())

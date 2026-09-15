@@ -1,0 +1,265 @@
+VERSION ""
+
+
+NS_ : 
+		NS_DESC_
+		CM_
+		BA_DEF_
+		BA_
+		VAL_
+		CAT_DEF_
+		CAT_
+		FILTER
+		BA_DEF_DEF_
+		EV_DATA_
+		ENVVAR_DATA_
+		SGTYPE_
+		SGTYPE_VAL_
+		BA_DEF_SGTYPE_
+		BA_SGTYPE_
+		SIG_TYPE_REF_
+		VAL_TABLE_
+		SIG_GROUP_
+		SIG_VALTYPE_
+		SIGTYPE_VALTYPE_
+		BO_TX_BU_
+		BA_DEF_REL_
+		BA_REL_
+		BA_DEF_DEF_REL_
+		BU_SG_REL_
+		BU_EV_REL_
+		BU_BO_REL_
+		SG_MUL_VAL_
+
+BS_:
+
+BU_:
+
+
+
+
+BO_ 256 HYC_Ctrl: 1 Vector__XXX
+	SG_ ctrlCmd : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 272 HYC_Status: 1 Vector__XXX
+	SG_ status : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 288 HYC_Target: 4 Vector__XXX
+	SG_ uTarget : 0|16@1+ (0.015625,0) [0|1023] "V" Vector__XXX
+	SG_ iTarget : 16|16@1+ (0.0078125,-256) [0|0] "A" Vector__XXX
+
+BO_ 304 HYC_Actual: 4 Vector__XXX
+	SG_ uActual : 0|16@1+ (0.015625,0) [0|1023] "V" Vector__XXX
+	SG_ iActual : 16|16@1+ (0.0078125,-256) [-256|255] "A" Vector__XXX
+
+BO_ 320 HYC_Grid_Voltage: 8 Vector__XXX
+	SG_ u1 : 0|16@1+ (0.015625,0) [0|1023] "V" Vector__XXX
+	SG_ u2 : 16|16@1+ (0.015625,0) [0|1023] "V" Vector__XXX
+	SG_ u3 : 32|16@1+ (0.015625,0) [0|1023] "V" Vector__XXX
+	SG_ f : 48|16@1+ (0.001953125,0) [0|127] "Hz" Vector__XXX
+
+BO_ 344 HYC_Maintenance2: 4 Vector__XXX
+	SG_ trafo_ab : 0|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ trafo_cd : 8|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ pfc_coil : 16|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ heat_sink : 24|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+
+BO_ 352 HYC_Temperature: 8 Vector__XXX
+	SG_ tempU : 0|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempV : 8|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempW : 16|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempPrimary : 24|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempSecondary : 32|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempBoardCtrl : 40|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempBoardIn : 48|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+	SG_ tempBoardPwr : 56|8@1+ (1,-50) [-50|205] "°C" Vector__XXX
+
+BO_ 368 HYC_Version: 8 Vector__XXX
+	SG_ serialNumber : 0|24@1+ (1,0) [0|16777215] "" Vector__XXX
+	SG_ ifVersion : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+	SG_ hwVersion : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+	SG_ swVersion : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 448 HYC_Alive: 3 Vector__XXX
+	SG_ AliveCnt : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+	SG_ fanMin : 8|8@1+ (1,0) [0|100] "%" Vector__XXX
+	SG_ fanMax : 16|8@1+ (1,0) [0|100] "%" Vector__XXX
+
+BO_ 416 HYC_Error: 8 Vector__XXX
+	SG_ DIAG_ERR1_PFC_U : 0|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_PFC_V : 1|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_PFC_W : 2|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_RDY_PFC_U : 3|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_RDY_PFC_V : 4|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_RDY_PFC_W : 5|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_OV_ZKH : 6|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_OV_ZKL : 7|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_STACK_PRI : 8|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_STACK_SEC : 9|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_STACK_RDY_PRI : 10|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_STACK_RDY_SEC : 11|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_STACK_OV_OUT : 12|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_CHRG_STOP : 13|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_PGOOD_5V : 14|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_CAN_COM : 15|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_SYNC_FAIL : 16|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_I2C_COM : 17|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_INPUT_RELAY : 18|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_19 : 19|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_20 : 20|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_21 : 21|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_22 : 22|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_23 : 23|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_24 : 24|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_25 : 25|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_26 : 26|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_27 : 27|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_28 : 28|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_29 : 29|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_30 : 30|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ DIAG_ERR1_DUMMY_31 : 31|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_DC_link_PFC : 32|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_phase_voltage_PFC : 33|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_phase_current_PFC : 34|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_DC_link_DAB : 35|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_output_overvoltage_DAB : 36|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_output_current_DAB : 37|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_dutycycle_PFC : 38|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_reverse_current_DAB : 39|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_output_undervoltage_DAB : 40|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Uzk_not_ok : 41|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Uzk_min_PFC : 42|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Function_Call_SM_DAB : 43|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Output_Discharge_DAB : 44|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Uphase_asymmetry : 45|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_input_undervoltage_DAB : 46|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Overtemperature : 47|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_HVPSU_Overtemperture : 48|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_precharge_DAB : 49|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_PFC_not_ready : 50|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Loaddump_detected : 51|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_PowGtp : 52|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_External_Fan : 53|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_REF_P3V3 : 54|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_POW_P5V : 55|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_POW_P24V : 56|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_REF_VOFFSET : 57|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Voltage_POW_P3V3 : 58|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Wrong_PU_ID : 59|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Error_Uncontrollable_Fan : 60|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Dummy : 61|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Dummy_2 : 62|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Dummy_3 : 63|1@1+ (0,0) [0|0] "" Vector__XXX
+
+BO_ 432 HYC_Warning: 4 Vector__XXX
+	SG_ PFC_U : 0|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PFC_V : 1|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PFC_W : 2|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PRI_AB : 3|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PRI_CD : 4|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ SEC_AB : 5|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ SEC_CD : 6|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ TRAFO_AB : 7|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ TRAFO_CD : 8|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PFC_COIL : 9|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ HEAT_SINK : 10|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ CTRL_BOARD : 11|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ IN_BOARD : 12|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ PWR_BOARD : 13|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ MCU_JUNCTION : 14|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ CTRL_OUT_NTC : 15|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ SPARE_CTRL_OUT_1 : 16|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ SPARE_CTRL_OUT_2 : 17|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ SPARE_CTRL_OUT_3 : 18|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ CTRL_OUT_MCU_JUNCTION : 19|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ ZK_VOLT_TO_LOW : 20|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ EXT_FAN_BLOCKED : 21|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ TEMP_SENSOR_FAULT : 22|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ UAC_LOW : 23|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_PFC_U : 24|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_PFC_V : 25|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_PFC_W : 26|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_PRI_AB : 27|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_PRI_CD : 28|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_SEC_AB : 29|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ GD_SEC_CD : 30|1@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ MASKED_FAULT_EVENT : 31|1@1+ (0,0) [0|0] "" Vector__XXX
+
+
+BA_DEF_ SG_  "SPN" INT 0 524287;
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN","reserved","J1939PG";
+BA_DEF_  "DatabaseVersion" STRING ;
+BA_DEF_  "BusType" STRING ;
+BA_DEF_  "ProtocolType" STRING ;
+BA_DEF_  "DatabaseCompiler" STRING ;
+BA_DEF_DEF_  "SPN" 0;
+BA_DEF_DEF_  "VFrameFormat" "J1939PG";
+BA_DEF_DEF_  "DatabaseVersion" "DEMO PLUS";
+BA_DEF_DEF_  "BusType" "";
+BA_DEF_DEF_  "ProtocolType" "";
+BA_DEF_DEF_  "DatabaseCompiler" "";
+BA_ "ProtocolType" "J1939";
+BA_ "BusType" "CAN";
+BA_ "DatabaseCompiler" "CSS ELECTRONICS (WWW.CSSELECTRONICS.COM)";
+BA_ "DatabaseVersion" "1.0.0";
+
+CM_ SG_ 320 u1 "Voltage L1 (RMS)";
+CM_ SG_ 320 u2 "Voltage L2 (RMS)";
+CM_ SG_ 320 u3 "Voltage L3 (RMS)";
+CM_ SG_ 320 f "Frequence";
+CM_ SG_ 344 trafo_ab "Temperature Trafo AB";
+CM_ SG_ 344 trafo_cd "Temperature Trafo CD";
+CM_ SG_ 344 pfc_coil "Temperature PFC coil";
+CM_ SG_ 344 heat_sink "Temperature heat sink";
+CM_ SG_ 352 tempU "Temperature Module U";
+CM_ SG_ 352 tempV "Temperature Module V";
+CM_ SG_ 352 tempW "Temperature Module W";
+CM_ SG_ 352 tempPrimary "Temperature Module StackIdx Pri";
+CM_ SG_ 352 tempSecondary "Temperature Module StackIdx Sec";
+CM_ SG_ 352 tempBoardCtrl "Temperature CTRL-PWR";
+CM_ SG_ 352 tempBoardIn "Temperature IN";
+CM_ SG_ 352 tempBoardPwr "Temperature PWR";
+CM_ SG_ 448 AliveCnt "(not used) Alive-Counter";
+CM_ SG_ 448 fanMin "Minimum-Duty-Cycle Fan";
+CM_ SG_ 448 fanMax "Maximum-Duty-Cycle Fan";
+CM_ SG_ 288 uTarget "Target Voltage";
+CM_ SG_ 288 iTarget "Target Current";
+CM_ SG_ 304 uActual "Actual Voltage";
+CM_ SG_ 304 iActual "Actual Current";
+CM_ SG_ 416 DIAG_ERR1_PFC_U "Desat Pfc Phase U";
+CM_ SG_ 416 DIAG_ERR1_PFC_V "Desat Pfc Phase V";
+CM_ SG_ 416 DIAG_ERR1_PFC_W "Desat Pfc Phase W";
+CM_ SG_ 416 DIAG_ERR1_RDY_PFC_U "Pfc Phase U not ready";
+CM_ SG_ 416 DIAG_ERR1_RDY_PFC_V "Pfc Phase V not ready";
+CM_ SG_ 416 DIAG_ERR1_RDY_PFC_W "Pfc Phase W not ready";
+CM_ SG_ 416 DIAG_ERR1_OV_ZKH "Overvoltage DC Link Plus";
+CM_ SG_ 416 DIAG_ERR1_OV_ZKL "Overvoltage DC Link Minus";
+CM_ SG_ 416 DIAG_ERR1_STACK_PRI "Desat Primary AB/CD";
+CM_ SG_ 416 DIAG_ERR1_STACK_SEC "Desat Secondary AB/CD";
+CM_ SG_ 416 DIAG_ERR1_STACK_RDY_PRI "not ready Primary AB/CD";
+CM_ SG_ 416 DIAG_ERR1_STACK_RDY_SEC "not ready Secondary AB/CD";
+CM_ SG_ 416 DIAG_ERR1_STACK_OV_OUT "Overvoltage output";
+CM_ SG_ 416 DIAG_ERR1_CHRG_STOP "Interlock missing";
+CM_ SG_ 416 DIAG_ERR1_PGOOD_5V "5V PGOOD missing";
+CM_ SG_ 416 DIAG_ERR1_CAN_COM "5s CAN timeout";
+CM_ SG_ 416 DIAG_ERR1_INPUT_RELAY "Precharge Relay does not switch correctly";
+CM_ SG_ 416 Error_DC_link_DAB "DAB Module: DAB stage detected a to high dc-link voltage";
+CM_ SG_ 416 Error_output_overvoltage_DAB "DAB Module: DAB stage detected a to high output voltage. Check only active if DAB is enabled. Thresholdvalue = IF(voltageCtrl or SinkMode)THEN{uOutMaxFix}ELSE{uOutMaxTargetLimit}";
+CM_ SG_ 416 Error_output_current_DAB "DAB Module: DAB stage detected a to high output current. Check is always active.";
+CM_ SG_ 416 Error_reverse_current_DAB "DAB Module: DAB stage detected a negative current during charging. Check only active if DAB is enabled and SinkMode is disabled and voltageCtrl is disabled";
+CM_ SG_ 416 Error_output_undervoltage_DAB "DAB Module: DAB stage detected a to low output voltage. Check only active if DAB is enabled and voltage rised over enableThreshold after startup. Thresholdvalue = IF(SinkMode)THEN{0.5*uOutMaxTargetLimit}ELSE{uOutMinFix}";
+CM_ SG_ 416 Error_Output_Discharge_DAB "DAB Module: DAB stage tried to discharge a connected battery. Check only active if DAB is enabled and SinkMode is disabled and voltageCtrl is active.";
+CM_ SG_ 416 Error_input_undervoltage_DAB "DAB Module: DAB stage detected a to low dc-link voltage";
+CM_ SG_ 416 Error_precharge_DAB "DAB Module: DAB stage is not able to reach ist precharge voltage target. Check only active if DAB is enabled and voltageCtrl is active";
+CM_ SG_ 416 Error_PFC_not_ready "SM Module: PFC did not get ready in time. E.g. the requested dc-link voltage was not reached.";
+CM_ SG_ 416 Error_Loaddump_detected "DAB Module: DAB stage detected a loaddump condition. Stopping operation to avoid voltage overshoot.";
+CM_ SG_ 416 Error_Voltage_PowGtp "TM Module: Gate driver PSU voltage is out of range";
+CM_ SG_ 416 Error_Voltage_External_Fan "TM Module: External fan supply voltage is out of range";
+CM_ SG_ 416 Error_Voltage_REF_P3V3 "TM Module: Internal REF_P3V3 voltage is out of range";
+CM_ SG_ 416 Error_Voltage_POW_P5V "TM Module: Internal POW_P5V voltage is out of range";
+CM_ SG_ 416 Error_Voltage_POW_P24V "TM Module: Internal POW_P24V voltage is out of range";
+CM_ SG_ 416 Error_Voltage_REF_VOFFSET "TM Module: Internal REF_VOFFSET voltage is out of range";
+CM_ SG_ 416 Error_Voltage_POW_P3V3 "TM Module: Internal POW_3V3 voltage is out of range";
+CM_ SG_ 416 Error_Wrong_PU_ID "TM Module: Check only active for Sic-Stack. Power Units in Sic-Stack have wrong ID";
+CM_ SG_ 416 Error_Uncontrollable_Fan "TM Module: Fan runns to fast and does not follow the target. Check only active for 1/10 Firmware";
+
