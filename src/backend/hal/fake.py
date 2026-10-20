@@ -4,9 +4,10 @@ It remembers the relays and the sounds, reports a closed loop, and lets a test p
 """
 
 from backend.hal import Sound
+from backend.hal.feedback import LOOP_CHANNELS
 from shared.models import InputEvent, ShutdownLoop
 
-LOOP_POINTS = ("mushroom", "charger", "BMS in", "BMS out", "loop end")
+LOOP_POINTS = tuple(LOOP_CHANNELS.values())
 LOOP_VOLTAGE = 12.0  # V on a closed loop
 
 
@@ -18,6 +19,9 @@ class FakeHal:
         self.open_at: str | None = None  # set to one of LOOP_POINTS to simulate an open loop
         self.played: list[Sound] = []
         self._pressed: list[InputEvent] = []
+
+    def poll(self, now: float) -> None:
+        pass
 
     def set_relays(self, sd_relay_closed: bool, charger_power: bool, discharge: bool) -> None:
         self.sd_relay_closed = sd_relay_closed

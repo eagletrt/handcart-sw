@@ -1,6 +1,10 @@
 """Hardware of the handcart PCB: relays, shutdown feedbacks, buttons and encoder, buzzer.
 
-Two implementations: the real one on the Pi (GPIO and ADC), and FakeHal everywhere else.
+Two implementations of Hal:
+- BoardHal (board.py): the PCB through its peripherals. Its logic (relays.py, controls.py, feedback.py,
+  buzzer.py) only sees pin levels, bytes and frequencies, so it is tested without hardware;
+  on the Pi it gets the real drivers (rpi.py).
+- FakeHal (fake.py): a whole board in software, to run the backend with the simulator.
 """
 
 from enum import StrEnum
@@ -17,6 +21,10 @@ class Sound(StrEnum):
 
 
 class Hal(Protocol):
+    def poll(self, now: float) -> None:
+        """Read the controls and the feedbacks, advance the buzzer. Called once per tick."""
+        ...
+
     def set_relays(self, sd_relay_closed: bool, charger_power: bool, discharge: bool) -> None: ...
 
     def shutdown_loop(self) -> ShutdownLoop:

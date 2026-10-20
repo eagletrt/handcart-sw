@@ -86,6 +86,7 @@ class Handcart:
 
     def tick(self) -> Outputs:
         now = self._clock()
+        self._hal.poll(now)
         self._receive()
         inputs = Inputs(
             now=now,

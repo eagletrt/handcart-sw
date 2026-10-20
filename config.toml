@@ -43,6 +43,9 @@ charger_target_period = 0.5       # s, HYC_Target
 closed_above = 10.0   # V, a point above this is closed
 open_below = 2.0      # V, a point below this is open; in between counts as unknown
 
+[hardware]
+simulated = false   # true: fake relays, controls and feedbacks even on the Pi (off the Pi they always are)
+
 [gpio]  # BCM numbering, handcart PCB
 buzzer = 1
 discharge_relay = 19

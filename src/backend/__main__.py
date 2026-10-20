@@ -2,30 +2,46 @@
 
 import asyncio
 import logging
+from pathlib import Path
 
 import uvicorn
 
 from backend.api import create_app
 from backend.canbus.bus import open_bus
-from backend.hal import Sound
+from backend.hal import Hal, Sound
+from backend.hal.board import BoardHal
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from shared import config
+from shared.config import Config
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
 
 log = logging.getLogger("backend")
 
 
+def make_hal(cfg: Config) -> Hal:
+    """The real board on the Pi, unless the config asks for simulated hardware; a fake one elsewhere."""
+    if cfg.hardware.simulated or not on_raspberry_pi():
+        log.warning("Hardware is simulated: relays, controls and shutdown feedbacks are not real")
+        return FakeHal()
+    from backend.hal import rpi  # needs RPi.GPIO and spidev, which exist only on the Pi
+
+    return BoardHal(cfg, rpi.RpiGpio(cfg), rpi.RpiPwm(cfg.gpio.buzzer), rpi.RpiSpi(cfg))
+
+
+def on_raspberry_pi() -> bool:
+    model = Path("/proc/device-tree/model")
+    return model.exists() and "Raspberry Pi" in model.read_text()
+
+
 async def run() -> None:
     cfg = config.load()
     bms_bus = open_bus(cfg.can, cfg.can.bms_channel)
     charger_bus = bms_bus if cfg.can.shared_bus else open_bus(cfg.can, cfg.can.charger_channel)
-    # TODO: the real HAL on the Pi; until then the relays and the shutdown loop are simulated
-    hal = FakeHal()
+    hal = make_hal(cfg)
     handcart = Handcart(cfg, hal, bms_bus, charger_bus)
     hal.play(Sound.STARTUP)
-    log.warning("Hardware is simulated: relays and shutdown feedbacks are not real")
 
     async def loop() -> None:
         while True:
@@ -39,6 +55,8 @@ async def run() -> None:
         await server.serve()
     finally:
         ticking.cancel()
+        # leave the hardware safe: charger unpowered, shutdown open, TS discharge resistor in
+        hal.set_relays(sd_relay_closed=False, charger_power=False, discharge=True)
         bms_bus.shutdown()
         if charger_bus is not bms_bus:
             charger_bus.shutdown()

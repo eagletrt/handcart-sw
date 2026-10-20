@@ -101,7 +101,11 @@ class Shutdown(_Section):
         return self
 
 
-class Gpio(_Section):
+class Hardware(_Section):
+    simulated: bool
+
+
+class GpioPins(_Section):
     buzzer: int
     discharge_relay: int
     pon: int
@@ -147,7 +151,8 @@ class Config(_Section):
     charge: Charge
     timing: Timing
     shutdown: Shutdown
-    gpio: Gpio
+    hardware: Hardware
+    gpio: GpioPins
     adc: Adc
     auth: Auth
 
