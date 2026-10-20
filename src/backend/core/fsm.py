@@ -1,6 +1,6 @@
 """Charge state machine: from what the devices report and the operator asks, decides what the handcart does.
 
-No CAN or GPIO here. step() takes the inputs and returns the outputs, so every rule can be tested on a laptop.
+No CAN or GPIO here. step() takes the inputs and returns the outputs, so every rule can be tested off the Pi.
 
     CHECK -> IDLE -> PRECHARGE -> READY -> CHARGE -> CHARGE_DONE
                \\-> BALANCING          any state -> ERROR on a fault

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATH = ROOT / "config.toml"
+LOCAL_PATH = ROOT / "config.local.toml"  # optional, not in git: overrides for this machine
 
 
 class _Section(BaseModel):
@@ -21,14 +22,15 @@ class Network(_Section):
 
 
 class Can(_Section):
-    bms_interface: str
-    charger_interface: str
+    interface: str  # python-can interface: socketcan on the Pi, udp_multicast anywhere else
+    bms_channel: str
+    charger_channel: str
     primary_dbc: Path
     charger_dbc: Path
 
     @property
     def shared_bus(self) -> bool:
-        return self.bms_interface == self.charger_interface
+        return self.bms_channel == self.charger_channel
 
 
 class Accumulator(_Section):
@@ -154,9 +156,15 @@ class Config(_Section):
         return self
 
 
-def load(path: Path = DEFAULT_PATH) -> Config:
-    """Read and validate a config file. Relative paths in it are relative to the file itself."""
+def load(path: Path = DEFAULT_PATH, local: Path = LOCAL_PATH) -> Config:
+    """Read and validate a config file, with the keys of the local file, if any, on top.
+
+    Relative paths are relative to the config file.
+    """
     data = tomllib.loads(path.read_text())
+    if local.exists():
+        for section, values in tomllib.loads(local.read_text()).items():
+            data.setdefault(section, {}).update(values)
     base = path.resolve().parent
     for section, keys in (("can", ("primary_dbc", "charger_dbc")), ("auth", ("users_file", "audit_log"))):
         for key in keys:

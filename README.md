@@ -28,6 +28,24 @@ Run `./handcart.py` with no arguments for the list of commands.
 | `install-services` | Set up the Pi to boot straight into the handcart UI |
 | `update-libcan` | Move libcan to its latest commit and run the tests |
 
+## On your computer
+
+The simulator plays the BMS and the charger, so the backend runs without the handcart.
+Linux `vcan` does not exist on macOS or Windows, so off the Pi CAN goes over UDP between processes.
+Create `config.local.toml` (not in git), which overrides `config.toml` on this machine only:
+
+```toml
+[can]
+interface = "udp_multicast"
+```
+
+Then, in two terminals:
+
+```bash
+./handcart.py sim --speed 30   # charge 30 times faster than real life
+./handcart.py backend
+```
+
 ## Layout
 
 ```
@@ -36,7 +54,7 @@ config.toml        limits, timings, pins, interfaces
 libs/              submodules: libcan (primary DBC), charger/littlesic (charger DBC)
 src/
   backend/         owns CAN, GPIO, the charge state machine and safety; exposes the API
-    hal/           GPIO, ADC, buzzer, buttons, with fakes for the laptop
+    hal/           GPIO, ADC, buzzer, buttons, with fakes for your computer
     canbus/        buses, DBC encoding, periodic frames
     devices/       BMS and charger
     core/          charge state machine, free of hardware

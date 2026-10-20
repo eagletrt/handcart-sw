@@ -49,3 +49,11 @@ def test_unknown_keys_are_refused(raw):
     raw["charge"]["curent_max"] = 10
     with pytest.raises(ValidationError):
         Config.model_validate(raw)
+
+
+def test_a_local_file_overrides_single_keys(tmp_path):
+    local = tmp_path / "config.local.toml"
+    local.write_text('[can]\ninterface = "udp_multicast"\n')
+    cfg = config.load(local=local)
+    assert cfg.can.interface == "udp_multicast"
+    assert cfg.can.bms_channel == "can0"  # untouched keys keep the repo value

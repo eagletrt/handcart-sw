@@ -7,12 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "cantools>=40.0",
     "python-can>=4.4",
+    "msgpack>=1.0",  # for python-can udp_multicast, the CAN bus off the Pi
     "pydantic>=2.9",
     "fastapi>=0.115",
     "uvicorn>=0.32",
     "httpx>=0.27",
     "nicegui>=2.10,<3",
-    # Raspberry Pi only: GPIO and SPI. On a laptop the fake HAL is used instead.
+    # Raspberry Pi only: GPIO and SPI. Elsewhere the fake HAL is used instead.
     "rpi-lgpio>=0.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
     "spidev>=3.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
 ]

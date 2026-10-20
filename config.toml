@@ -6,9 +6,9 @@ backend_port = 8000
 frontend_port = 8080
 
 [can]
-
-bms_interface = "can0"
-charger_interface = "can0"
+interface = "socketcan"   # python-can interface; elsewhere udp_multicast (see README)
+bms_channel = "can0"
+charger_channel = "can0"  # the same bus as the BMS, unless the charger gets its own
 primary_dbc = "libs/libcan/dbc/primary/primary.dbc"
 charger_dbc = "libs/charger/littlesic/LittleSIC.dbc"
 

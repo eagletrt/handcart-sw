@@ -23,6 +23,9 @@ htmlcov/
 .vscode/
 .DS_Store
 
+# Overrides for one machine (e.g. CAN over UDP on your computer)
+config.local.toml
+
 # Local state on the Pi: operators, PIN hashes, audit log
 var/
 *.log
