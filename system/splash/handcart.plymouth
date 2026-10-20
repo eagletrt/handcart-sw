@@ -1,0 +1,13 @@
+# Boot splash of the handcart: the eagle on black, from power-on until the UI appears.
+#
+# Goes to: /usr/share/plymouth/themes/handcart/, with handcart.script and assets/eagle.png
+# Installed by: ./handcart.py install-services, which also makes it the default theme
+
+[Plymouth Theme]
+Name=Handcart
+Description=E-Agle TRT handcart boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/handcart
+ScriptFile=/usr/share/plymouth/themes/handcart/handcart.script

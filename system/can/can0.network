@@ -1,0 +1,14 @@
+# CAN bus of the handcart: brings can0 up at boot at the bitrate of the car network.
+#
+# Goes to: /etc/systemd/network/can0.network (read by systemd-networkd)
+# Installed by: ./handcart.py install-services
+#
+# If the charger stays at 250 kbit/s on its own bus, copy this file as can1.network
+# with Name=can1 and BitRate=250K, and set charger_interface = "can1" in config.toml.
+
+[Match]
+Name=can0
+
+[CAN]
+BitRate=1M
+RestartSec=100ms

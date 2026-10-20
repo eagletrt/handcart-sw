@@ -1,0 +1,50 @@
+[project]
+name = "handcart-sw"
+version = "0.1.0"
+description = "Software of the E-Agle TRT handcart: charges and balances the HV accumulator."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cantools>=40.0",
+    "python-can>=4.4",
+    "pydantic>=2.9",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "httpx>=0.27",
+    "nicegui>=2.10,<3",
+    # Raspberry Pi only: GPIO and SPI. On a laptop the fake HAL is used instead.
+    "rpi-lgpio>=0.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
+    "spidev>=3.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.uv]
+# Not installed as a package: handcart.py puts src/ on the path and runs the modules directly.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["libs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["handcart.py", "tests"]  # add "src" once it has code
+ignore_missing_imports = true
+check_untyped_defs = true

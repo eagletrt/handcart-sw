@@ -1,0 +1,17 @@
+# Raspberry Pi boot settings for the handcart PCB.
+#
+# Goes to: append to /boot/firmware/config.txt (by hand, then reboot)
+# Not installed automatically: a wrong line here can stop the Pi from booting.
+# Taken from the old handcart setup: check it against the PCB schematic.
+
+# SPI0: CE0 (GPIO 8) is the MCP2515 CAN controller, CE1 (GPIO 7) is the MAX11335 feedback ADC.
+dtparam=spi=on
+dtoverlay=mcp2515-can0,oscillator=16000000,interrupt=25
+
+# No rainbow square at power-on: the handcart splash (system/splash) is the first thing on screen.
+disable_splash=1
+
+# UART for debugging, no Bluetooth, no audio (GPIO 18/19 are in use on the PCB).
+enable_uart=1
+dtoverlay=disable-bt
+dtparam=audio=off

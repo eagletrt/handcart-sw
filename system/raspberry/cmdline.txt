@@ -1,0 +1,7 @@
+# Kernel parameters for a silent boot: only the splash is visible, no text, logos or cursor.
+#
+# Goes to: the END of the single line in /boot/firmware/cmdline.txt (by hand, same line, then reboot)
+# Not installed automatically: a broken cmdline.txt stops the Pi from booting.
+# Also change console=tty1 to console=tty3 in that line, so boot messages leave the display.
+
+quiet splash loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0 plymouth.ignore-serial-consoles

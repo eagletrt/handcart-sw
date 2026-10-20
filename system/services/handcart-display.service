@@ -1,0 +1,29 @@
+# Handcart display: shows the frontend full screen on the touch display, with no desktop around it.
+# Runs Chromium in kiosk mode inside cage, a minimal Wayland compositor, on the first console.
+# The boot splash stays on screen until the frontend answers, so the eagle goes straight to the UI.
+#
+# Needs: sudo apt install cage chromium-browser plymouth curl
+# Goes to: /etc/systemd/system/handcart-display.service
+# Installed by: ./handcart.py install-services, which fills in {{USER}} and {{FRONTEND_PORT}}
+# Not yet tried on the handcart Pi.
+
+[Unit]
+Description=Handcart display
+Wants=handcart-frontend.service
+After=handcart-frontend.service systemd-user-sessions.service plymouth-start.service
+Conflicts=getty@tty1.service
+
+[Service]
+User={{USER}}
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+# wait up to 60 s for the frontend, then hand the screen over without clearing the splash
+ExecStartPre=-/usr/bin/timeout 60 /bin/sh -c 'until curl -sf http://localhost:{{FRONTEND_PORT}}/ >/dev/null; do sleep 0.5; done'
+ExecStartPre=+-/usr/bin/plymouth quit --retain-splash
+ExecStart=/usr/bin/cage -- /usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --incognito --no-first-run --disable-session-crashed-bubble --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 http://localhost:{{FRONTEND_PORT}}/?kiosk=true
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

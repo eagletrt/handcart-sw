@@ -1,0 +1,62 @@
+# Handcart configuration: limits, timings, pins and interfaces.
+
+[network]
+backend_host = "0.0.0.0"
+backend_port = 8000
+frontend_port = 8080
+
+[can]
+
+bms_interface = "can0"
+charger_interface = "can0"
+primary_dbc = "libs/libcan/dbc/primary/primary.dbc"
+charger_dbc = "libs/charger/littlesic/LittleSIC.dbc"
+
+[accumulator]
+cellboards = 6
+cells_per_cellboard = 24
+temps_per_cellboard = 48
+max_cell_voltage = 4.20       # V, charging stops here
+min_cell_voltage = 2.80       # V, never balance below this
+balancing_threshold = 0.010   # V, cells above min + threshold are bled
+
+[charge]
+# 144 cells in series: 604.8 V at 4.20 V/cell. Confirm the limits with the accumulator team.
+target_voltage_min = 504      # V
+target_voltage_max = 604      # V
+target_voltage_default = 590  # V
+current_max = 15.0            # A
+current_default = 6.0         # A
+
+[timing]
+bms_presence_timeout = 0.5        # s without BMS frames before it counts as gone
+charger_presence_timeout = 0.4    # s without charger frames before it counts as gone
+precharge_timeout = 3.0           # s for the BMS to reach TS_ON
+ecu_heartbeat_period = 0.2        # s, EcuFsm frame that keeps the BMS watchdog happy
+charger_ctrl_period = 0.01        # s, HYC_Ctrl
+charger_alive_period = 0.1        # s, HYC_Alive
+charger_target_period = 0.5       # s, HYC_Target
+
+[gpio]  # BCM numbering, handcart PCB
+buzzer = 1
+discharge_relay = 19
+pon = 20
+sd_relay = 21
+buttons = [22, 23, 24, 26, 27]
+encoder = [16, 17]
+
+[adc]  # MAX11335 reading the shutdown feedbacks
+spi_bus = 0
+spi_device = 1
+spi_mode = 3
+spi_max_speed_hz = 1000000
+vref = 3.310
+divider = 9.18
+divider_correction = 1.3
+
+[auth]
+session_timeout = 120     # s of inactivity before the operator is logged out
+max_pin_failures = 5
+lockout = 30              # s
+users_file = "var/users.json"
+audit_log = "var/audit.log"

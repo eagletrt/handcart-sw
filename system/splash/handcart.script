@@ -1,0 +1,19 @@
+# Plymouth script for the handcart splash: black background, eagle in the centre, slow pulse.
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+# the logo from assets/, scaled to a third of the screen height
+logo = Image("eagle.png");
+height = Window.GetHeight() / 3;
+eagle = logo.Scale(logo.GetWidth() * height / logo.GetHeight(), height);
+sprite = Sprite(eagle);
+sprite.SetX(Window.GetX() + Window.GetWidth() / 2 - eagle.GetWidth() / 2);
+sprite.SetY(Window.GetY() + Window.GetHeight() / 2 - eagle.GetHeight() / 2);
+
+frame = 0;
+fun refresh() {
+    frame = frame + 1;
+    sprite.SetOpacity(0.75 + 0.25 * Math.Sin(frame / 25));
+}
+Plymouth.SetRefreshFunction(refresh);

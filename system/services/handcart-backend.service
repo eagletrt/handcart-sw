@@ -1,0 +1,22 @@
+# Handcart backend: CAN, GPIO, charge state machine, safety and API. Starts at boot.
+#
+# Goes to: /etc/systemd/system/handcart-backend.service
+# Installed by: ./handcart.py install-services, which fills in {{USER}}, {{ROOT}} and {{UV_DIR}}
+
+[Unit]
+Description=Handcart backend
+Wants=sys-subsystem-net-devices-can0.device
+After=sys-subsystem-net-devices-can0.device
+
+[Service]
+User={{USER}}
+WorkingDirectory={{ROOT}}
+Environment=PATH={{UV_DIR}}:/usr/local/bin:/usr/bin:/bin
+ExecStart={{ROOT}}/handcart.py backend
+Restart=always
+RestartSec=2
+# give the backend time to open the relays and stop the charger on shutdown
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

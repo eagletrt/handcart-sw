@@ -1,0 +1,19 @@
+# Handcart frontend: serves the touch UI, talks to the backend only through its API.
+#
+# Goes to: /etc/systemd/system/handcart-frontend.service
+# Installed by: ./handcart.py install-services, which fills in {{USER}}, {{ROOT}} and {{UV_DIR}}
+
+[Unit]
+Description=Handcart frontend
+After=handcart-backend.service
+
+[Service]
+User={{USER}}
+WorkingDirectory={{ROOT}}
+Environment=PATH={{UV_DIR}}:/usr/local/bin:/usr/bin:/bin
+ExecStart={{ROOT}}/handcart.py frontend
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
