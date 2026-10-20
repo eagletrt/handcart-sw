@@ -1,7 +1,6 @@
-
 [submodule "src/common/charger/littlesic"]
 	path = src/common/charger/littlesic
 	url = git@github.com:eagletrt/littlesic.git
-[submodule "can_eagle"]
-	path = src/can_eagle
-	url = git@github.com:eagletrt/libcan-sw
+[submodule "src/libcan"]
+	path = src/libcan
+	url = git@github.com:eagletrt/libcan-sw.git

@@ -29,6 +29,8 @@ class FSM(threading.Thread):
     balancing_command = False
     last_balancing_stop_asked_time: datetime = 0
 
+    last_ecu_status_time = 0  # time of the last ECU-status heartbeat sent to the accumulator
+
     tx_can_queue: queue.Queue
     rx_can_queue: queue.Queue
     com_queue: queue.Queue
@@ -58,31 +60,71 @@ class FSM(threading.Thread):
         self.shared_data = self._args[4]
         self.forward_lock = self._args[5]
 
+    def _send_bms_set(self, on: bool):
+        """
+        Ask the accumulator to turn the tractive system on/off.
+
+        The new primary network has no handcart-specific frame, so the handcart uses
+        the same ``BmsSet`` command the car ECU would send.
+        """
+        m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_BMS_SET)
+        try:
+            data = m.encode({"status": Toggle.ON.value if on else Toggle.OFF.value})
+        except cantools.database.EncodeError:
+            self.canread.can_err = True
+            return
+
+        self.tx_can_queue.put(can.Message(arbitration_id=m.frame_id, data=data, is_extended_id=False))
+
+    def _send_ecu_status(self):
+        """
+        Send a heartbeat to the accumulator, so it doesn't time out.
+        """
+        m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(primary_ID_ECU_STATUS)
+        try:
+            data = m.encode({"vehicleStatus": 1, "krakenStatus": 2})
+        except cantools.database.EncodeError:
+            self.canread.can_err = True
+            return
+
+        self.tx_can_queue.put(can.Message(arbitration_id=m.frame_id, data=data, is_extended_id=False))
+
+    def _send_balancing_set(self, start: bool):
+        """
+        Ask the accumulator to start/stop balancing via ``RaspberryBalancingSet``.
+
+        ``target`` is the cell voltage to balance down to: we balance to the current
+        minimum cell voltage (clamped into a safe/encodable range). ``threshold`` is
+        the balancing hysteresis, converted from ACC_BALANCING_THRESHOLD (mV) to V.
+        """
+        m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
+            primary_ID_RASPBERRY_BALANCING_SET)
+
+        target = self.canread.bms_hv.min_cell_voltage
+        if target is None or target < ACC_MIN_CELL_VOLTAGE:
+            target = ACC_MIN_CELL_VOLTAGE
+        if target > ACC_MAX_CELL_VOLTAGE:
+            target = ACC_MAX_CELL_VOLTAGE
+
+        try:
+            data = m.encode({
+                "start": Toggle.ON.value if start else Toggle.OFF.value,
+                "target": target,
+                "threshold": ACC_BALANCING_THRESHOLD / 1000.0,  # mV -> V
+            })
+        except cantools.database.EncodeError:
+            self.canread.can_err = True
+            return
+
+        self.tx_can_queue.put(can.Message(arbitration_id=m.frame_id, data=data, is_extended_id=False))
+
     def accumulator_sd(self):  # accumulator shutdown
         if self.canread.bms_hv.status == HvStatus.TS_ON:
-
-            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-                primary_ID_HV_SET_STATUS_HANDCART)
-
-            try:
-                data = m.encode(
-                    {
-                        "status": False,
-                        "hv_status_set": Toggle.OFF.value, # For retrocompatibility with the old BMS
-                    }
-                )
-            except cantools.database.EncodeError:
-                self.canread.can_err = True
-
-            message = can.Message(arbitration_id=m.frame_id,
-                                  data=data,
-                                  is_extended_id=False)
-            self.tx_can_queue.put(message)
+            self._send_bms_set(False)
 
     def clrErr(self):
         """
         Function that clears all the errors in the FSM, use with care
-        :return:
         """
         self.canread.charger.error = False
         self.canread.bms_hv.error = False
@@ -94,23 +136,7 @@ class FSM(threading.Thread):
         if self.canread.bms_hv.is_balancing == Toggle.ON and \
                 self.last_balancing_stop_asked_time != 0 and \
                 (datetime.now() - self.last_balancing_stop_asked_time).seconds > CAN_RETRANSMIT_INTERVAL_CRITICAL:
-
-            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-                primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
-            try:
-                data = m.encode(
-                    {
-                        "set_balancing_status": Toggle.OFF.value,
-                        "balancing_threshold": ACC_BALANCING_THRESHOLD
-                    }
-                )
-            except cantools.database.EncodeError:
-                self.canread.can_err = True
-
-            message = can.Message(arbitration_id=m.frame_id,
-                                  data=data,
-                                  is_extended_id=False)
-            self.tx_can_queue.put(message)
+            self._send_balancing_set(False)
         self.last_balancing_stop_asked_time = datetime.now()
 
     def checkCommands(self):
@@ -167,19 +193,6 @@ class FSM(threading.Thread):
             if value is True:
                 self.balancing_command = True
 
-        if com_type == "fan-override-set-status":
-            if value is False:
-                self.canread.bms_hv.fans_set_override_status = Toggle.OFF
-            if value is True:
-                self.canread.bms_hv.fans_set_override_status = Toggle.ON
-
-        if com_type == "fan-override-set-speed":
-            if type(value) is not int:
-                tprint(f"fan-override-set-speed command value type is not int: {value}", P_TYPE.ERROR)
-                return
-            if ACC_MIN_FAN_SPEED <= value <= ACC_MAX_FAN_SPEED:
-                self.canread.bms_hv.fans_set_override_speed = value / 100
-
         if com_type == 'max-out-current':
             if type(value) is not float:
                 tprint(f"max-out-current command value type is not float: {value}", P_TYPE.ERROR)
@@ -202,7 +215,7 @@ class FSM(threading.Thread):
         GPIO.output(PIN.PON_CONTROL.value, GPIO.HIGH)  # Enable PON
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         if self.balancing_command:
@@ -226,7 +239,7 @@ class FSM(threading.Thread):
         self.precharge_asked_time = 0
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         # Make sure that acc is in ts off
@@ -252,28 +265,12 @@ class FSM(threading.Thread):
         GPIO.output(PIN.DISCHARGE.value, GPIO.HIGH)  # pin discharge high (open discharge relay)
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
             return STATE.IDLE
 
         if self.canread.bms_hv.status == HvStatus.IDLE and not self.precharge_asked:
-            m = dbc_primary.get_message_by_frame_id(primary_ID_HV_SET_STATUS_HANDCART)
-
-            try:
-                data = m.encode(
-                    {
-                        "status": True,
-                        "hv_status_set": Toggle.ON.value, # For retrocompatibility with the old BMS
-                    }
-                )
-
-                ts_on_msg = can.Message(arbitration_id=m.frame_id,
-                                        data=data,
-                                        is_extended_id=False)
-
-                self.tx_can_queue.put(ts_on_msg)
-            except cantools.database.EncodeError:
-                self.canread.can_err = True
+            self._send_bms_set(True)  # ask the accumulator to turn TS on (it runs precharge itself)
 
             self.precharge_asked = True
             self.precharge_asked_time = time.time()
@@ -291,8 +288,8 @@ class FSM(threading.Thread):
             if (time.time() - self.precharge_asked_time) > ACC_PRECHARGE_FINISH_TIMEOUT:
                 if self.precharge_asked and \
                         (self.canread.bms_hv.status == HvStatus.PRECHARGE or
-                         self.canread.bms_hv.status == HvStatus.AIRN_CLOSE or
-                         self.canread.bms_hv.status == HvStatus.AIRP_CLOSE):
+                         self.canread.bms_hv.status == HvStatus.AIRN_CHECK or
+                         self.canread.bms_hv.status == HvStatus.AIRP_CHECK):
                     return STATE.PRECHARGE
                 else:
                     return STATE.IDLE
@@ -305,7 +302,7 @@ class FSM(threading.Thread):
         """
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
@@ -356,7 +353,7 @@ class FSM(threading.Thread):
         """
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         if self.canread.bms_hv.status != HvStatus.TS_ON:
@@ -376,28 +373,12 @@ class FSM(threading.Thread):
             return STATE.IDLE
 
         # Check that charger is not charging
-        if self.canread.charger.is_enabled():
+        if self.canread.charger.is_charging():
             self.canread.can_charger_charge_enabled = False
 
         if not self.canread.bms_hv.is_balancing == Toggle.ON \
                 and (time.time() - self.balancing_asked_time) > CAN_RETRANSMIT_INTERVAL_NORMAL:
-            m: cantools.database.can.message = dbc_primary.get_message_by_frame_id(
-                primary_ID_HV_SET_BALANCING_STATUS_HANDCART)
-
-            try:
-                data = m.encode(
-                    {
-                        "set_balancing_status": Toggle.ON.value,
-                        "balancing_threshold": ACC_BALANCING_THRESHOLD
-                    }
-                )
-            except cantools.database.EncodeError:
-                self.canread.can_err = True
-
-            message = can.Message(arbitration_id=m.frame_id,
-                                  data=data,
-                                  is_extended_id=False)
-            self.tx_can_queue.put(message)
+            self._send_balancing_set(True)
             self.balancing_asked_time = time.time()
         return STATE.BALANCING
 
@@ -470,6 +451,13 @@ class FSM(threading.Thread):
 
         while 1:
             time.sleep(0.001)
+
+            # Periodic ECU-status heartbeat: the accumulator runs a software watchdog on
+            # the ECU status, so the handcart must keep it alive on the primary bus.
+            if (time.time() - self.last_ecu_status_time) > CAN_ECU_STATUS_INTERVAL:
+                self._send_ecu_status()
+                self.last_ecu_status_time = time.time()
+
             # Controllo coda rec can messages, in caso li processo. Controllo anche errori
 
             if not self.rx_can_queue.empty():
@@ -506,8 +494,8 @@ class FSM(threading.Thread):
             # Discharge
             if self.canread.bms_hv.status not in [
                 HvStatus.PRECHARGE,
-                HvStatus.AIRN_CLOSE,
-                HvStatus.AIRP_CLOSE,
+                HvStatus.AIRN_CHECK,
+                HvStatus.AIRP_CHECK,
                 HvStatus.TS_ON]:
                 # If ts is not on, discharge pin is LOW (discharge relay closed)
                 GPIO.output(PIN.DISCHARGE.value, GPIO.LOW)

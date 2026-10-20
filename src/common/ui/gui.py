@@ -75,18 +75,14 @@ class Element(Enum):
     BUTTON_WINDOW_RIGHT = 1
     SETTING_CUTOFF = 2
     SETTING_MAX_OUT_CURRENT = 3
-    SETTING_FAN_OVERRIDE_STATUS = 4
-    SETTING_FAN_OVERRIDE_SPEED = 5
-    SETTING_CHARGER_FAN_MIN = 6
-    SETTING_CHARGER_FAN_MAX = 7
+    SETTING_CHARGER_FAN_MIN = 4
+    SETTING_CHARGER_FAN_MAX = 5
 
 
 # limits for the possible values of the settings in the interface
 SETTING_ELEMENT_LIMIT = {
     Element.SETTING_CUTOFF: {"min": ACC_MIN_TARGET_V, "max": ACC_MAX_TARGET_V, "step": 1},
     Element.SETTING_MAX_OUT_CURRENT: {"min": ACC_MIN_CHG_CURRENT, "max": ACC_MAX_CHG_CURRENT, "step": .2},
-    Element.SETTING_FAN_OVERRIDE_STATUS: {"min": 0, "max": 1, "step": 1},
-    Element.SETTING_FAN_OVERRIDE_SPEED: {"min": 0, "max": 1, "step": .05},
     Element.SETTING_CHARGER_FAN_MIN: {"min": 0, "max": 100, "step": 5},
     Element.SETTING_CHARGER_FAN_MAX: {"min": 0, "max": 100, "step": 5}
 }
@@ -104,8 +100,6 @@ def is_settings_element(el: Element) -> bool:
     return el in [
         Element.SETTING_CUTOFF,
         Element.SETTING_MAX_OUT_CURRENT,
-        Element.SETTING_FAN_OVERRIDE_STATUS,
-        Element.SETTING_FAN_OVERRIDE_SPEED,
         Element.SETTING_CHARGER_FAN_MIN,
         Element.SETTING_CHARGER_FAN_MAX
     ]
@@ -260,8 +254,8 @@ class Gui():
     settings_name_value: list[list[str]]
     settings_name_table: list[list[tkinter.Entry]]
     tab_settings: ttk.Frame
-    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
-    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1], [-1], [-1]]
+    settings_actual_value: list[list[float | int]] = [[-1], [-1], [-1], [-1]]
+    settings_set_value: list[list[float | int]] = [[-1], [-1], [-1], [-1]]
     settings_set_value_table: list[list[tkinter.Entry]]
 
     # voltages window
@@ -431,8 +425,7 @@ class Gui():
             delta = 1 * multiplier
 
         # float values
-        if self.selected_element in [Element.SETTING_MAX_OUT_CURRENT,
-                                     Element.SETTING_FAN_OVERRIDE_SPEED]:
+        if self.selected_element in [Element.SETTING_MAX_OUT_CURRENT]:
             val = float(self.settings_set_value[selected_settings_element_index][0])
             new_val = round(val + delta, 2)
             if new_val > selected_element_limit["max"] or new_val < selected_element_limit["min"]:
@@ -442,7 +435,6 @@ class Gui():
 
         # int values
         if self.selected_element in [Element.SETTING_CUTOFF,
-                                     Element.SETTING_FAN_OVERRIDE_STATUS,
                                      Element.SETTING_CHARGER_FAN_MIN,
                                      Element.SETTING_CHARGER_FAN_MAX]:
             val = int(self.settings_set_value[selected_settings_element_index][0])
@@ -486,17 +478,6 @@ class Gui():
                 Element.SETTING_MAX_OUT_CURRENT: lambda: {
                     "com-type": "max-out-current",
                     "value": float(self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0])
-                },
-                Element.SETTING_FAN_OVERRIDE_STATUS: lambda: {
-                    "com-type": "fan-override-set-status",
-                    "value": True if
-                    self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][
-                        0] == "1" else False
-                },
-                Element.SETTING_FAN_OVERRIDE_SPEED: lambda: {
-                    "com-type": "fan-override-set-speed",
-                    "value": int(float(
-                        self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0]) * 100)
                 }
             }
 
@@ -781,8 +762,6 @@ class Gui():
             ["Status", "-"],
             ["target V", "-"],
             ["Max current out", "-"],
-            ["Fan override", "-"],
-            ["fan override speed", "-"],
             [FB.VSD_FB, "-"],
             [FB.SD_TO_MUSHROOM_FB, "-"],
             [FB.SD_TO_CHARGER_FB, "-"],
@@ -844,9 +823,6 @@ class Gui():
                 ["Status", self.shared_data.FSM_stat.name],
                 ["target V", self.shared_data.target_v],
                 ["Max current out", self.shared_data.act_set_out_current],
-                ["Fan override",
-                 str("enabled" if self.shared_data.bms_hv.fans_set_override_status.value == Toggle.ON else "disabled")],
-                ["fan override speed", str(self.shared_data.bms_hv.fans_set_override_speed)],
                 [FB.VSD_FB, self.shared_data.feedbacks[FB.VSD_FB.value]],
                 [FB.SD_TO_MUSHROOM_FB, self.shared_data.feedbacks[FB.SD_TO_MUSHROOM_FB.value]],
                 [FB.SD_TO_CHARGER_FB, self.shared_data.feedbacks[FB.SD_TO_CHARGER_FB.value]],
@@ -916,8 +892,6 @@ class Gui():
         self.settings_name_value = [
             ["BMS target voltage (V)"],
             ["BMS max charge current (A)"],
-            ["BMS fan override status"],
-            ["BMS fan override speed"],
             ["Charger min fan speed"],
             ["Charger max fan speed"]
         ]
@@ -972,16 +946,6 @@ class Gui():
         self.settings_set_value_table[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0].bind(
             "<FocusOut>", lambda ev, el=Element.SETTING_MAX_OUT_CURRENT: self.on_focus_out(ev, el))
 
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0].bind(
-            "<FocusIn>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_STATUS: self.on_focus_in(ev, el))  # select thing
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0].bind(
-            "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_STATUS: self.on_focus_out(ev, el))
-
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
-            "<FocusIn>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_in(ev, el))  # select thing
-        self.settings_set_value_table[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0].bind(
-            "<FocusOut>", lambda ev, el=Element.SETTING_FAN_OVERRIDE_SPEED: self.on_focus_out(ev, el))
-
         self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
             "<FocusIn>", lambda ev, el=Element.SETTING_CHARGER_FAN_MIN: self.on_focus_in(ev, el))  # select thing
         self.settings_set_value_table[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0].bind(
@@ -998,8 +962,6 @@ class Gui():
         self.settings_actual_value = [
             [self.shared_data.target_v],
             [self.shared_data.act_set_out_current],
-            [1 if self.shared_data.bms_hv.fans_override_status == Toggle.ON else 0],
-            [self.shared_data.bms_hv.fans_override_speed],
             [self.shared_data.charger.set_min_fan_speed],  # don't have a feedback
             [self.shared_data.charger.set_max_fan_speed]  # don't have a feedback
         ]
@@ -1011,12 +973,6 @@ class Gui():
         if self.selected_element != Element.SETTING_MAX_OUT_CURRENT:
             self.settings_set_value[self.get_element_index(Element.SETTING_MAX_OUT_CURRENT)][0] \
                 = self.shared_data.act_set_out_current
-        if self.selected_element != Element.SETTING_FAN_OVERRIDE_STATUS:
-            self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_STATUS)][0] \
-                = 1 if self.shared_data.bms_hv.fans_set_override_status == Toggle.ON else 0
-        if self.selected_element != Element.SETTING_FAN_OVERRIDE_SPEED:
-            self.settings_set_value[self.get_element_index(Element.SETTING_FAN_OVERRIDE_SPEED)][0] \
-                = self.shared_data.bms_hv.fans_set_override_speed
         if self.selected_element != Element.SETTING_CHARGER_FAN_MIN:
             self.settings_set_value[self.get_element_index(Element.SETTING_CHARGER_FAN_MIN)][0] \
                 = self.shared_data.charger.set_min_fan_speed

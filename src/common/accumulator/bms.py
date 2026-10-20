@@ -8,9 +8,23 @@ class ACCUMULATOR(Enum):
     FENICE = 2
 
 
+def _as_int(v):
+    """Return the integer value of a cantools signal, whether it is a plain int or a NamedSignalValue."""
+    return int(v.value) if hasattr(v, "value") else int(v)
+
+
+def _cellboard_index(msg) -> int:
+    """
+    0-based cellboard index parsed from the message name (``TsacCellboard{N}...`` -> N-1).
+    """
+    name = dbc_primary.get_message_by_frame_id(msg.arbitration_id).name
+    digits = "".join(c for c in name if c.isdigit())
+    return int(digits) - 1
+
+
 class BMS_HV:
     """
-    Class that stores and processes all the data of the BMS_HV
+    Class that stores and processes all the data of the accumulator (TSAC).
     """
 
     ACC_CONNECTED = ACCUMULATOR.FENICE  # Default Fenice, keep for other future BMS
@@ -35,6 +49,7 @@ class BMS_HV:
     act_power = -1
     max_cell_voltage = -1
     min_cell_voltage = -1
+    avg_cell_voltage = -1
     error = False
     errors = bms_errors
     feedbacks = bms_feedbacks
@@ -49,12 +64,7 @@ class BMS_HV:
     max_temp = -1
     last_hv_current = datetime.now().isoformat()
     is_balancing = Toggle.OFF
-    fans_override_status = Toggle.OFF
-    fans_override_speed = 0
     balancing_cells = []
-
-    fans_set_override_speed = 0
-    fans_set_override_status = Toggle.OFF
 
     sum_cell = 0
 
@@ -71,233 +81,150 @@ class BMS_HV:
             return (datetime.now() - datetime.fromisoformat(str(self.lastupdated))).seconds \
                 < CAN_ACC_PRESENCE_TIMEOUT
 
-    def doHV_TOTAL_VOLTAGE(self, msg):
+    def doTSAC_STATUS(self, msg):
         """
-        Processes th HV_VOLTAGE CAN message from BMS_HV
-        :param msg: the HV_VOLTAGE CAN message
+        Processes the TsacStatus CAN message (mainboard FSM state).
+        The mainboard reports BALANCING as one of its states, so we derive the
+        balancing flag from it.
         """
-
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-        # someway somehow you have to extract:
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.act_pack_voltage = round(message.get("pack"), 2)
-        self.act_bus_voltage = round(message.get("bus"), 2)
-        self.sum_cell = round(message.get("sum_cell"), 2)
+        self.status = HvStatus(_as_int(message.get("mainboardStatus")))
+        self.is_balancing = Toggle.ON if self.status == HvStatus.BALANCING else Toggle.OFF
 
+    def doTSAC_MB_VOLTAGE(self, msg):
         """
-        self.hv_voltage_history.append({"timestamp": self.lastupdated,
-                                        "pack_voltage": self.act_pack_voltage,
-                                        "bus_voltage": self.act_bus_voltage,
-                                        "max_cell_voltage": self.max_cell_voltage,
-                                        "min_cell_voltage": self.max_cell_voltage})
-
-        self.hv_voltage_history_index += 1
+        Processes TsacMainboardVoltageInfo: pack/bus/cell-sum voltages plus the
+        min/max/avg cell voltages (which used to live in HV_CELLS_VOLTAGE_STATS).
         """
-
-    def doHV_ENERGY(self, msg):
-        """
-        Processes the HV_CURRENT CAN message from BMS_HV
-        :param msg: the HV_CURRENT CAN message
-        """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-
+        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
+        self.act_pack_voltage = round(message.get("total"), 2)
+        self.act_bus_voltage = round(message.get("ts"), 2)
+        self.sum_cell = round(message.get("cellSum"), 2)
+        self.max_cell_voltage = round(message.get("max"), 3)
+        self.min_cell_voltage = round(message.get("min"), 3)
+        self.avg_cell_voltage = round(message.get("average"), 3)
+        self.act_cell_delta = round(self.max_cell_voltage - self.min_cell_voltage, 3)
+
+    def doTSAC_MB_CURRENT(self, msg):
+        """
+        Processes TsacMainboardCurrentInfo (pack current and power).
+        """
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-        self.act_current = abs(round(message.get("energy"), 2))
-
-    def doHV_CURRENT(self, msg):
-        """
-        Processes the HV_CURRENT CAN message from BMS_HV
-        :param msg: the HV_CURRENT CAN message
-        """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         self.act_current = abs(round(message.get("current"), 2))
+        self.act_power = round(message.get("power"), 2)
 
+    def doTSAC_MB_TEMP(self, msg):
         """
-        self.hv_current_history.append({
-            "timestamp": self.lastupdated,
-            "current": self.act_current,
-            "power": self.act_power
-        })
-        self.hv_current_history_index += 1
-        
-
-        if self.act_current != 0:
-            delta = (datetime.fromisoformat(self.lastupdated) - datetime.fromisoformat(
-                self.last_hv_current)).seconds * (1 / 3600)
-            self.charged_capacity_ah += self.act_current * delta
-            self.charged_capacity_wh += self.act_power * delta
+        Processes TsacMainboardTemperatureInfo (cell temperature stats).
         """
-
-    def doHV_CELLS_TEMP_STATS(self, msg):
-        """
-        Processes the HV_TEMP CAN message from BMS_HV
-        :param msg: the HV_TEMP CAN message
-        """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
+        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        self.act_average_temp = round(message.get("avg"), 2)
+        self.act_average_temp = round(message.get("average"), 2)
         self.min_temp = round(message.get("min"), 2)
         self.max_temp = round(message.get("max"), 2)
 
+    def doTSAC_MB_ERROR(self, msg):
         """
-        self.hv_temp_history.append({"timestamp": self.lastupdated,
-                                     "average_temp": self.act_average_temp,
-                                     "max_temp": self.max_temp,
-                                     "min_temp": self.min_temp})
-
-        self.hv_temp_history_index += 1
+        Processes TsacMainboardError, storing the raised errors.
         """
-
-    def doHV_ERRORS(self, msg):
-        """
-        Processes the HV_ERRORS CAN message from BMS_HV
-        :param msg: the HV_ERRORS CAN message
-        """
-        # self.ACC_CONNECTED = ACCUMULATOR.FENICE
-
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
 
-        for i in message.keys():
+        for name, value in message.items():
             try:
-                self.errors[i] = message.get(i)
-                if self.errors[i] != 0:
-                    tprint(f"BMS error {i}", P_TYPE.ERROR)
-                    # self.error = True
-            except KeyError:
+                self.errors[name] = _as_int(value)
+                if self.errors[name] != 0:
+                    tprint(f"TSAC error {name}", P_TYPE.ERROR)
+            except (KeyError, TypeError):
                 pass
 
-    def doHV_STATUS(self, msg):
+    def doTSAC_MB_FEEDBACK(self, msg):
         """
-        Processes the HV_STATUS CAN message from BMS_HV
-        :param msg: the HV_STATUS CAN message
+        Processes TsacMainboardFeedback, storing the raw feedback values.
         """
-
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        self.status = HvStatus(int(message.get('status').value))
 
-    def doHV_CELLS_VOLTAGE(self, msg):
-        """
-        Processes the
-        :param msg: the CAN message
-        """
+        for name, value in message.items():
+            try:
+                self.feedbacks[name] = value
+            except Exception:
+                pass
 
+    def doTSAC_CELLBOARD_VOLTAGE(self, msg):
+        """
+        Processes a TsacCellboard{N}Voltage frame (multiplexed by ``group``) and
+        writes the decoded cells into the flat hv_cells_act array.
+        """
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
-            tprint(f"ValueError in doHV_CELLS_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
+            tprint(f"ValueError in doTSAC_CELLBOARD_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        if message.get('start_index') > 105:
-            tprint(f"cells voltage index out of range: {message.get('start_index')}", P_TYPE.ERROR)
-            return
+        base = _cellboard_index(msg) * ACC_CELLS_VOLTAGES_PER_SEGMENT
+        for name, value in message.items():
+            if not name.startswith("cell"):
+                continue
+            idx = base + int(name[4:]) - 1
+            if 0 <= idx < ACC_CELLS_VOLTAGES_COUNT:
+                self.hv_cells_act[idx] = round(value, 3)
 
-        self.hv_cells_act[message.get("start_index"):message.get("start_index") + 3] = \
-            round(message.get("voltage_0"), 3), \
-                round(message.get("voltage_1"), 3), \
-                round(message.get("voltage_2"), 3)
-
-    def doHV_CELLS_VOLTAGE_STATS(self, msg):
+    def doTSAC_CELLBOARD_TEMP(self, msg):
+        """
+        Processes a TsacCellboard{N}Temperature frame (multiplexed by ``group``) and
+        writes the decoded temperatures into the flat hv_temps_act array.
+        """
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
-            tprint(f"ValueError in doHV_CELL_VOLTAGE, msg data: {msg.data}", P_TYPE.ERROR)
+            tprint(f"ValueError in doTSAC_CELLBOARD_TEMP, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        self.max_cell_voltage = round(message.get("max"), 2)
-        self.min_cell_voltage = round(message.get("min"), 2)
-        # AVG and sum missing
-        self.act_cell_delta = round(message.get("delta"), 2)
+        base = _cellboard_index(msg) * ACC_CELLS_TEMPS_PER_SEGMENT
+        for name, value in message.items():
+            if not name.startswith("cell"):
+                continue
+            idx = base + int(name[4:]) - 1
+            if 0 <= idx < ACC_CELLS_TEMPS_COUNT:
+                self.hv_temps_act[idx] = round(value, 3)
 
-    def doHV_CELLS_TEMP(self, msg):
+    def doTSAC_CELLBOARD_BALANCING(self, msg):
         """
-        Processes the
-        :param msg: the CAN message
+        Processes a TsacCellboard{N}Balancing frame, updating the list of cells that
+        are currently being discharged (global cell indexes).
         """
-
         try:
             message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
             self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
         except ValueError:
-            tprint(f"ValueError in doHV_CELLS_TEMP, msg data: {msg.data}", P_TYPE.ERROR)
+            tprint(f"ValueError in doTSAC_CELLBOARD_BALANCING, msg data: {msg.data}", P_TYPE.ERROR)
             return
 
-        if message.get('start_index') > 216:
-            tprint(f"cells temp index out of range: {message.get('start_index')}", P_TYPE.ERROR)
-            return
+        base = _cellboard_index(msg) * ACC_CELLS_VOLTAGES_PER_SEGMENT
+        # drop the previous state of this cellboard, then append the cells being balanced
+        self.balancing_cells = [c for c in self.balancing_cells
+                                if not (base <= c < base + ACC_CELLS_VOLTAGES_PER_SEGMENT)]
+        for name, value in message.items():
+            if name.startswith("cell") and _as_int(value) != 0:
+                self.balancing_cells.append(base + int(name[4:]) - 1)
 
-        self.hv_temps_act[message.get("start_index"):message.get("start_index") + 4] = \
-            round(message.get("temp_0"), 3), \
-                round(message.get("temp_1"), 3), \
-                round(message.get("temp_2"), 3), \
-                round(message.get("temp_3"), 3)
-
-    def doHV_BALANCING_STATUS(self, msg):
-        """
-        Updates the balancing status of the acc
-        """
-
-        try:
-            message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-            self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-            # if message.get("cellboard_id") > BMS_CELLBOARD_COUNT - 1: # TODO add
-            #    raise ValueError("cellboard_id out of range")
-        except ValueError:
-            tprint(f"ValueError in CELLS_BALANCING_STATUS, msg data: {msg.data}", P_TYPE.ERROR)
-            return
-
-        self.is_balancing = Toggle(int(message.get("balancing_status").value))
-        if self.is_balancing == Toggle.ON:
-            self.balancing_cells = message.get("balancing_cells")  # TODO: check
-            # tprint(f"Balanging status: {message.get('balancing_status')}", P_TYPE.DEBUG)
-
-    def doHV_FANS_STATUS(self, msg):
-        """
-        Updates the fans override status of the acc
-        """
+    def doTSAC_CELLBOARD_VERSION(self, msg):
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
         message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
+        self.cellboard_versions[_cellboard_index(msg)] = {
+            "version": f"{message.get('major')}.{message.get('minor')}.{message.get('patch')}"
+        }
 
-        # tprint(message, P_TYPE.DEBUG)
-
-        self.fans_override_status = Toggle(int(message.get("fans_override").value))
-        self.fans_override_speed = round(message.get("fans_speed"), 2)
-
-    def do_HV_CELLBOARD_VERSION(self, msg):
+    def doTSAC_MB_VERSION(self, msg):
         self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        # tprint(f"Cellboard {message.get('cellboard_id')} version:  {message.get('component_build_time')}", P_TYPE.DEBUG)
-
-    def do_HV_MAINBOARD_VERSION(self, msg):
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-        # tprint(message.get("component_build_time"), P_TYPE.DEBUG)
-
-    def do_HV_FEEDBACK_STATUS(self, msg):
-        self.lastupdated = datetime.fromtimestamp(msg.timestamp).isoformat()
-
-        message = dbc_primary.decode_message(msg.arbitration_id, msg.data)
-
-        try:
-            for k in message.keys():
-                self.feedbacks[k] = bms_feedback_status.get(str(message.get(k)))
-        except Exception:
-            pass
+        dbc_primary.decode_message(msg.arbitration_id, msg.data)
