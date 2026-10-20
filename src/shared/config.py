@@ -79,11 +79,23 @@ class Charge(_Section):
 class Timing(_Section):
     bms_presence_timeout: float = Field(gt=0)
     charger_presence_timeout: float = Field(gt=0)
-    precharge_timeout: float = Field(gt=0)
+    bms_response_timeout: float = Field(gt=0)
+    charger_stop_delay: float = Field(gt=0)
     ecu_heartbeat_period: float = Field(gt=0)
     charger_ctrl_period: float = Field(gt=0)
     charger_alive_period: float = Field(gt=0)
     charger_target_period: float = Field(gt=0)
+
+
+class Shutdown(_Section):
+    closed_above: float = Field(gt=0)
+    open_below: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _thresholds_in_order(self) -> Self:
+        if self.open_below >= self.closed_above:
+            raise ValueError("open_below must be below closed_above")
+        return self
 
 
 class Gpio(_Section):
@@ -126,6 +138,7 @@ class Config(_Section):
     accumulator: Accumulator
     charge: Charge
     timing: Timing
+    shutdown: Shutdown
     gpio: Gpio
     adc: Adc
     auth: Auth
