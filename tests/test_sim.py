@@ -2,8 +2,9 @@
 
 import pytest
 
-from backend.devices.bms import Bms, TsacState
-from backend.devices.charger import ChargerCommand, ChargerState, LittleSic
+from backend.devices.bms import Bms
+from backend.devices.charger import ChargerCommand, LittleSic
+from shared.models import ChargerState, TsacState
 from sim.bms import SimBms
 from sim.charger import SimCharger
 

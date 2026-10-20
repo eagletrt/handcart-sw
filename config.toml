@@ -1,7 +1,7 @@
 # Handcart configuration: limits, timings, pins and interfaces.
 
 [network]
-backend_host = "0.0.0.0"
+backend_host = "127.0.0.1"   # only this machine: the frontend, telemetry, and SSH sessions on the Pi
 backend_port = 8000
 frontend_port = 8080
 
@@ -34,6 +34,7 @@ charger_presence_timeout = 0.4    # s without charger frames before it counts as
 bms_response_timeout = 3.0        # s for the BMS to reach TS_ON, or to start balancing
 charger_stop_delay = 0.2          # s between stopping the charger and cutting its power, on error
 ecu_heartbeat_period = 0.2        # s, EcuFsm frame that keeps the BMS watchdog happy
+bms_command_period = 0.1          # s, BmsSet (TS on/off) and balancing requests
 charger_ctrl_period = 0.01        # s, HYC_Ctrl
 charger_alive_period = 0.1        # s, HYC_Alive
 charger_target_period = 0.5       # s, HYC_Target
@@ -47,8 +48,13 @@ buzzer = 1
 discharge_relay = 19
 pon = 20
 sd_relay = 21
-buttons = [22, 23, 24, 26, 27]
-encoder = [16, 17]
+button_up = 24
+button_down = 27
+button_left = 23
+button_right = 26
+encoder_press = 22   # clicking the encoder knob: the "confirm" button
+encoder_a = 16
+encoder_b = 17
 
 [adc]  # MAX11335 reading the shutdown feedbacks
 spi_bus = 0

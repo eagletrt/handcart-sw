@@ -84,6 +84,7 @@ class Timing(_Section):
     bms_response_timeout: float = Field(gt=0)
     charger_stop_delay: float = Field(gt=0)
     ecu_heartbeat_period: float = Field(gt=0)
+    bms_command_period: float = Field(gt=0)
     charger_ctrl_period: float = Field(gt=0)
     charger_alive_period: float = Field(gt=0)
     charger_target_period: float = Field(gt=0)
@@ -105,12 +106,17 @@ class Gpio(_Section):
     discharge_relay: int
     pon: int
     sd_relay: int
-    buttons: tuple[int, ...]
-    encoder: tuple[int, int]
+    button_up: int
+    button_down: int
+    button_left: int
+    button_right: int
+    encoder_press: int
+    encoder_a: int
+    encoder_b: int
 
     @model_validator(mode="after")
     def _no_shared_pins(self) -> Self:
-        pins = [self.buzzer, self.discharge_relay, self.pon, self.sd_relay, *self.buttons, *self.encoder]
+        pins = list(self.model_dump().values())
         if len(pins) != len(set(pins)):
             raise ValueError(f"a GPIO pin is assigned twice: {sorted(pins)}")
         return self

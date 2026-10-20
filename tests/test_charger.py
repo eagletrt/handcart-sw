@@ -2,7 +2,8 @@
 
 import pytest
 
-from backend.devices.charger import ChargerCommand, ChargerState, LittleSic
+from backend.devices.charger import ChargerCommand, LittleSic
+from shared.models import ChargerState
 
 
 @pytest.fixture

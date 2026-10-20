@@ -2,16 +2,22 @@
 """Handcart launcher: ./handcart.py <command> [args].
 
 Standard library only. Commands go through uv, which creates the environment
-and installs the dependencies the first time.
+and installs the dependencies the first time. `status` and `command` talk to the
+running backend, so they work over SSH too.
 """
 
 import getpass
+import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
+import urllib.error
+import urllib.request
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 UV_RUN = ["uv", "run"]
@@ -89,17 +95,88 @@ def install_services() -> int:
     return 0
 
 
+def api(method: str, path: str, body: dict | None = None) -> Any:
+    """Call the backend running on this machine."""
+    port = tomllib.loads((ROOT / "config.toml").read_text())["network"]["backend_port"]
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}{path}",
+        method=method,
+        data=None if body is None else json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=3) as response:
+        return json.loads(response.read() or b"null")
+
+
+def status(args: list[str]) -> int:
+    """Print what the backend sees, in a few lines."""
+    s = api("GET", "/api/status")
+    bms, charger = s["bms"], s["charger"]
+    print(f"state     {s['state']}: {s['message']}")
+    print(f"settings  {s['settings']['target_voltage']:g} V, {s['settings']['max_current']:g} A")
+    if bms["connected"]:
+        cells = [v for v in bms["cells"] if v is not None]
+        cell_range = f"{min(cells):.3f}-{max(cells):.3f} V" if cells else "-"
+        print(f"BMS       {bms['state']}, pack {bms['pack_voltage']} V, TS {bms['ts_voltage']} V")
+        print(f"          cells {cell_range}, max {bms['temp_max']} °C")
+        print(f"          errors: {', '.join(bms['errors']) or 'none'}")
+    else:
+        print("BMS       not responding")
+    if charger["connected"]:
+        print(f"charger   {charger['state']}, {charger['voltage']} V, {charger['current']} A")
+        print(f"          errors: {', '.join(charger['errors']) or 'none'}")
+    else:
+        print("charger   not responding")
+    print("shutdown  " + ", ".join(f"{point} {volts} V" for point, volts in s["shutdown"]))
+    return 0
+
+
+def command(args: list[str]) -> int:
+    """Send a command to the state machine, then show what it did."""
+    if len(args) != 1:
+        print("Usage: ./handcart.py command <PRECHARGE|START_CHARGE|PAUSE_CHARGE|BALANCE|STOP|RESET>")
+        return 1
+    api("POST", "/api/command", {"command": args[0].upper()})
+    time.sleep(0.2)  # the command is handled at the next tick
+    s = api("GET", "/api/status")
+    print(f"{s['state']}: {s['message']}")
+    return 0
+
+
+# name: (description, function), for the commands that are not just a list of programs to run
+FUNCTIONS = {
+    "status": ("Show what the backend sees", status),
+    "command": ("Send a command, e.g. ./handcart.py command STOP", command),
+    "install-services": (
+        "Set up the Pi to boot straight into the handcart UI",
+        lambda args: install_services(),
+    ),
+}
+
+
 def usage() -> None:
     print("Usage: ./handcart.py <command> [args]\n")
-    for name, (description, _) in COMMANDS.items():
+    for name, (description, _) in {**COMMANDS, **FUNCTIONS}.items():
         print(f"  {name:<17} {description}")
-    print(f"  {'install-services':<17} Set up the Pi to boot straight into the handcart UI")
 
 
 def main() -> int:
     name, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("help", [])
-    if name == "install-services":
-        return install_services()
+    if name in FUNCTIONS:
+        try:
+            return FUNCTIONS[name][1](args)
+        except urllib.error.HTTPError as error:
+            detail = json.loads(error.read()).get("detail")
+            if isinstance(detail, list):  # a request the API could not read: keep only the reason
+                detail = "; ".join(item["msg"] for item in detail)
+            print(f"Refused: {detail}", file=sys.stderr)
+            return 1
+        except urllib.error.URLError:
+            print(
+                "The backend is not running on this machine (start it with ./handcart.py backend)",
+                file=sys.stderr,
+            )
+            return 1
     if name not in COMMANDS:
         usage()
         return 0 if name in ("help", "-h", "--help") else 1

@@ -2,14 +2,13 @@
 
 import math
 import random
-from typing import Any
 
-from cantools.database.can import Database
+from cantools.database.can import Database, Message
 
 from backend.canbus import Frame, decode, encode
-from backend.devices.bms import TsacState
+from backend.canbus.periodic import Periodic
 from shared.config import Accumulator
-from sim.periodic import Periodic
+from shared.models import TsacState
 
 CELL_CAPACITY = 13.5  # Ah
 CELL_RESISTANCE = 0.00125  # ohm
@@ -17,7 +16,8 @@ BLEED_CURRENT = 0.2  # A through a balancing resistor
 ECU_WATCHDOG = 1.0  # s without the EcuFsm heartbeat before the BMS opens the AIRs
 AIRN_CHECK_TIME = 0.5  # s
 AIRP_CHECK_TIME = 0.3  # s
-PRECHARGE_TIME_CONSTANT = 0.4  # s
+PRECHARGE_TIME_CONSTANT = 0.4  # s, the TS charging through the precharge resistor
+DISCHARGE_TIME_CONSTANT = 0.5  # s, the TS emptying through the discharge resistor
 
 HV_STATES = {TsacState.AIRN_CHECK, TsacState.PRECHARGE, TsacState.AIRP_CHECK, TsacState.TS_ON}
 
@@ -82,8 +82,10 @@ class SimBms:
         self._update_balancing(now, dt)
         for cell, soc in enumerate(self._soc):
             self._soc[cell] = soc + self.current * dt * self._speed / 3600 / self._capacity[cell]
-        if self.state is not TsacState.PRECHARGE:
-            self.ts_voltage = self.pack_voltage if self.state is TsacState.TS_ON else self.ts_voltage * 0.9
+        if self.state is TsacState.TS_ON:
+            self.ts_voltage = self.pack_voltage
+        elif self.state is not TsacState.PRECHARGE:
+            self.ts_voltage *= math.exp(-dt / DISCHARGE_TIME_CONSTANT)
 
     def _update_airs(self, now: float, dt: float) -> None:
         elapsed = now - self._state_since
@@ -131,61 +133,88 @@ class SimBms:
     # what the BMS sends
 
     def frames(self, now: float) -> list[Frame]:
+        """The frames due at this time, each one at its own period."""
         due = self._periodic.due
+        pack = self._pack
         frames = []
         if due("status", 0.1, now):
-            boards = {f"cellboard{b + 1}Status": "IDLE" for b in range(self._pack.cellboards)}
+            boards = {f"cellboard{b + 1}Status": "IDLE" for b in range(pack.cellboards)}
             frames.append(encode(self._db, "TsacStatus", mainboardStatus=self.state.value, **boards))
         if due("pack", 0.1, now):
-            cells = self.cell_voltages
-            frames.append(encode(
-                self._db, "TsacMainboardVoltageInfo", ts=self.ts_voltage, total=self.pack_voltage,
-                cellSum=sum(cells), average=sum(cells) / len(cells), min=min(cells), max=max(cells),
-            ))  # fmt: skip
+            frames.append(self._pack_voltages())
             power = self.pack_voltage * self.current / 1000
             frames.append(encode(self._db, "TsacMainboardCurrentInfo", current=self.current, power=power))
         if due("temperatures", 0.5, now):
-            t = self._temps
-            frames.append(encode(
-                self._db, "TsacMainboardTemperatureInfo", min=min(t), max=max(t), average=sum(t) / len(t),
-                precharge=25.0, linearRegulator=30.0,
-            ))  # fmt: skip
-        if due("status flags", 0.5, now):
+            frames.append(self._pack_temperatures())
+        if due("flags", 0.5, now):
             frames.append(self._flags("TsacMainboardFeedback", tsLessThan60V=int(self.ts_voltage < 60)))
-            frames.append(self._flags("TsacMainboardError", **{f: 1 for f in self.faults}))
+            frames.append(self._flags("TsacMainboardError", **{fault: 1 for fault in self.faults}))
             for name in ("TsacCellboardErrorA", "TsacCellboardErrorB", "TsacCellboardErrorC"):
                 frames.append(self._flags(name))
         if due("cell voltages", 0.2, now):
-            frames += self._per_cell_frames("Voltage", self.cell_voltages, self._pack.cells_per_cellboard)
+            frames += self._cell_frames("Voltage", self.cell_voltages, pack.cells_per_cellboard)
         if due("cell temperatures", 1.0, now):
-            frames += self._per_cell_frames("Temperature", self._temps, self._pack.temps_per_cellboard)
+            frames += self._cell_frames("Temperature", self._temps, pack.temps_per_cellboard)
         if due("balancing", 0.5, now):
-            frames += self._per_cell_frames("Balancing", self._balancing, self._pack.cells_per_cellboard)
+            frames += self._balancing_frames()
         return frames
+
+    def _pack_voltages(self) -> Frame:
+        cells = self.cell_voltages
+        return encode(
+            self._db,
+            "TsacMainboardVoltageInfo",
+            ts=self.ts_voltage,
+            total=self.pack_voltage,
+            cellSum=sum(cells),
+            average=sum(cells) / len(cells),
+            min=min(cells),
+            max=max(cells),
+        )
+
+    def _pack_temperatures(self) -> Frame:
+        t = self._temps
+        return encode(
+            self._db,
+            "TsacMainboardTemperatureInfo",
+            min=min(t),
+            max=max(t),
+            average=sum(t) / len(t),
+            precharge=25.0,
+            linearRegulator=30.0,
+        )
 
     def _flags(self, message: str, **set_flags: int) -> Frame:
         """A frame of flags, all 0 except the ones given."""
         signals = {s.name: 0 for s in self._db.get_message_by_name(message).signals}
         return encode(self._db, message, **(signals | set_flags))
 
-    def _per_cell_frames(self, kind: str, values: list[Any], per_board: int) -> list[Frame]:
-        """One frame per cellboard, or one per group of cells when the message is multiplexed."""
+    def _cell_frames(self, kind: str, values: list[float], per_board: int) -> list[Frame]:
+        """Cell voltages or temperatures: each cellboard sends its cells a group at a time, one frame each."""
         frames = []
         for board in range(self._pack.cellboards):
             message = self._db.get_message_by_name(f"TsacCellboard{board + 1}{kind}")
-            board_values = values[board * per_board : (board + 1) * per_board]
-            groups: dict[int | None, dict[str, Any]] = {}
-            for signal in message.signals:
-                if signal.name.startswith("cell"):
-                    value = board_values[int(signal.name.removeprefix("cell")) - 1]
-                    signal_groups: list[int | None] = (
-                        list(signal.multiplexer_ids) if signal.multiplexer_ids else [None]
-                    )
-                    for group in signal_groups:
-                        groups.setdefault(group, {})[signal.name] = (
-                            int(value) if kind == "Balancing" else value
-                        )
-            for group, signals in groups.items():
-                mux = {} if group is None else {"group": group}
-                frames.append(encode(self._db, message.name, **mux, **signals))
+            first = board * per_board
+            for group, names in _cells_by_group(message).items():
+                cells = {name: values[first + int(name.removeprefix("cell")) - 1] for name in names}
+                frames.append(encode(self._db, message.name, group=group, **cells))
         return frames
+
+    def _balancing_frames(self) -> list[Frame]:
+        """One frame per cellboard, with a flag for each of its cells."""
+        per_board = self._pack.cells_per_cellboard
+        frames = []
+        for board in range(self._pack.cellboards):
+            first = board * per_board
+            flags = {f"cell{n + 1}": int(self._balancing[first + n]) for n in range(per_board)}
+            frames.append(encode(self._db, f"TsacCellboard{board + 1}Balancing", **flags))
+        return frames
+
+
+def _cells_by_group(message: Message) -> dict[int, list[str]]:
+    """The cellN signals carried by each value of the multiplexer (the `group` signal)."""
+    groups: dict[int, list[str]] = {}
+    for signal in message.signals:
+        for group in signal.multiplexer_ids or []:
+            groups.setdefault(group, []).append(signal.name)
+    return groups

@@ -3,9 +3,11 @@
 from cantools.database.can import Database
 
 from backend.canbus import Frame, decode, encode
-from backend.devices.charger import RAW_MESSAGES, ChargerCommand, ChargerState
-from sim.periodic import Periodic
+from backend.canbus.periodic import Periodic
+from backend.devices.charger import RAW_MESSAGES, STATE_CODES, ChargerCommand
+from shared.models import ChargerState
 
+CODE_OF_STATE = {state: code for code, state in STATE_CODES.items()}
 CURRENT_RAMP = 3.0  # A/s
 CONSTANT_VOLTAGE_GAIN = 2.0  # A per volt below the target, once close to it
 GRID_VOLTAGE = 230.0  # V per phase
@@ -61,7 +63,7 @@ class SimCharger:
         due = self._periodic.due
         frames = []
         if due("status", 0.1, now):
-            frames.append(encode(self._db, "HYC_Status", status=self.state.value))
+            frames.append(encode(self._db, "HYC_Status", status=CODE_OF_STATE[self.state]))
             frames.append(encode(self._db, "HYC_Actual", uActual=self.output_voltage, iActual=self.current))
         if due("grid", 0.5, now):
             frames.append(

@@ -25,6 +25,8 @@ Run `./handcart.py` with no arguments for the list of commands.
 | `backend` / `frontend` / `sim` | Run one part |
 | `test` / `lint` / `format` / `typecheck` | Checks |
 | `vcan-up` | Create `vcan0` for the simulator |
+| `status` | Show what the running backend sees |
+| `command <NAME>` | Send a command to the state machine, e.g. `command STOP` |
 | `install-services` | Set up the Pi to boot straight into the handcart UI |
 | `update-libcan` | Move libcan to its latest commit and run the tests |
 
@@ -102,6 +104,12 @@ Then by hand, because a mistake there stops the Pi from booting:
 3. Reboot.
 
 To reach the Pi for maintenance, use SSH: the display only ever shows the UI.
+The backend only accepts connections from the Pi itself, so from an SSH session:
+
+```bash
+./handcart.py status
+./handcart.py command STOP
+```
 
 ## Hardware notes
 

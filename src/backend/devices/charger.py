@@ -2,34 +2,29 @@
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
 from enum import IntEnum
 
 from cantools.database.can import Database
 
 from backend.canbus import Frame, Signals, as_float, decode, encode
+from shared.models import ChargerSnapshot, ChargerState
 
 # In LittleSIC.dbc every flag of these two messages has scale 0, so a normal decode turns each set
 # bit into 0. They are decoded raw until the DBC is fixed; tests/test_dbc_contract.py keeps an eye on it.
 RAW_MESSAGES = ("HYC_Error", "HYC_Warning")
 
-
-class ChargerState(IntEnum):
-    """HYC_Status.status codes."""
-
-    OFF = 0x00
-    PRECHARGE = 0x01
-    STANDBY = 0x03
-    RUNNING = 0x06
-    RUNNING_DERATING = 0x07
-    RUNNING_VC = 0x08  # constant voltage
-    RUNNING_VC_DERATING = 0x09
-    RUNNING_SHUTDOWN = 0x0A
-    ERROR = 0xFF
-
-    @property
-    def delivering(self) -> bool:
-        return self in (self.RUNNING, self.RUNNING_DERATING, self.RUNNING_VC, self.RUNNING_VC_DERATING)
+# HYC_Status.status codes
+STATE_CODES = {
+    0x00: ChargerState.OFF,
+    0x01: ChargerState.PRECHARGE,
+    0x03: ChargerState.STANDBY,
+    0x06: ChargerState.RUNNING,
+    0x07: ChargerState.RUNNING_DERATING,
+    0x08: ChargerState.RUNNING_VC,
+    0x09: ChargerState.RUNNING_VC_DERATING,
+    0x0A: ChargerState.RUNNING_SHUTDOWN,
+    0xFF: ChargerState.ERROR,
+}
 
 
 class ChargerCommand(IntEnum):
@@ -39,18 +34,6 @@ class ChargerCommand(IntEnum):
     RESET_ERRORS = 0x01
     CHARGE = 0x02
     DISCHARGE = 0x04
-
-
-@dataclass(frozen=True)
-class ChargerSnapshot:
-    connected: bool
-    state: ChargerState | None  # None until the first status, or for an undocumented code
-    voltage: float | None  # V, DC output
-    current: float | None  # A, DC output, negative while discharging
-    grid_voltages: tuple[float | None, float | None, float | None]  # V, per phase
-    max_temperature: float | None  # °C, hottest sensor
-    errors: frozenset[str]
-    warnings: frozenset[str]
 
 
 class LittleSic:
@@ -128,7 +111,7 @@ class LittleSic:
 
     def _on_status(self, s: Signals) -> None:
         code = int(as_float(s["status"]))
-        self._state = ChargerState(code) if code in ChargerState else None
+        self._state = STATE_CODES.get(code)  # None for a code the charger never documented
 
     def _on_actual(self, s: Signals) -> None:
         self._voltage = s["uActual"]

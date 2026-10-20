@@ -7,32 +7,10 @@ No CAN or GPIO here. step() takes the inputs and returns the outputs, so every r
 """
 
 from dataclasses import dataclass
-from enum import StrEnum
 
-from backend.devices.bms import BmsSnapshot, TsacState
-from backend.devices.charger import ChargerCommand, ChargerSnapshot, ChargerState
-from shared.config import Config
-
-
-class State(StrEnum):
-    CHECK = "CHECK"  # waiting for the BMS and the charger
-    IDLE = "IDLE"  # both present, TS off
-    PRECHARGE = "PRECHARGE"  # the BMS is closing the AIRs
-    READY = "READY"  # TS on, not charging
-    CHARGE = "CHARGE"
-    CHARGE_DONE = "CHARGE_DONE"  # target reached, TS still on
-    BALANCING = "BALANCING"  # TS off, the BMS bleeds the highest cells
-    ERROR = "ERROR"  # charger stopped, TS off, shutdown open, until a reset
-
-
-class Command(StrEnum):
-    PRECHARGE = "PRECHARGE"
-    START_CHARGE = "START_CHARGE"
-    PAUSE_CHARGE = "PAUSE_CHARGE"  # back to READY, TS stays on
-    BALANCE = "BALANCE"
-    STOP = "STOP"  # TS off and back to IDLE
-    RESET = "RESET"  # leave ERROR, once its cause is gone
-
+from backend.devices.charger import ChargerCommand
+from shared.config import Charge, Config
+from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, ShutdownLoop, State, TsacState
 
 TS_ON_STATES = {State.PRECHARGE, State.READY, State.CHARGE, State.CHARGE_DONE}
 
@@ -59,7 +37,7 @@ class Inputs:
     now: float  # s, monotonic clock
     bms: BmsSnapshot
     charger: ChargerSnapshot
-    shutdown: tuple[tuple[str, float | None], ...]  # (point, V) along the loop, in order; None = not read yet
+    shutdown: ShutdownLoop
     target_voltage: float  # V, chosen by the operator
     max_current: float  # A, chosen by the operator
     command: Command | None = None
@@ -75,6 +53,16 @@ class Outputs:
     sd_relay_closed: bool
     charger_power: bool  # PON
     discharge: bool  # TS discharge resistor engaged
+
+
+def setpoint_problem(limits: Charge, target_voltage: float, max_current: float) -> str | None:
+    """Why the operator's setpoints cannot be used, or None."""
+    low, high = limits.target_voltage_min, limits.target_voltage_max
+    if not low <= target_voltage <= high:
+        return f"target {target_voltage:g} V outside {low:g}-{high:g} V"
+    if not 0 < max_current <= limits.current_max:
+        return f"current {max_current:g} A outside 0-{limits.current_max:g} A"
+    return None
 
 
 class ChargeFsm:
@@ -97,10 +85,12 @@ class ChargeFsm:
 
     def step(self, inputs: Inputs) -> Outputs:
         command = inputs.command
+        refused = None
         if command is not None and command not in ALLOWED[self.state]:
-            self.message = f"{command} is not possible in {self.state}"
+            refused = f"{command} is not possible in {self.state}"
             command = None
 
+        state_before = self.state
         fault = None if self.state is State.ERROR else self._fault(inputs)
         if fault:
             self._go(State.ERROR, inputs.now, fault)
@@ -109,6 +99,8 @@ class ChargeFsm:
         else:
             self._handlers[self.state](inputs, command)
 
+        if refused and self.state is state_before:
+            self.message = refused  # the operator must see why the command did nothing
         return self._outputs(inputs)
 
     # one method per state: what makes it move on
@@ -241,13 +233,7 @@ class ChargeFsm:
         return None
 
     def _setpoint_problem(self, inputs: Inputs) -> str | None:
-        low, high = self._cfg.charge.target_voltage_min, self._cfg.charge.target_voltage_max
-        if not low <= inputs.target_voltage <= high:
-            return f"target {inputs.target_voltage:g} V outside {low:g}-{high:g} V"
-        current_max = self._cfg.charge.current_max
-        if not 0 < inputs.max_current <= current_max:
-            return f"current {inputs.max_current:g} A outside 0-{current_max:g} A"
-        return None
+        return setpoint_problem(self._cfg.charge, inputs.target_voltage, inputs.max_current)
 
     def _charge_complete(self, inputs: Inputs) -> bool:
         b, c = inputs.bms, inputs.charger

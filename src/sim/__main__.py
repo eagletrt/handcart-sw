@@ -31,7 +31,8 @@ def main() -> None:
             dt, last = now - last, now
 
             for frame in receive(bms_bus):
-                bms.on_frame(frame, now) or charger.on_frame(frame)
+                if not bms.on_frame(frame, now):
+                    charger.on_frame(frame)
             if charger_bus is not bms_bus:
                 for frame in receive(charger_bus):
                     charger.on_frame(frame)

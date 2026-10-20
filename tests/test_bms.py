@@ -3,7 +3,8 @@
 import pytest
 
 from backend.canbus import Frame
-from backend.devices.bms import Bms, TsacState
+from backend.devices.bms import Bms
+from shared.models import TsacState
 
 
 @pytest.fixture

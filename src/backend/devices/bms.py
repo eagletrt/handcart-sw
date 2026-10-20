@@ -2,55 +2,13 @@
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from enum import StrEnum
 from functools import partial
 
 from cantools.database.can import Database
 
 from backend.canbus import Frame, Signals, as_float, decode, encode
 from shared.config import Accumulator
-
-
-class TsacState(StrEnum):
-    """Mainboard states, named as in the libcan DBC (TsacStatus.mainboardStatus)."""
-
-    INIT = "INIT"
-    IDLE = "IDLE"
-    ERROR = "ERROR"
-    FLASH = "FLASH"
-    BALANCING = "BALANCING"
-    AIRN_CHECK = "AIRN_CHECK"
-    PRECHARGE = "PRECHARGE"
-    AIRP_CHECK = "AIRP_CHECK"
-    TS_ON = "TS_ON"
-
-
-@dataclass(frozen=True)
-class BmsSnapshot:
-    connected: bool
-    state: TsacState | None
-    ts_voltage: float | None  # V, after the AIRs
-    pack_voltage: float | None  # V
-    cell_min: float | None  # V
-    cell_max: float | None  # V
-    cell_average: float | None  # V
-    current: float | None  # A, positive while charging
-    power: float | None  # kW
-    temp_min: float | None  # °C
-    temp_max: float | None  # °C
-    temp_average: float | None  # °C
-    ts_below_60v: bool | None
-    cells: tuple[float | None, ...]  # V, cellboard by cellboard
-    temps: tuple[float | None, ...]  # °C, cellboard by cellboard
-    balancing: tuple[bool, ...]  # True for the cells being bled
-    errors: frozenset[str]  # active error flags, e.g. "overvoltage", "cellboard4CellOvervoltage"
-
-    @property
-    def cell_delta(self) -> float | None:
-        if self.cell_min is None or self.cell_max is None:
-            return None
-        return self.cell_max - self.cell_min
+from shared.models import BmsSnapshot, TsacState
 
 
 class Bms:

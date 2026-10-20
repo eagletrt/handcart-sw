@@ -4,22 +4,41 @@ from dataclasses import replace
 
 import pytest
 
-from backend.core.fsm import ChargeFsm, Command, Inputs, State
-from backend.devices.bms import BmsSnapshot, TsacState
-from backend.devices.charger import ChargerCommand, ChargerSnapshot, ChargerState
+from backend.core.fsm import ChargeFsm, Inputs
+from backend.devices.charger import ChargerCommand
+from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, State, TsacState
 
 CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("bms in", 11.9), ("bms out", 11.9))
 
 BMS = BmsSnapshot(
-    connected=True, state=TsacState.IDLE, ts_voltage=0.0, pack_voltage=546.0,
-    cell_min=3.77, cell_max=3.81, cell_average=3.79, current=0.0, power=0.0,
-    temp_min=24.0, temp_max=27.0, temp_average=25.0, ts_below_60v=True,
-    cells=(), temps=(), balancing=(), errors=frozenset(),
-)  # fmt: skip
+    connected=True,
+    state=TsacState.IDLE,
+    ts_voltage=0.0,
+    pack_voltage=546.0,
+    cell_min=3.77,
+    cell_max=3.81,
+    cell_average=3.79,
+    current=0.0,
+    power=0.0,
+    temp_min=24.0,
+    temp_max=27.0,
+    temp_average=25.0,
+    ts_below_60v=True,
+    cells=(),
+    temps=(),
+    balancing=(),
+    errors=frozenset(),
+)
 CHARGER = ChargerSnapshot(
-    connected=True, state=ChargerState.STANDBY, voltage=0.0, current=0.0,
-    grid_voltages=(230.0, 230.0, 230.0), max_temperature=30.0, errors=frozenset(), warnings=frozenset(),
-)  # fmt: skip
+    connected=True,
+    state=ChargerState.STANDBY,
+    voltage=0.0,
+    current=0.0,
+    grid_voltages=(230.0, 230.0, 230.0),
+    max_temperature=30.0,
+    errors=frozenset(),
+    warnings=frozenset(),
+)
 
 
 class Bench:
@@ -240,3 +259,10 @@ def test_discharge_resistor_only_while_the_ts_is_off(bench):
     assert bench.step().discharge
     bench.go_to(State.PRECHARGE)
     assert not bench.step().discharge
+
+
+def test_a_refusal_is_not_hidden_by_the_state_message(bench):
+    bench.bms = replace(BMS, connected=False)  # CHECK keeps writing "Waiting for the BMS"
+    out = bench.step(Command.PRECHARGE)
+    assert out.state is State.CHECK
+    assert "not possible" in out.message
