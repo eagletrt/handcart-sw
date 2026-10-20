@@ -4,15 +4,12 @@ If libcan or the charger DBC rename or drop something the handcart relies on,
 these tests fail before the code does.
 """
 
-import tomllib
-from pathlib import Path
-
-import cantools
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-CONFIG = tomllib.loads((ROOT / "config.toml").read_text())
-CELLBOARDS = CONFIG["accumulator"]["cellboards"]
+from backend.devices.charger import RAW_MESSAGES
+from shared import config
+
+CELLBOARDS = config.load().accumulator.cellboards
 
 PRIMARY_REQUIRED: dict[str, set[str]] = {
     # commands the handcart sends to the accumulator
@@ -52,25 +49,6 @@ CHARGER_REQUIRED: dict[str, set[str]] = {
 TSAC_STATES = {"IDLE", "ERROR", "BALANCING", "AIRN_CHECK", "PRECHARGE", "AIRP_CHECK", "TS_ON"}
 
 
-def _load(key: str) -> cantools.database.can.Database:
-    path = ROOT / CONFIG["can"][key]
-    if not path.exists():
-        pytest.fail(f"{path.relative_to(ROOT)} not found: run ./handcart.py setup to fetch the submodules")
-    db = cantools.database.load_file(path)
-    assert isinstance(db, cantools.database.can.Database)
-    return db
-
-
-@pytest.fixture(scope="module")
-def primary():
-    return _load("primary_dbc")
-
-
-@pytest.fixture(scope="module")
-def charger():
-    return _load("charger_dbc")
-
-
 def _missing(db, required: dict[str, set[str]]) -> list[str]:
     names = {m.name: m for m in db.messages}
     problems = []
@@ -87,8 +65,8 @@ def test_primary_has_what_the_handcart_uses(primary):
     assert _missing(primary, PRIMARY_REQUIRED) == []
 
 
-def test_charger_has_what_the_handcart_uses(charger):
-    assert _missing(charger, CHARGER_REQUIRED) == []
+def test_charger_has_what_the_handcart_uses(charger_db):
+    assert _missing(charger_db, CHARGER_REQUIRED) == []
 
 
 def test_tsac_status_states(primary):
@@ -96,22 +74,35 @@ def test_tsac_status_states(primary):
     assert {str(v) for v in signal.choices.values()} >= TSAC_STATES
 
 
-def test_cell_count_matches_the_dbc(primary):
+def test_cell_count_matches_the_dbc(primary, cfg):
     cells = {s.name for s in primary.get_message_by_name("TsacCellboard1Voltage").signals} - {"group"}
-    assert len(cells) == CONFIG["accumulator"]["cells_per_cellboard"]
+    assert len(cells) == cfg.accumulator.cells_per_cellboard
+
+
+def test_no_signal_is_scaled_to_zero(primary, charger_db):
+    """A scale of 0 turns every value into 0. LittleSIC's flag messages have it and are decoded raw."""
+    zero = [
+        f"{m.name}.{s.name}"
+        for db in (primary, charger_db)
+        for m in db.messages
+        if m.name not in RAW_MESSAGES
+        for s in m.signals
+        if s.scale == 0
+    ]
+    assert zero == []
 
 
 @pytest.mark.xfail(
     strict=True,
     reason="HYC_Error (0x1A0) collides with TsacMainboardShutdown: the charger needs new IDs on a shared bus",
 )
-def test_no_id_collisions_on_a_shared_bus(primary, charger):
-    if CONFIG["can"]["bms_interface"] != CONFIG["can"]["charger_interface"]:
+def test_no_id_collisions_on_a_shared_bus(primary, charger_db, cfg):
+    if not cfg.can.shared_bus:
         pytest.skip("charger on its own bus")
     primary_ids = {m.frame_id: m.name for m in primary.messages}
     clashes = [
         f"{m.name} / {primary_ids[m.frame_id]} at {m.frame_id:#x}"
-        for m in charger.messages
+        for m in charger_db.messages
         if m.frame_id in primary_ids
     ]
     assert clashes == []

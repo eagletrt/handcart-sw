@@ -45,6 +45,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["handcart.py", "tests"]  # add "src" once it has code
+files = ["handcart.py", "src", "tests"]
 ignore_missing_imports = true
 check_untyped_defs = true
