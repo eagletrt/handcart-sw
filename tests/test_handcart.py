@@ -198,3 +198,38 @@ def test_saved_settings_outside_the_limits_are_not_used(cfg, tmp_path):
     bus = UnpluggedBus()
     handcart = Handcart(cfg, FakeHal(), bus, bus, settings_file=path)
     assert handcart.settings.target_voltage == cfg.charge.target_voltage_default
+
+
+class RecordingBus(can.BusABC):
+    """Keeps what the handcart sends; hands it the frames put in `incoming`."""
+
+    def __init__(self) -> None:
+        super().__init__(channel="recording")
+        self.sent: list[can.Message] = []
+        self.incoming: list[can.Message] = []
+
+    def send(self, msg, timeout=None):
+        self.sent.append(msg)
+
+    def _recv_internal(self, timeout):
+        if self.incoming:
+            return self.incoming.pop(0), False
+        return None, False
+
+
+def test_a_lost_ts_off_is_sent_again_while_the_airs_stay_closed(cfg, primary):
+    now = 0.0
+    bus = RecordingBus()
+    handcart = Handcart(cfg, FakeHal(), bus, bus, clock=lambda: now)
+    status = primary.get_message_by_name("TsacStatus")
+    boards = {f"cellboard{i}Status": "IDLE" for i in range(1, cfg.accumulator.cellboards + 1)}
+    ts_on = status.encode({"mainboardStatus": "TS_ON", **boards})
+    bms_set = primary.get_message_by_name("BmsSet")
+    for _ in range(700):  # 3.5 s: the BMS keeps the TS on, the handcart (in CHECK) wants it off
+        now += TICK
+        bus.incoming.append(can.Message(arbitration_id=status.frame_id, data=ts_on, is_extended_id=False))
+        handcart.tick()
+    ts_off = [
+        m for m in bus.sent if m.arbitration_id == bms_set.frame_id and bms_set.decode(m.data)["status"] == 0
+    ]
+    assert len(ts_off) >= 5 + 3  # the first burst, then once a second

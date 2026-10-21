@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from backend.core.fsm import ChargeFsm, Inputs
+from backend.core.fsm import CHARGER_START_TIME, NOT_DELIVERING, ChargeFsm, Inputs
 from backend.devices.charger import ChargerCommand
 from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, Fault, State, TsacState
 
@@ -137,7 +137,7 @@ def test_precharge_gives_up_after_the_timeout(bench, cfg):
     bench.go_to(State.PRECHARGE)
     out = bench.step(after=cfg.timing.bms_response_timeout + 0.1)
     assert out.state is State.IDLE
-    assert "did not reach TS_ON" in out.message
+    assert out.message == "The BMS did not reach TS_ON: it is in IDLE"
 
 
 def test_precharge_waits_while_the_bms_is_precharging(bench, cfg):
@@ -347,3 +347,12 @@ def test_no_charge_before_every_cell_is_read(bench):
     assert out.refusal == "Cannot charge: 1 cells not read yet"
     bench.bms = replace(bench.bms, cells=(3.8, 3.79, 3.81))
     assert bench.step(Command.START_CHARGE).state is State.CHARGE
+
+
+def test_a_charger_that_does_not_start_is_reported_not_a_fault(bench):
+    bench.go_to(State.CHARGE)  # the charger stays in STANDBY: no mains, say
+    out = bench.step(after=CHARGER_START_TIME + 0.1)
+    assert out.state is State.CHARGE and out.message == NOT_DELIVERING
+    bench.charger = replace(bench.charger, state=ChargerState.RUNNING, voltage=550.0, current=6.0)
+    out = bench.step()
+    assert out.message.startswith("Charging to")  # it started after all

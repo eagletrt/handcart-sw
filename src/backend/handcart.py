@@ -15,12 +15,12 @@ from cantools.database.errors import DecodeError
 from backend.canbus import load_dbc
 from backend.canbus.bus import receive, send
 from backend.canbus.periodic import Periodic
-from backend.core.fsm import ChargeFsm, Inputs, Outputs, setpoint_problem
+from backend.core.fsm import BMS_HV_STATES, ChargeFsm, Inputs, Outputs, setpoint_problem
 from backend.devices.bms import Bms
 from backend.devices.charger import LittleSic
 from backend.hal import Hal, Sound
 from shared.config import Config
-from shared.models import Command, InputEvent, Settings, State, Status
+from shared.models import Command, InputEvent, Settings, State, Status, TsacState
 
 log = logging.getLogger(__name__)
 
@@ -184,9 +184,23 @@ class Handcart:
                     self.bms.balancing_command(out.balancing, self.settings.balancing_threshold),
                 )
             self._balancing_sent = out.balancing
-        elif out.balancing and due("balancing", timing.balancing_period, now):
+        elif out.balancing and due("balancing", timing.bms_repeat_period, now):
             # the BMS stops balancing if it gets no request for 3 s
             send(self._bms_bus, self.bms.balancing_command(True, self.settings.balancing_threshold))
+        elif (
+            not out.balancing
+            and self.bms.state is TsacState.BALANCING
+            and due("balancing off again", timing.bms_repeat_period, now)
+        ):
+            # stopped here but still balancing there: the stop frames were lost, send it again
+            send(self._bms_bus, self.bms.balancing_command(False, self.settings.balancing_threshold))
+        if (
+            not out.ts_on
+            and self.bms.state in BMS_HV_STATES
+            and due("ts off again", timing.bms_repeat_period, now)
+        ):
+            # TS off asked but the AIRs are still closed: the TS off frames were lost, send it again
+            send(self._bms_bus, self.bms.ts_command(False))
         if due("charger control", timing.charger_ctrl_period, now):
             send(self._charger_bus, self.charger.control(out.charger))
         if due("charger alive", timing.charger_alive_period, now):

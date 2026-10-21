@@ -70,6 +70,11 @@ class Bms:
         return True
 
     @property
+    def state(self) -> TsacState | None:
+        """The last state the BMS reported; None until then, or if it is not one this code knows."""
+        return self._state
+
+    @property
     def connected(self) -> bool:
         return self._last_seen is not None and self._clock() - self._last_seen < self._presence_timeout
 

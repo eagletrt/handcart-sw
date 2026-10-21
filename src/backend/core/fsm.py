@@ -39,6 +39,8 @@ BMS_HV_STATES = {TsacState.AIRN_CHECK, TsacState.PRECHARGE, TsacState.AIRP_CHECK
 # BMS states on the way to TS_ON: the BMS has its own precharge timeout, so we keep waiting
 BMS_PRECHARGE_STATES = {TsacState.AIRN_CHECK, TsacState.PRECHARGE, TsacState.AIRP_CHECK}
 
+CHARGER_START_TIME = 10.0  # s: charging for this long with the charger not delivering is worth saying
+NOT_DELIVERING = "The charger is not delivering: check its mains supply"
 DONE_CURRENT = 0.1  # A: at the target voltage and below this current, the charge is complete
 DONE_VOLTAGE_MARGIN = 1.0  # V: this close to the target counts as reached
 
@@ -158,10 +160,11 @@ class ChargeFsm:
             else:
                 self.message = f"Precharging: BMS in {inputs.bms.state}"
         elif inputs.now - self._since > self._cfg.timing.bms_response_timeout:
+            # it never started, or it stopped on the way (back to IDLE, its own precharge timeout...)
             self._go(
                 State.IDLE,
                 inputs.now,
-                f"The BMS did not reach TS_ON in {self._cfg.timing.bms_response_timeout:g} s",
+                f"The BMS did not reach TS_ON: it is in {inputs.bms.state or 'an unknown state'}",
             )
 
     def _ready(self, inputs: Inputs, command: Command | None) -> None:
@@ -177,6 +180,11 @@ class ChargeFsm:
             self._go(State.READY, inputs.now, "Charging paused")
         elif reason := self._charge_complete(inputs):
             self._go(State.CHARGE_DONE, inputs.now, f"Charge complete: {reason}")
+        elif not self._delivering(inputs) and inputs.now - self._since > CHARGER_START_TIME:
+            # not a fault (the TS is on, nothing is at risk), but the operator must know why 0 A
+            self.message = NOT_DELIVERING
+        elif self._delivering(inputs) and self.message == NOT_DELIVERING:
+            self.message = self._charging_message(inputs)  # it started after all
 
     def _charge_done(self, inputs: Inputs, command: Command | None) -> None:
         if inputs.bms.state is not TsacState.TS_ON:
@@ -219,11 +227,7 @@ class ChargeFsm:
         if problem:
             self._refusal = f"Cannot charge: {problem}"
         else:
-            self._go(
-                State.CHARGE,
-                inputs.now,
-                f"Charging to {inputs.target_voltage:g} V, at most {inputs.max_current:g} A",
-            )
+            self._go(State.CHARGE, inputs.now, self._charging_message(inputs))
 
     def _start_balancing(self, inputs: Inputs) -> None:
         self._balancing_seen = False
@@ -278,8 +282,7 @@ class ChargeFsm:
             return f"a cell is at {b.cell_max:.3f} V (limit {limit:g} V)"
         # Only while the charger delivers: before it starts (STANDBY) the current is 0 too.
         if (
-            c.state is not None
-            and c.state.delivering
+            self._delivering(inputs)
             and c.voltage is not None
             and c.current is not None
             and c.voltage >= inputs.target_voltage - DONE_VOLTAGE_MARGIN
@@ -287,6 +290,12 @@ class ChargeFsm:
         ):
             return f"{c.voltage:.1f} V reached, current below {DONE_CURRENT:g} A"
         return None
+
+    def _charging_message(self, inputs: Inputs) -> str:
+        return f"Charging to {inputs.target_voltage:g} V, at most {inputs.max_current:g} A"
+
+    def _delivering(self, inputs: Inputs) -> bool:
+        return inputs.charger.state is not None and inputs.charger.state.delivering
 
     # outputs
 
