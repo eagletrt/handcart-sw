@@ -74,7 +74,7 @@ divider_correction = 1.3
 
 [update]  # ./handcart.py update, and the System page of the UI
 remote = "origin"
-branch = "feat/backend"   # the branch the handcart follows: change it here when the branch is renamed
+branch = "feat/new-software"   # the branch the handcart follows: change it here when the branch is renamed
 health_timeout = 30       # s for the updated backend to answer; after that the update is rolled back
 
 [auth]
