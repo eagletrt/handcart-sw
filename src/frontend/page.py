@@ -3,6 +3,7 @@
 import time
 from datetime import datetime
 from functools import partial
+from pathlib import Path
 
 from nicegui import background_tasks, ui
 
@@ -37,10 +38,11 @@ from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
 from frontend.targets import Reachable, button, usable
-from shared.config import BACKEND_ERROR_FILE, Config
+from shared.config import BACKEND_ERROR_FILE, LAST_UPDATE_FILE, UPDATE_STEP_FILE, Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
+UPDATE_WARNING_TIME = 20.0  # s the "boot files changed" note stays: long enough to read and act on
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -72,6 +74,7 @@ class Page:
         self._tab = "charge"
         self._state: State | None = None
         self._stopped_with_ts_on = False  # the state before the last ERROR had the TS on
+        self._was_updating = False  # to tell how the update ended, once it is over
         self._entered = 0.0  # when the current state began
         self._told_updates = False  # the toast about updates shows once
         self._controls = Controls()
@@ -133,6 +136,13 @@ class Page:
             self._system = SystemWindow(
                 backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
             )
+            with ui.element("div").classes("updating") as self._updating:  # above everything, also offline
+                ui.element("div").classes("eagle")
+                ui.label("Updating").classes("ut")
+                self._update_step = ui.label("").classes("us")
+                ui.label(
+                    "Do not switch the handcart off. The screen goes blank for a moment while it restarts."
+                )
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
@@ -158,6 +168,7 @@ class Page:
     def _refresh(self) -> None:
         status = self._backend.status
         self._offline.set_visibility(status is None)
+        self._show_update(read_text(UPDATE_STEP_FILE))
         if status is None:
             self._backend_error.set_text(backend_error())
         self._clock.set_text(datetime.now().strftime("%H:%M"))
@@ -195,6 +206,21 @@ class Page:
             self._discharge.root.set_visibility(False)
             self._discharge.done()
         self._follow_controls()
+
+    def _show_update(self, step: str) -> None:
+        """While ./handcart.py update runs, its step on the whole screen; when it ends, how it went."""
+        self._updating.set_visibility(step != "")
+        self._update_step.set_text(step)
+        if step:
+            self._was_updating = True
+        elif self._was_updating:
+            self._was_updating = False
+            result = read_text(LAST_UPDATE_FILE)  # "2026-10-21 18:30 Updated abc -> def"
+            ok = "fail" not in result and "Not updated" not in result
+            if "by hand" in result:  # BOOT_CHANGED in handcart.py: something to do on the Pi by hand
+                self._toast.show(result, ok=ok, seconds=UPDATE_WARNING_TIME, warning=True)
+            else:
+                self._toast.show(result or "Update finished", ok=ok)
 
     def _update_system(self) -> None:
         """The gear's badge and, once, a toast when the branch has updates."""
@@ -420,6 +446,8 @@ class Page:
 
     def _context(self) -> tuple[list[Reachable], Context]:
         """What the controls can reach now (in reading order), and where they are."""
+        if self._updating.visible:
+            return [], Context(window_open=True)  # updating: nothing to press until it is over
         for window in (self._confirm, self._system, self._settings, self._info):  # the topmost first
             if window.root.visible:
                 reachable = window.reachable()
@@ -472,7 +500,12 @@ class Page:
 
 def backend_error() -> str:
     """Why the backend stopped, as it left it on disk before it was started again; "" if it did not say."""
+    return read_text(BACKEND_ERROR_FILE)
+
+
+def read_text(path: Path) -> str:
+    """A small file the backend or the update leave for the display; "" if it is not there."""
     try:
-        return BACKEND_ERROR_FILE.read_text()
-    except OSError:  # no file: the backend is just starting, or it is on another machine
+        return path.read_text().strip()
+    except OSError:  # no file: nothing to say, or the frontend runs on another machine
         return ""

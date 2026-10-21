@@ -25,6 +25,12 @@ ROOT = Path(__file__).resolve().parent
 UV_RUN = ["uv", "run"]
 SERVICES = ["handcart-backend.service", "handcart-frontend.service"]  # restarted by update
 LAST_UPDATE = ROOT / "var" / "last-update.txt"  # what the last update did, shown on the System page
+# what the running update is doing, for the display (it shows "Updating" while the file is there);
+# the same paths are in shared/config.py, which this launcher does not import
+UPDATE_STEP = ROOT / "var" / "update-step.txt"
+# the update installs the changed services and system files itself, but not the boot files: those are
+# edited by hand (a broken cmdline.txt stops the Pi from booting), so it says so
+BOOT_CHANGED = "boot files changed: copy system/raspberry/ into /boot/firmware by hand, then reboot"
 
 # name: (description, commands run in order; extra args go to the last one)
 COMMANDS: dict[str, tuple[str, list[list[str]]]] = {
@@ -73,12 +79,13 @@ def run(cmd: list[str], input: str | None = None, **kwargs) -> int:
             pass
 
 
-def install_services() -> int:
+def install_services(splash: bool = True) -> int:
     """Set up the Pi to boot straight into the handcart UI.
 
     Copies the services and the CAN network (filling in user, paths and port), installs the sudo rule
     of the System page and the boot splash, enables the services that start at boot and boots to
-    console, so the display service owns the screen.
+    console, so the display service owns the screen. splash=False skips the splash: rebuilding it
+    takes minutes, and the update does it only when the splash changed.
     """
     uv = shutil.which("uv")
     config = tomllib.loads((ROOT / "config.toml").read_text())
@@ -102,14 +109,17 @@ def install_services() -> int:
         return rc
     # handcart-update has no [Install]: it runs only when the System page asks
     units = [src.name for src, _ in files if src.suffix == ".service" and "[Install]" in src.read_text()]
-    splash = [str(f) for f in sorted((ROOT / "system/splash").iterdir())] + [str(ROOT / "assets/eagle.png")]
-    for cmd in (
+    commands = [
         ["systemctl", "daemon-reload"],
         ["systemctl", "enable", "systemd-networkd", *units],
         ["systemctl", "set-default", "multi-user.target"],
-        ["install", "-D", "-m", "644", "-t", "/usr/share/plymouth/themes/handcart", *splash],
-        ["plymouth-set-default-theme", "-R", "handcart"],
-    ):
+    ]
+    if splash:
+        theme = [str(f) for f in sorted((ROOT / "system/splash").iterdir())]
+        theme.append(str(ROOT / "assets/eagle.png"))
+        commands.append(["install", "-D", "-m", "644", "-t", "/usr/share/plymouth/themes/handcart", *theme])
+        commands.append(["plymouth-set-default-theme", "-R", "handcart"])
+    for cmd in commands:
         if rc := run(["sudo", *cmd]):
             return rc
     print(
@@ -225,6 +235,21 @@ def command(args: list[str]) -> int:
 
 
 def update(args: list[str]) -> int:
+    """Run the update, telling the display each step; the step file goes away however it ends."""
+    try:
+        return update_steps()
+    finally:
+        UPDATE_STEP.unlink(missing_ok=True)
+
+
+def step(text: str) -> None:
+    """Say what the update is doing now: on the terminal, and on the display through UPDATE_STEP."""
+    print(text)
+    UPDATE_STEP.parent.mkdir(exist_ok=True)
+    UPDATE_STEP.write_text(text)
+
+
+def update_steps() -> int:
     """Bring the handcart to the latest commit of its branch; go back if the new version does not work.
 
     Steps: fetch, move to the new commit, submodules, uv sync, tests, restart, wait for the backend.
@@ -240,6 +265,7 @@ def update(args: list[str]) -> int:
         return finish(1, f"Not updated: the handcart is in {state}, stop it first")
     if output(["git", "status", "--porcelain", "--untracked-files=no"]):
         return finish(1, "Not updated: this copy has local changes (commit or discard them first)")
+    step("Looking for the new version")
     if run(["git", "fetch", "--quiet", remote, branch]):
         return finish(1, f"Not updated: could not fetch {upstream}")
     old, new = (
@@ -251,21 +277,40 @@ def update(args: list[str]) -> int:
         return 0
     if run(["git", "merge-base", "--is-ancestor", "HEAD", upstream]):
         return finish(1, f"Not updated: this copy has commits that are not on {upstream}")
+    changed = output(["git", "diff", "--name-only", old, new]).splitlines()
+    boot_changed = any(f.startswith("system/raspberry/") for f in changed)  # by hand: never installed here
+    services_changed = any(f.startswith("system/") and not f.startswith("system/raspberry/") for f in changed)
+    splash_changed = any(f.startswith("system/splash/") or f == "assets/eagle.png" for f in changed)
 
     print(f"Updating {old} -> {new}:")
     run(["git", "log", "--oneline", f"HEAD..{upstream}"])
+    step(f"Installing {new}")
     problem = install(new)
     if problem is None:
+        step("Checking the new version")
         problem = tests()
+    if problem is None and services_changed:
+        step("Installing the services" + (" and the splash (a few minutes)" if splash_changed else ""))
+        if install_services(splash=splash_changed):
+            problem = "the services did not install"
     if problem is None:
-        problem = restart(cfg["health_timeout"])
+        step("Restarting")
+        problem = restart(cfg["health_timeout"], display=services_changed)
     if problem is None:
+        if boot_changed:
+            return finish(0, f"Updated {old} -> {new} · {BOOT_CHANGED}")
         return finish(0, f"Updated {old} -> {new}")
 
     print(f"{problem}: going back to {old}")
+    step(f"Something went wrong: going back to {old}")
     back = install(old)
+    if back is None and services_changed:  # the services of the old version, too
+        step("Installing the services")
+        if install_services(splash=splash_changed):
+            back = "the services did not install"
     if back is None:
-        back = restart(cfg["health_timeout"])
+        step("Restarting")
+        back = restart(cfg["health_timeout"], display=services_changed)
     if back is not None:
         return finish(
             1, f"Update to {new} failed ({problem}) and going back failed too ({back}): fix it by SSH"
@@ -298,12 +343,16 @@ def tests() -> str | None:
     return None
 
 
-def restart(timeout: float) -> str | None:
-    """Restart backend and frontend, then wait for the backend to answer. Returns what failed, or None."""
+def restart(timeout: float, display: bool = False) -> str | None:
+    """Restart backend and frontend (and the display, if asked), then wait for the backend to answer.
+
+    Returns what failed, or None.
+    """
     if not (Path("/etc/systemd/system") / SERVICES[0]).exists():
         print("Not the handcart: restart the backend and the frontend by hand")
         return None
-    if run(["sudo", "-n", "systemctl", "restart", *SERVICES]):
+    services = [*SERVICES, "handcart-display.service"] if display else SERVICES
+    if run(["sudo", "-n", "systemctl", "restart", *services]):
         return "the services did not restart"
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:

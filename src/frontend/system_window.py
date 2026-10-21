@@ -104,8 +104,8 @@ class SystemWindow:
     def _on_update(self) -> None:
         self._confirm.ask(
             "Update and restart?",
-            "The screen goes blank for about a minute. If the new version does not start, "
-            "the handcart goes back to this one by itself.",
+            "The screen shows each step, and goes blank for a moment when it restarts. If the new "
+            "version does not start, the handcart goes back to this one by itself.",
             "Update",
             lambda: self._run(self._backend.update),
         )

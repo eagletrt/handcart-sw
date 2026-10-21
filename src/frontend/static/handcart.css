@@ -291,6 +291,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .toast { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 90; padding: 12px 18px; border-radius: 4px;
   font-size: 16px; font-weight: 700; background: var(--y); color: #000; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .toast.bad { background: var(--red); color: #fff; }
+.toast.warn { background: #fff; color: #000; white-space: normal; width: 640px; text-align: center; line-height: 1.35; }
 
 @media (prefers-reduced-motion: reduce) {
   .cell-fill, .cell-over, .blink, .dome, .ripple, .spark, .wire-l, .wire-r, .lever, .pulse, .fade { animation: none; }
@@ -306,6 +307,12 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .offline { position: absolute; inset: 0; z-index: 75; background: var(--bg); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 18px; color: var(--mute); font-size: 18px; }
 .offline .eagle { width: 96px; height: 86px; opacity: .6; }
+/* ./handcart.py update running: above everything, the offline screen too (the services restart) */
+.updating { position: absolute; inset: 0; z-index: 95; background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; color: var(--mute); font-size: 16px; text-align: center; padding: 0 60px; }
+.updating .eagle { width: 96px; height: 86px; animation: glow 1.8s ease-in-out infinite; }
+.updating .ut { font-size: 30px; font-weight: 700; color: #fff; }
+.updating .us { font-size: 20px; color: var(--y); font-weight: 600; }
 .offline .why { max-width: 640px; text-align: center; font-size: 15px; color: var(--red); overflow-wrap: anywhere; }
 
 /* the eagle of the boot splash (system/splash/handcart.script), while the page loads: same size, same pulse */

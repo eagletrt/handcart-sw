@@ -392,12 +392,15 @@ class Toast:
         self.root.set_visibility(False)
         self._until = 0.0
 
-    def show(self, text: str, ok: bool, seconds: float = TOAST_TIME) -> None:
+    def show(self, text: str, ok: bool, seconds: float = TOAST_TIME, warning: bool = False) -> None:
+        """A message for a few seconds: yellow if ok, red if not; white for something to do by hand."""
         self.root.set_text(text)
-        if ok:
-            self.root.classes(replace="toast")  # yellow
+        if warning:
+            self.root.classes(replace="toast warn")
+        elif ok:
+            self.root.classes(replace="toast")
         else:
-            self.root.classes(replace="toast bad")  # red
+            self.root.classes(replace="toast bad")
         self.root.set_visibility(True)
         self._until = time.monotonic() + seconds
 
