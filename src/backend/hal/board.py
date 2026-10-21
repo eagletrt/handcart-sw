@@ -59,12 +59,8 @@ class BoardHal:
             self._next_adc_read = now + ADC_READ_PERIOD
         self._buzzer.tone(self._player.frequency(now))
 
-    def set_relays(
-        self, sd_relay_closed: bool, charger_power: bool, discharge: bool
-    ) -> None:
-        for pin, high in relay_levels(
-            self._cfg.gpio, sd_relay_closed, charger_power, discharge
-        ).items():
+    def set_relays(self, sd_relay_closed: bool, charger_power: bool, discharge: bool) -> None:
+        for pin, high in relay_levels(self._cfg.gpio, sd_relay_closed, charger_power, discharge).items():
             self._gpio.write(pin, high)
 
     def shutdown_loop(self) -> ShutdownLoop:
@@ -81,9 +77,7 @@ class BoardHal:
         levels = {pin: self._gpio.read(pin) for pin in self._buttons.pins}
         self._events += self._buttons.update(now, levels)
         pins = self._cfg.gpio
-        self._events += self._encoder.update(
-            self._gpio.read(pins.encoder_a), self._gpio.read(pins.encoder_b)
-        )
+        self._events += self._encoder.update(self._gpio.read(pins.encoder_a), self._gpio.read(pins.encoder_b))
 
     def _read_feedbacks(self) -> None:
         """One scan: ask for all the channels, then read a result per channel from the ADC FIFO."""

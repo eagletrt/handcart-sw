@@ -1,7 +1,7 @@
 """HTTP API of the backend, used by the frontend and by telemetry.
 
 GET  /api/status    everything the UI shows
-POST /api/command   {"command": "PRECHARGE"}: handled at the next tick, the outcome shows in the status
+POST /api/command   {"command": "PRECHARGE"}: handled right away, refused with 422 and the reason
 PUT  /api/settings  {"target_voltage": 590, "max_current": 6}: refused with 422 outside the limits
 WS   /api/ws        {"status": ...} every STATUS_PERIOD, and {"input": "UP"} as soon as a control is used
 """
@@ -18,18 +18,21 @@ INPUT_POLL_PERIOD = 0.02  # s: button presses reach the screen this fast
 
 
 def create_app(handcart: Handcart) -> FastAPI:
+    # every endpoint is async: it runs in the event loop between two ticks, never in the middle of one
     app = FastAPI(title="Handcart")
 
     @app.get("/api/status")
-    def status() -> Status:
+    async def status() -> Status:
         return handcart.status()
 
-    @app.post("/api/command", status_code=202)
-    def command(body: CommandRequest) -> None:
-        handcart.request(body.command)
+    @app.post("/api/command")
+    async def command(body: CommandRequest) -> None:
+        refusal = handcart.request(body.command)
+        if refusal:
+            raise HTTPException(status_code=422, detail=refusal)
 
     @app.put("/api/settings")
-    def settings(body: Settings) -> Settings:
+    async def settings(body: Settings) -> Settings:
         problem = handcart.change_settings(body)
         if problem:
             raise HTTPException(status_code=422, detail=problem)

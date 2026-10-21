@@ -1,7 +1,9 @@
 """Run the backend: the handcart loop and the API, in one process. ./handcart.py backend"""
 
 import asyncio
+import contextlib
 import logging
+import signal
 from pathlib import Path
 
 import uvicorn
@@ -57,6 +59,7 @@ async def run() -> None:
         ticking.cancel()
         # leave the hardware safe: charger unpowered, shutdown open, TS discharge resistor in
         hal.set_relays(sd_relay_closed=False, charger_power=False, discharge=True)
+        log.info("Stopped: charger unpowered, shutdown loop open, TS discharging")
         bms_bus.shutdown()
         if charger_bus is not bms_bus:
             charger_bus.shutdown()
@@ -64,4 +67,8 @@ async def run() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    asyncio.run(run())
+    # systemd stops the service with SIGTERM: make it a Ctrl+C, so the finally above always runs
+    # (by default SIGTERM ends the process on the spot, relays as they are)
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+    with contextlib.suppress(KeyboardInterrupt):  # the way out, not an error
+        asyncio.run(run())

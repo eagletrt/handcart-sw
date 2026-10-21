@@ -30,10 +30,10 @@ def test_status(client):
     assert not status.bms.connected
 
 
-def test_command_is_queued_for_the_next_tick(client):
-    assert client.post("/api/command", json={"command": "PRECHARGE"}).status_code == 202
-    client.handcart.tick()
-    assert "not possible" in client.get("/api/status").json()["message"]  # no BMS yet: refused, with a reason
+def test_a_refused_command_answers_with_the_reason(client):
+    response = client.post("/api/command", json={"command": "PRECHARGE"})  # no BMS yet
+    assert response.status_code == 422
+    assert "not possible" in response.json()["detail"]
 
 
 def test_unknown_command_is_rejected(client):

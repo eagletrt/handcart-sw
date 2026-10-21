@@ -146,7 +146,8 @@ def test_a_command_in_the_wrong_state_is_refused_with_a_reason(bench):
     bench.go_to(State.IDLE)
     out = bench.step(Command.START_CHARGE)
     assert out.state is State.IDLE
-    assert "not possible" in out.message
+    assert "not possible" in out.refusal
+    assert out.message == out.refusal
 
 
 def test_precharge_is_refused_with_the_loop_open(bench):
@@ -154,7 +155,7 @@ def test_precharge_is_refused_with_the_loop_open(bench):
     bench.shutdown = (("mushroom", 0.0), ("charger", 0.0))
     out = bench.step(Command.PRECHARGE)
     assert out.state is State.IDLE
-    assert "open at mushroom" in out.message
+    assert "open at mushroom" in out.refusal
 
 
 def test_charging_is_refused_with_a_target_above_the_limit(bench, cfg):
@@ -162,7 +163,7 @@ def test_charging_is_refused_with_a_target_above_the_limit(bench, cfg):
     bench.target = cfg.charge.target_voltage_max + 10
     out = bench.step(Command.START_CHARGE)
     assert out.state is State.READY
-    assert "outside" in out.message
+    assert "outside" in out.refusal
 
 
 # faults
@@ -225,7 +226,7 @@ def test_reset_is_refused_while_the_cause_is_there(bench):
     bench.step()
     out = bench.step(Command.RESET)
     assert out.state is State.ERROR
-    assert "Still present" in out.message
+    assert "Still present" in out.refusal
 
     bench.bms = replace(bench.bms, errors=frozenset(), state=TsacState.IDLE)
     assert bench.step(Command.RESET).state is State.CHECK
@@ -238,11 +239,19 @@ def test_balancing_ends_when_the_bms_is_done(bench):
     bench.go_to(State.IDLE)
     out = bench.step(Command.BALANCE)
     assert out.state is State.BALANCING and out.balancing and not out.ts_on
+    assert out.refusal is None
 
     bench.bms = replace(bench.bms, state=TsacState.BALANCING)
     assert bench.step().state is State.BALANCING
     bench.bms = replace(bench.bms, state=TsacState.IDLE)
     assert bench.step().state is State.IDLE
+
+
+def test_balancing_without_the_bms_is_refused(bench):
+    bench.bms = replace(BMS, connected=False)
+    out = bench.step(Command.BALANCE)
+    assert out.state is State.CHECK
+    assert "BMS is not connected" in out.refusal
 
 
 def test_balancing_works_without_the_charger(bench):

@@ -18,6 +18,7 @@ class _Section(BaseModel):
 class Network(_Section):
     backend_host: str
     backend_port: int = Field(gt=0, lt=65536)
+    frontend_host: str
     frontend_port: int = Field(gt=0, lt=65536)
 
 

@@ -47,6 +47,7 @@ class Inputs:
 class Outputs:
     state: State
     message: str  # for the operator: what is happening, or why a command was refused
+    refusal: str | None  # why the command of this step was refused; None if accepted or no command
     ts_on: bool  # ask the BMS to close the AIRs
     charger: ChargerCommand
     balancing: bool  # ask the BMS to balance
@@ -71,6 +72,7 @@ class ChargeFsm:
         self.state = State.CHECK
         self.message = "Waiting for the BMS and the charger"
         self._since = now  # when the current state was entered
+        self._refusal: str | None = None  # why the command of the current step was refused
         self._balancing_seen = False  # the BMS has reported BALANCING since balancing was asked
         self._handlers = {
             State.CHECK: self._check,
@@ -85,9 +87,9 @@ class ChargeFsm:
 
     def step(self, inputs: Inputs) -> Outputs:
         command = inputs.command
-        refused = None
+        self._refusal = None
         if command is not None and command not in ALLOWED[self.state]:
-            refused = f"{command} is not possible in {self.state}"
+            self._refusal = f"{command} is not possible in {self.state}"
             command = None
 
         state_before = self.state
@@ -99,8 +101,8 @@ class ChargeFsm:
         else:
             self._handlers[self.state](inputs, command)
 
-        if refused and self.state is state_before:
-            self.message = refused  # the operator must see why the command did nothing
+        if self._refusal and self.state is state_before:
+            self.message = self._refusal  # the operator must see why the command did nothing
         return self._outputs(inputs)
 
     # one method per state: what makes it move on
@@ -108,6 +110,8 @@ class ChargeFsm:
     def _check(self, inputs: Inputs, command: Command | None) -> None:
         if command is Command.BALANCE and inputs.bms.connected:
             self._start_balancing(inputs)  # the charger is not needed to balance
+        elif command is Command.BALANCE:
+            self._refusal = "Cannot balance: the BMS is not connected"
         elif not inputs.bms.connected:
             self.message = "Waiting for the BMS"
         elif not inputs.charger.connected:
@@ -123,7 +127,7 @@ class ChargeFsm:
         elif command is Command.PRECHARGE:
             problem = self._open_point(inputs) or self._setpoint_problem(inputs)
             if problem:
-                self.message = f"Cannot precharge: {problem}"
+                self._refusal = f"Cannot precharge: {problem}"
             else:
                 self._go(State.PRECHARGE, inputs.now, "Precharging")
         elif command is Command.BALANCE:
@@ -172,7 +176,7 @@ class ChargeFsm:
             # with the TS off and the charger unpowered, only the BMS can still tell what is wrong
             problem = self._bms_fault(inputs.bms)
             if problem:
-                self.message = f"Still present: {problem}"
+                self._refusal = f"Still present: {problem}"
             else:
                 self._go(State.CHECK, inputs.now, "Errors cleared")
 
@@ -186,7 +190,7 @@ class ChargeFsm:
     def _start_charging(self, inputs: Inputs) -> None:
         problem = self._setpoint_problem(inputs)
         if problem:
-            self.message = f"Cannot charge: {problem}"
+            self._refusal = f"Cannot charge: {problem}"
         else:
             self._go(
                 State.CHARGE,
@@ -262,6 +266,7 @@ class ChargeFsm:
         return Outputs(
             state=self.state,
             message=self.message,
+            refusal=self._refusal,
             ts_on=ts_on,
             charger=charger,
             balancing=self.state is State.BALANCING,

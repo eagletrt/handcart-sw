@@ -50,16 +50,17 @@ class Handcart:
         self.settings = Settings(
             target_voltage=cfg.charge.target_voltage_default, max_current=cfg.charge.current_default
         )
-        self._command: Command | None = None  # waiting for the next tick
+        self._command: Command | None = None  # for the tick that request() runs
         self._inputs: deque[tuple[int, InputEvent]] = deque(maxlen=64)  # (number, event), for the frontend
         self._input_count = 0
 
     # what the operator asks, through the API
 
-    def request(self, command: Command) -> None:
-        """Handled at the next tick; the outcome shows in status().message."""
-        self._command = command
+    def request(self, command: Command) -> str | None:
+        """Handle a command right away, with one extra tick. Returns why it was refused, or None."""
         self._hal.play(Sound.CONFIRM)
+        self._command = command
+        return self.tick().refusal
 
     def change_settings(self, settings: Settings) -> str | None:
         """Use new setpoints. Returns why they were refused, or None."""

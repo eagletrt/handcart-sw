@@ -12,7 +12,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -50,9 +49,23 @@ COMMANDS: dict[str, tuple[str, list[list[str]]]] = {
 }
 
 
-def run(cmd: list[str], **kwargs) -> int:
+def run(cmd: list[str], input: str | None = None, **kwargs) -> int:
+    """Run cmd until it ends, feeding it input if given.
+
+    Ctrl+C reaches cmd too, straight from the terminal: wait while it shuts down instead of killing it
+    (the backend needs that moment to leave the relays safe).
+    """
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
-    return subprocess.run(cmd, cwd=ROOT, env=env, **kwargs).returncode
+    stdin = subprocess.PIPE if input is not None else None
+    process = subprocess.Popen(cmd, cwd=ROOT, env=env, stdin=stdin, text=True, **kwargs)
+    if process.stdin:
+        process.stdin.write(input or "")
+        process.stdin.close()
+    while True:
+        try:
+            return process.wait()
+        except KeyboardInterrupt:
+            pass
 
 
 def install_services() -> int:
@@ -76,7 +89,7 @@ def install_services() -> int:
         for key, value in values.items():
             text = text.replace(key, value)
         print(f"{src.relative_to(ROOT)} -> {dest}/{src.name}")
-        if rc := run(["sudo", "tee", f"{dest}/{src.name}"], input=text, text=True, stdout=subprocess.DEVNULL):
+        if rc := run(["sudo", "tee", f"{dest}/{src.name}"], input=text, stdout=subprocess.DEVNULL):
             return rc
     units = [src.name for src, _ in files if src.suffix == ".service"]
     splash = [str(f) for f in sorted((ROOT / "system/splash").iterdir())] + [str(ROOT / "assets/eagle.png")]
@@ -136,8 +149,7 @@ def command(args: list[str]) -> int:
     if len(args) != 1:
         print("Usage: ./handcart.py command <PRECHARGE|START_CHARGE|PAUSE_CHARGE|BALANCE|STOP|RESET>")
         return 1
-    api("POST", "/api/command", {"command": args[0].upper()})
-    time.sleep(0.2)  # the command is handled at the next tick
+    api("POST", "/api/command", {"command": args[0].upper()})  # a refusal raises, and main prints it
     s = api("GET", "/api/status")
     print(f"{s['state']}: {s['message']}")
     return 0

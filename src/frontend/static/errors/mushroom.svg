@@ -1,0 +1,11 @@
+<svg viewBox="0 0 220 220" aria-hidden="true">
+  <circle class="ripple" cx="110" cy="110" r="96" fill="none" stroke="#FF453A" stroke-width="4"/>
+  <circle class="ripple d2" cx="110" cy="110" r="96" fill="none" stroke="#FF453A" stroke-width="4"/>
+  <circle cx="110" cy="110" r="84" fill="#F3FF14"/>
+  <circle cx="110" cy="110" r="84" fill="none" stroke="#000" stroke-width="2" opacity=".25"/>
+  <g class="dome">
+    <circle cx="110" cy="110" r="58" fill="#C8241B"/>
+    <circle cx="110" cy="110" r="58" fill="url(#domeg)"/>
+  </g>
+  <radialGradient id="domeg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#FF6B5E"/><stop offset="1" stop-color="#8E120C" stop-opacity=".9"/></radialGradient>
+</svg>

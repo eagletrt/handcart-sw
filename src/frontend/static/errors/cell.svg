@@ -1,0 +1,12 @@
+<svg viewBox="0 0 220 220" aria-hidden="true">
+  <rect x="66" y="14" width="88" height="16" rx="3" fill="#fff"/>
+  <rect x="44" y="30" width="132" height="182" rx="12" fill="none" stroke="#fff" stroke-width="5"/>
+  <clipPath id="cellclip"><rect x="54" y="40" width="112" height="162" rx="5"/></clipPath>
+  <g clip-path="url(#cellclip)">
+    <rect class="cell-fill" x="54" y="40" width="112" height="162" fill="rgba(255,255,255,.85)"/>
+    <rect class="cell-over" x="54" y="40" width="112" height="34" fill="#FF453A"/>
+  </g>
+  <line x1="30" y1="74" x2="184" y2="74" stroke="#FF453A" stroke-width="3" stroke-dasharray="8 6"/>
+  <text x="188" y="79" font-size="15" font-weight="700" fill="#FF453A" font-family="Helvetica Neue, Arial">4.20 V</text>
+  <path class="blink" d="M110 104 l-14 30 h12 l-6 28 l22 -36 h-12 l8 -22 z" fill="#000"/>
+</svg>

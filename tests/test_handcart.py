@@ -105,3 +105,10 @@ def test_settings_outside_the_limits_are_refused(rig, cfg):
 def test_every_command_beeps(rig):
     rig.handcart.request(Command.PRECHARGE)
     assert rig.hal.played == [Sound.CONFIRM]
+
+
+def test_a_command_is_answered_right_away(rig):
+    assert "not possible" in rig.handcart.request(Command.START_CHARGE)  # still in CHECK
+    rig.run(1.0, until=State.IDLE)
+    assert rig.handcart.request(Command.PRECHARGE) is None
+    assert rig.handcart.status().state is State.PRECHARGE

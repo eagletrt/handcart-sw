@@ -1,0 +1,5 @@
+<svg viewBox="0 0 220 220" aria-hidden="true">
+  <g class="wire-l"><path d="M10 110 H88" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="92" cy="110" r="9" fill="#fff"/></g>
+  <g class="wire-r"><path d="M132 110 H210" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="128" cy="110" r="9" fill="#fff"/></g>
+  <path class="spark" d="M110 78 l6 20 l20 -6 l-14 16 l14 16 l-20 -6 l-6 20 l-6 -20 l-20 6 l14 -16 l-14 -16 l20 6 z" fill="#FF453A"/>
+</svg>
