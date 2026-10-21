@@ -161,13 +161,18 @@ class Field:
     unit: str
     digits: int  # decimals shown
     note: Callable[[float], str]  # a line under the value
+    shown_as: float = 1.0  # the value is shown times this: 1000 shows a value in V as mV
 
 
 class SettingsWindow:
-    """Target voltage and max current, changed with − and +, saved together."""
+    """The operator's settings, changed with − and +, saved together.
+
+    It opens on some of them: target voltage and max current from the charge screen, the balancing
+    threshold from the cells screen.
+    """
 
     def __init__(self, cfg: Config, save: Callable[[Settings], Awaitable[bool]]) -> None:
-        charge, cells = cfg.charge, cfg.accumulator.cells
+        charge, pack, cells = cfg.charge, cfg.accumulator, cfg.accumulator.cells
         self._fields = {  # keyed as in Settings
             "target_voltage": Field(
                 title="Target",
@@ -189,14 +194,28 @@ class SettingsWindow:
                 digits=1,
                 note=lambda amps: f"{amps * charge.target_voltage_max / 1000:.1f} kW max",
             ),
+            "balancing_threshold": Field(
+                title="Threshold",  # the window title already says balancing
+                low=pack.balancing_threshold_min,
+                high=pack.balancing_threshold_max,
+                button_step=0.005,  # the BMS takes it in 5 mV steps
+                knob_step=0.005,
+                unit="mV",
+                digits=0,
+                note=lambda volts: f"bleeds cells over lowest + {volts * 1000:.0f} mV",
+                shown_as=1000,
+            ),
         }
         self._draft: dict[str, float] = {}
         self._labels: dict[str, tuple[ui.label, ui.label]] = {}  # value, note
         self._boxes: dict[str, ui.element] = {}  # the frame of the controls goes on these
         self._save = save
 
-        with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet set"):
-            ui.label("Charge settings").classes("sheet-title")
+        with (
+            ui.element("div").classes("modal") as self.root,
+            ui.element("div").classes("sheet set") as self._sheet,
+        ):
+            self._title = ui.label("").classes("sheet-title")
             with ui.element("div").classes("fields"):
                 for key, field in self._fields.items():
                     self._build_field(key, field)
@@ -211,7 +230,8 @@ class SettingsWindow:
         """The settings themselves (turning changes them, a click saves), then the buttons."""
         save = button("save", self._save_button)
         settings = []
-        for i, (key, box) in enumerate(self._boxes.items()):
+        shown = [(key, box) for key, box in self._boxes.items() if box.visible]
+        for i, (key, box) in enumerate(shown):
             priority = 1 if i == 0 else 0  # turning on Charge opens this window on the first setting
             target = Target(key, priority=priority, adjusts=key, presses="save")
             settings.append(Reachable(target, box, press=save.press))
@@ -224,9 +244,16 @@ class SettingsWindow:
         """Encoder steps on a setting (signed), within its limits."""
         self._change(key, steps * self._fields[key].knob_step)
 
-    def open(self, settings: Settings) -> None:
+    def open(self, settings: Settings, title: str, keys: tuple[str, ...]) -> None:
+        """Show the window with only the settings in keys; Save sends all of them."""
         self._draft = settings.model_dump()
+        self._title.set_text(title)
+        if len(keys) == 1:
+            self._sheet.classes(add="one")  # narrower, one column
+        else:
+            self._sheet.classes(remove="one")
         for key in self._fields:
+            self._boxes[key].set_visibility(key in keys)
             self._draw(key)
         self.root.set_visibility(True)
 
@@ -244,13 +271,13 @@ class SettingsWindow:
     def _change(self, key: str, amount: float) -> None:
         field = self._fields[key]
         value = max(field.low, min(field.high, self._draft[key] + amount))
-        self._draft[key] = round(value, field.digits)  # 0.1 + 0.2 is not 0.3 in floats
+        self._draft[key] = round(value, 6)  # 0.1 + 0.2 is not 0.3 in floats
         self._draw(key)
 
     def _draw(self, key: str) -> None:
         field, value = self._fields[key], self._draft[key]
         value_label, note_label = self._labels[key]
-        value_label.set_text(f"{value:.{field.digits}f} {field.unit}")
+        value_label.set_text(f"{value * field.shown_as:.{field.digits}f} {field.unit}")
         note_label.set_text(field.note(value))
 
     async def _on_save(self) -> None:

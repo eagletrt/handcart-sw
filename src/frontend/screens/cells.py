@@ -61,20 +61,14 @@ class CellsScreen:
                 with ui.element("div").classes("cleft"):
                     self._legend = ui.html("").classes("cleg num")
                     self._detail = ui.label(HINT).classes("detail hint num")
-                with ui.element("div").classes("thr"):  # the balancing threshold, − and +
-                    self._threshold_down = ui.button(
-                        "−", on_click=lambda: actions.step_balancing_threshold(-1)
-                    )
-                    with ui.element("div").classes("thv"):
-                        self._threshold_value = ui.label("—").classes("num")
-                        ui.label("threshold").classes("cap")
-                    self._threshold_up = ui.button("+", on_click=lambda: actions.step_balancing_threshold(+1))
-                    for step_button in (self._threshold_down, self._threshold_up):
-                        step_button.props("flat text-color=white")
+                # the balancing threshold, in the settings window
+                self._threshold = ui.button(icon="tune", on_click=actions.open_balancing_settings)
+                self._threshold.props("flat text-color=white").classes("thrbtn")
                 with (
                     ui.button(on_click=lambda: actions.send(Command.BALANCE))
                     .props("unelevated no-caps")
-                    .classes("balbtn") as self._balance
+                    .classes("balbtn") as self._balance,
+                    ui.element("div").classes("btxt"),  # the note under the label: it can be long
                 ):
                     self._balance_label = ui.label("Balance")
                     self._balance_note = ui.label("").classes("bs num")
@@ -115,8 +109,7 @@ class CellsScreen:
         return usable(
             button("volts", self._volts_button, priority=volts_priority, opens_map=True),
             button("temps", self._temps_button, priority=temps_priority, opens_map=True),
-            button("threshold_down", self._threshold_down),
-            button("threshold_up", self._threshold_up),
+            button("threshold", self._threshold),
             button("balance", self._balance),
         )
 
@@ -314,7 +307,6 @@ class CellsScreen:
 
     def _update_balance(self, bms: BmsSnapshot, s: State, threshold: float) -> None:
         threshold_mv = threshold * 1000
-        self._threshold_value.set_text(f"{threshold_mv:.0f} mV")
         if s is State.BALANCING:
             start, delta = self._start_delta, bms.cell_delta
             progress = 0.0
@@ -329,7 +321,7 @@ class CellsScreen:
             self._balance.set_enabled(False)  # stopping is the red STOP's job
         else:
             why_not = {
-                State.IDLE: "",  # the threshold is right beside it
+                State.IDLE: f"until {threshold_mv:.0f} mV",
                 State.ERROR: "clear the error first",
                 State.CHECK: "connect first",
             }

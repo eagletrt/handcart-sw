@@ -33,7 +33,6 @@ from shared.config import BACKEND_ERROR_FILE, Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
-BALANCING_THRESHOLD_STEP = 0.005  # V, of the − and + next to Balance: the BMS takes it in 5 mV steps
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -73,7 +72,7 @@ class Page:
             send=self._send,
             show=self._show,
             open_settings=self._open_settings,
-            step_balancing_threshold=self._step_balancing_threshold,
+            open_balancing_settings=self._open_balancing_settings,
         )
         with ui.element("div").classes("screen"):
             self._halo = ui.element("div").classes("halo")
@@ -276,24 +275,15 @@ class Page:
         self._toast.show("Settings saved", ok=True)
         return True
 
-    async def _step_balancing_threshold(self, direction: int) -> None:
-        """The − and + next to Balance: one step of the threshold, within its limits, saved right away."""
-        if self._backend.status is None:
-            return
-        settings, pack = self._backend.status.settings, self._cfg.accumulator
-        threshold = settings.balancing_threshold + direction * BALANCING_THRESHOLD_STEP
-        threshold = round(max(pack.balancing_threshold_min, min(pack.balancing_threshold_max, threshold)), 3)
-        if threshold == settings.balancing_threshold:
-            return  # already at the limit
-        problem = await self._backend.change_settings(
-            settings.model_copy(update={"balancing_threshold": threshold})
-        )
-        if problem:
-            self._toast.show(problem, ok=False)
-
     def _open_settings(self) -> None:
         if self._backend.status is not None:
-            self._settings.open(self._backend.status.settings)
+            settings = self._backend.status.settings
+            self._settings.open(settings, "Charge settings", ("target_voltage", "max_current"))
+
+    def _open_balancing_settings(self) -> None:
+        if self._backend.status is not None:
+            settings = self._backend.status.settings
+            self._settings.open(settings, "Balancing settings", ("balancing_threshold",))
 
     def _open_system(self) -> None:
         self._system.open()
