@@ -60,7 +60,9 @@ class LittleSic:
         self._read("HYC_Grid_Voltage", self._on_grid)
         self._read("HYC_Temperature", self._on_temperatures)
         self._read("HYC_Maintenance2", self._on_temperatures)
-        self._read("HYC_Error", self._on_errors)
+        # HYC_Error is not read for now: its ID (0x1A0) is also TsacMainboardShutdown on the BMS bus,
+        # so the BMS frame was read as charger errors. Put it back once the two are on separate buses.
+        # self._read("HYC_Error", self._on_errors)
         self._read("HYC_Warning", self._on_warnings)
         self._read("HYC_Version", lambda s: None)  # only a sign of life
         self._raw_ids = {db.get_message_by_name(name).frame_id for name in RAW_MESSAGES}

@@ -128,7 +128,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 @keyframes pull { to { transform: translateX(-8px); } }
 @keyframes pull-r { to { transform: translateX(8px); } }
 .ovl.err .k { color: var(--red); }
-.ovl.err .d { color: rgba(255,255,255,.88); }
+.ovl.err .d { color: rgba(255,255,255,.88); max-height: 115px; overflow-y: auto; }  /* a long BMS error list scrolls instead of pushing the buttons off screen */
 .efx { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 .efx span { font-size: 15px; font-weight: 700; letter-spacing: .06em; padding: 8px 11px; border: 1px solid rgba(255,69,58,.6); color: var(--red); border-radius: 2px; }
 .eact { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }

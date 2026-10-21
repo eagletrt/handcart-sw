@@ -39,6 +39,7 @@ def test_output_and_grid(charger, charger_frame):
     assert snap.grid_voltages == (230, 229, 231)
 
 
+@pytest.mark.skip(reason="HYC_Error is not read for now: its ID clashes with TsacMainboardShutdown")
 def test_errors(charger, charger_frame, charger_db):
     flags = _all_flags(charger_db, "HYC_Error", 0) | {"Error_Overtemperature": 1}
     charger.on_frame(charger_frame("HYC_Error", raw=True, **flags))

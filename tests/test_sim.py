@@ -77,7 +77,10 @@ def test_charger_frames_are_read_by_the_backend(charger_db, cfg, clock):
     for _ in range(300):  # 3 s: enough to ramp up to 6 A
         sim.tick(TICK, pack_voltage=550.0)
 
+    hyc_error = charger_db.get_message_by_name("HYC_Error").frame_id  # not read for now: ID clash with the BMS
     for frame in sim.frames(now=0.0):
+        if frame.id == hyc_error:
+            continue
         assert charger.on_frame(frame), f"frame {frame.id:#x} not understood"
     snap = charger.snapshot()
     assert snap.state is ChargerState.RUNNING
