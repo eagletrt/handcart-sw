@@ -127,8 +127,9 @@ def fill(src: Path, values: dict[str, str]) -> str:
 
 
 # The display is a touch screen: cage and Chromium still draw a mouse pointer, so the display service
-# uses this cursor theme (XCURSOR_THEME), where every cursor is a single transparent pixel.
-HIDDEN_CURSOR_THEME = "handcart-hidden"
+# looks for cursors only in this folder (XCURSOR_PATH), where the "default" theme, the one cage loads, has
+# every cursor as a single transparent pixel.
+HIDDEN_CURSOR_PATH = "/usr/share/handcart-cursors"
 CURSOR_NAMES = [
     "default", "left_ptr", "arrow", "top_left_arrow", "pointer", "hand1", "hand2", "text", "xterm",
     "wait", "watch", "progress", "left_ptr_watch", "crosshair", "help", "not-allowed", "grab", "grabbing",
@@ -147,7 +148,7 @@ def transparent_xcursor(size: int = 24) -> bytes:
 
 def install_hidden_cursor() -> int:
     """Install the transparent cursor theme for the display."""
-    dest = f"/usr/share/icons/{HIDDEN_CURSOR_THEME}"
+    dest = f"{HIDDEN_CURSOR_PATH}/default"
     print(f"transparent cursor theme -> {dest}")
     draft = ROOT / "var" / "transparent.xcursor"
     draft.parent.mkdir(exist_ok=True)
@@ -155,7 +156,7 @@ def install_hidden_cursor() -> int:
     for name in CURSOR_NAMES:  # install -D also creates the theme's folders
         if rc := run(["sudo", "install", "-D", "-m", "644", str(draft), f"{dest}/cursors/{name}"]):
             return rc
-    theme = f"[Icon Theme]\nName={HIDDEN_CURSOR_THEME}\nComment=No visible pointer, for the touch display\n"
+    theme = "[Icon Theme]\nName=default\nComment=No visible pointer, for the touch display\n"
     return run(["sudo", "tee", f"{dest}/index.theme"], input=theme, stdout=subprocess.DEVNULL)
 
 

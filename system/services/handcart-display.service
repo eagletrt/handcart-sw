@@ -18,12 +18,14 @@ User={{USER}}
 PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
-# a transparent cursor theme (installed by ./handcart.py install-services): no mouse pointer on the touch screen
-Environment=XCURSOR_THEME=handcart-hidden XCURSOR_SIZE=24
+# cage draws a pointer in the middle of the screen that the touch never moves: cursors come only from a
+# transparent "default" theme (installed by ./handcart.py install-services), the one cage loads
+Environment=XCURSOR_PATH=/usr/share/handcart-cursors XCURSOR_THEME=default XCURSOR_SIZE=24
 # wait up to 60 s for the frontend, then hand the screen over without clearing the splash
 ExecStartPre=-/usr/bin/timeout 60 /bin/sh -c 'until curl -sf http://localhost:{{FRONTEND_PORT}}/ >/dev/null; do sleep 0.5; done'
 ExecStartPre=+-/usr/bin/plymouth quit --retain-splash
-ExecStart=/usr/bin/cage -- /usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --incognito --no-first-run --disable-session-crashed-bubble --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 http://localhost:{{FRONTEND_PORT}}/?kiosk=true
+# --password-store=basic: no "Choose password for new keyring" window at every start
+ExecStart=/usr/bin/cage -- /usr/bin/chromium-browser --password-store=basic --kiosk --noerrdialogs --disable-infobars --incognito --no-first-run --disable-session-crashed-bubble --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 http://localhost:{{FRONTEND_PORT}}/?kiosk=true
 Restart=always
 RestartSec=3
 
