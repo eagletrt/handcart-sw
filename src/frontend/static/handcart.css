@@ -193,7 +193,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .thrbtn.q-btn { width: 56px; height: 56px; border-radius: 4px; border: 1px solid var(--line-2); }  /* balancing threshold */
 .thrbtn .q-icon { font-size: 24px; color: var(--mute); }
 .balbtn.q-btn { height: 56px; border-radius: 4px; font-size: 17px; font-weight: 700; }
-.balbtn.q-btn .q-icon { font-size: 24px; }
+.balbtn.q-btn .q-icon { font-size: 24px; margin-right: 12px; }  /* room between the icon and "Balance" */
 .balbtn.q-btn.run { background: linear-gradient(90deg, rgba(255,255,255,.22) var(--p, 0%), transparent var(--p, 0%)) !important;
   border: 2px solid #fff; cursor: default; }
 .balbtn .q-btn__content { flex-wrap: nowrap; min-width: 0; }
