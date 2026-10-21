@@ -18,6 +18,8 @@ User={{USER}}
 PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
+# a transparent cursor theme (installed by ./handcart.py install-services): no mouse pointer on the touch screen
+Environment=XCURSOR_THEME=handcart-hidden XCURSOR_SIZE=24
 # wait up to 60 s for the frontend, then hand the screen over without clearing the splash
 ExecStartPre=-/usr/bin/timeout 60 /bin/sh -c 'until curl -sf http://localhost:{{FRONTEND_PORT}}/ >/dev/null; do sleep 0.5; done'
 ExecStartPre=+-/usr/bin/plymouth quit --retain-splash

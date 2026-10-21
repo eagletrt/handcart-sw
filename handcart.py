@@ -10,6 +10,7 @@ import getpass
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -97,6 +98,8 @@ def install_services() -> int:
             return rc
     if rc := install_sudoers(fill(ROOT / "system/sudoers/handcart", values)):
         return rc
+    if rc := install_hidden_cursor():
+        return rc
     # handcart-update has no [Install]: it runs only when the System page asks
     units = [src.name for src, _ in files if src.suffix == ".service" and "[Install]" in src.read_text()]
     splash = [str(f) for f in sorted((ROOT / "system/splash").iterdir())] + [str(ROOT / "assets/eagle.png")]
@@ -121,6 +124,41 @@ def fill(src: Path, values: dict[str, str]) -> str:
     for key, value in values.items():
         text = text.replace(key, value)
     return text
+
+
+# The display is a touch screen: cage and Chromium still draw a mouse pointer, so the display service
+# uses this cursor theme (XCURSOR_THEME), where every cursor is a single transparent pixel.
+HIDDEN_CURSOR_THEME = "handcart-hidden"
+CURSOR_NAMES = [
+    "default", "left_ptr", "arrow", "top_left_arrow", "pointer", "hand1", "hand2", "text", "xterm",
+    "wait", "watch", "progress", "left_ptr_watch", "crosshair", "help", "not-allowed", "grab", "grabbing",
+    "move", "all-scroll", "col-resize", "row-resize", "context-menu",
+]  # fmt: skip
+
+
+def transparent_xcursor(size: int = 24) -> bytes:
+    """An Xcursor file holding one 1x1 fully transparent image (format: man 3 Xcursor)."""
+    image_type = 0xFFFD0002
+    header = struct.pack("<4sIII", b"Xcur", 16, 0x10000, 1)  # magic, header size, version, entries
+    toc = struct.pack("<III", image_type, size, 16 + 12)  # the image starts right after this entry
+    image = struct.pack("<IIIIIIIII", 36, image_type, size, 1, 1, 1, 0, 0, 0)  # 1x1, hotspot 0,0
+    return header + toc + image + struct.pack("<I", 0)  # one ARGB pixel, alpha 0
+
+
+def install_hidden_cursor() -> int:
+    """Install the transparent cursor theme for the display."""
+    dest = f"/usr/share/icons/{HIDDEN_CURSOR_THEME}"
+    print(f"transparent cursor theme -> {dest}")
+    draft = ROOT / "var" / "transparent.xcursor"
+    draft.parent.mkdir(exist_ok=True)
+    draft.write_bytes(transparent_xcursor())
+    theme = f"[Icon Theme]\nName={HIDDEN_CURSOR_THEME}\nComment=No visible pointer, for the touch display\n"
+    if rc := run(["sudo", "tee", f"{dest}/index.theme"], input=theme, stdout=subprocess.DEVNULL):
+        return rc
+    for name in CURSOR_NAMES:
+        if rc := run(["sudo", "install", "-D", "-m", "644", str(draft), f"{dest}/cursors/{name}"]):
+            return rc
+    return 0
 
 
 def install_sudoers(text: str) -> int:
