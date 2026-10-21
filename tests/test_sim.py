@@ -37,16 +37,20 @@ def test_bms_frames_are_read_by_the_backend(sim_bms, primary, cfg, clock):
     assert snap.pack_voltage == pytest.approx(sum(snap.cells), abs=1)
 
 
-def test_ts_on_needs_the_request_and_the_ecu_heartbeat(sim_bms, primary, cfg, clock):
+def test_ts_on_follows_the_request(sim_bms, primary, cfg, clock):
     bms = Bms(primary, cfg.accumulator, cfg.timing.bms_presence_timeout, clock)
-    ts_on = bms.ts_command(True)
 
-    run(sim_bms, 2.0, handcart=[ts_on])
-    assert sim_bms.state is TsacState.IDLE  # no heartbeat: the watchdog keeps the AIRs open
+    now = run(sim_bms, 2.0)
+    assert sim_bms.state is TsacState.IDLE  # nothing asked
 
-    run(sim_bms, 2.0, handcart=[ts_on, bms.ecu_heartbeat()])
+    sim_bms.on_frame(bms.ts_command(True), now)  # once: the request stays until the next one
+    now = run(sim_bms, 3.0, start=now)
     assert sim_bms.state is TsacState.TS_ON
     assert sim_bms.ts_voltage == pytest.approx(sim_bms.pack_voltage, rel=0.01)
+
+    sim_bms.on_frame(bms.ts_command(False), now)
+    run(sim_bms, 0.1, start=now)
+    assert sim_bms.state is TsacState.IDLE
 
 
 def test_balancing_ends_by_itself(primary, cfg, clock):

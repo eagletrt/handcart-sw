@@ -105,10 +105,6 @@ class Bms:
         threshold = self._pack.balancing_threshold
         return encode(self._db, "RaspberryTsacBalancingSet", start=int(start), threshold=threshold)
 
-    def ecu_heartbeat(self) -> Frame:
-        """The ECU status frame the BMS watchdog expects: the handcart stands in for the ECU."""
-        return encode(self._db, "EcuFsm", vehicleStatus="IDLE", krakenStatus="IDLE")
-
     # frame readers
 
     def _read(self, message: str, handler: Callable[[Signals], None]) -> None:

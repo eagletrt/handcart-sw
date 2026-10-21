@@ -133,6 +133,15 @@ def test_precharge_gives_up_after_the_timeout(bench, cfg):
     assert "did not reach TS_ON" in out.message
 
 
+def test_precharge_waits_while_the_bms_is_precharging(bench, cfg):
+    bench.go_to(State.PRECHARGE)
+    bench.bms = replace(bench.bms, state=TsacState.PRECHARGE)
+    out = bench.step(after=cfg.timing.bms_response_timeout + 0.1)
+    assert out.state is State.PRECHARGE and out.ts_on
+    bench.bms = replace(bench.bms, state=TsacState.TS_ON)
+    assert bench.step().state is State.READY
+
+
 def test_ready_goes_back_to_idle_if_the_bms_opens_the_airs(bench):
     bench.go_to(State.READY)
     bench.bms = replace(bench.bms, state=TsacState.IDLE)
@@ -197,8 +206,16 @@ def test_charger_lost_while_charging(bench):
 
 def test_charger_error_while_charging(bench):
     bench.go_to(State.CHARGE)
-    bench.charger = replace(bench.charger, errors=frozenset({"Error_Overtemperature"}))
+    bench.charger = replace(
+        bench.charger, state=ChargerState.ERROR, errors=frozenset({"Error_Overtemperature"})
+    )
     assert_stopped_safely(bench.step(), "Error_Overtemperature")
+
+
+def test_charger_error_flags_alone_do_not_stop_the_precharge(bench):
+    bench.go_to(State.PRECHARGE)
+    bench.charger = replace(bench.charger, errors=frozenset({"DIAG_ERR1_CHRG_STOP"}))
+    assert bench.step().state is State.PRECHARGE
 
 
 def test_loop_opening_while_charging(bench):

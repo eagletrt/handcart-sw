@@ -24,6 +24,7 @@ from shared.models import Command, InputEvent, Settings, State, Status
 log = logging.getLogger(__name__)
 
 CHARGER_FANS = (0, 100)  # % duty range the charger may use for its fans
+BMS_REQUEST_REPEATS = 5  # times each TS or balancing request is sent, in case a frame is lost
 SOUND_ON_ENTERING = {State.CHARGE_DONE: Sound.CHARGE_DONE, State.ERROR: Sound.ERROR}
 
 
@@ -42,6 +43,8 @@ class Handcart:
         self._charger_bus = charger_bus
         self._clock = clock
         self._periodic = Periodic()
+        self._ts_on_sent: bool | None = None  # None: nothing sent yet, so the first tick asks TS off
+        self._balancing_sent = False
 
         timing = cfg.timing
         self.bms = Bms(load_dbc(cfg.can.primary_dbc), cfg.accumulator, timing.bms_presence_timeout, clock)
@@ -139,11 +142,16 @@ class Handcart:
 
     def _send(self, now: float, out: Outputs) -> None:
         due, timing = self._periodic.due, self._cfg.timing
-        if due("ecu heartbeat", timing.ecu_heartbeat_period, now):
-            send(self._bms_bus, self.bms.ecu_heartbeat())
-        if due("bms requests", timing.bms_command_period, now):
-            send(self._bms_bus, self.bms.ts_command(out.ts_on))
-            send(self._bms_bus, self.bms.balancing_command(out.balancing))
+        # The BMS requests go out only when they change, a few times over: this is what the charge script
+        # that worked on the TSAC did. Sending them all the time broke the precharge.
+        if out.ts_on != self._ts_on_sent:
+            for _ in range(BMS_REQUEST_REPEATS):
+                send(self._bms_bus, self.bms.ts_command(out.ts_on))
+            self._ts_on_sent = out.ts_on
+        if out.balancing != self._balancing_sent:
+            for _ in range(BMS_REQUEST_REPEATS):
+                send(self._bms_bus, self.bms.balancing_command(out.balancing))
+            self._balancing_sent = out.balancing
         if due("charger control", timing.charger_ctrl_period, now):
             send(self._charger_bus, self.charger.control(out.charger))
         if due("charger alive", timing.charger_alive_period, now):

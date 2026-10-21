@@ -107,6 +107,3 @@ def test_commands(bms, primary, cfg):
     balancing = decoded(bms.balancing_command(True))
     assert balancing["start"] == 1
     assert balancing["threshold"] == pytest.approx(cfg.accumulator.balancing_threshold)
-
-    heartbeat = decoded(bms.ecu_heartbeat())
-    assert str(heartbeat["vehicleStatus"]) == "IDLE"

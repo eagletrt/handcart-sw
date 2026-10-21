@@ -27,6 +27,8 @@ ALLOWED = {
 
 # BMS states with the AIRs (partly) closed: the TS discharge resistor must stay out
 BMS_HV_STATES = {TsacState.AIRN_CHECK, TsacState.PRECHARGE, TsacState.AIRP_CHECK, TsacState.TS_ON}
+# BMS states on the way to TS_ON: the BMS has its own precharge timeout, so we keep waiting
+BMS_PRECHARGE_STATES = {TsacState.AIRN_CHECK, TsacState.PRECHARGE, TsacState.AIRP_CHECK}
 
 DONE_CURRENT = 0.1  # A: at the target voltage and below this current, the charge is complete
 DONE_VOLTAGE_MARGIN = 1.0  # V: this close to the target counts as reached
@@ -136,6 +138,8 @@ class ChargeFsm:
     def _precharge(self, inputs: Inputs, command: Command | None) -> None:
         if inputs.bms.state is TsacState.TS_ON:
             self._go(State.READY, inputs.now, "TS on")
+        elif inputs.bms.state in BMS_PRECHARGE_STATES:
+            self.message = f"Precharging: BMS in {inputs.bms.state}"
         elif inputs.now - self._since > self._cfg.timing.bms_response_timeout:
             self._go(
                 State.IDLE,
@@ -213,7 +217,8 @@ class ChargeFsm:
         if self.state in TS_ON_STATES:
             if not inputs.charger.connected:
                 return "The charger stopped responding"
-            if inputs.charger.state is ChargerState.ERROR or inputs.charger.errors:
+            # only the ERROR state trips, as on master: HYC_Error flags can be set while the charger works fine
+            if inputs.charger.state is ChargerState.ERROR:
                 return "Charger: " + (", ".join(sorted(inputs.charger.errors)) or "in error")
             if point := self._open_point(inputs):
                 return point

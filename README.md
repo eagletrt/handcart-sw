@@ -139,7 +139,8 @@ The backend only accepts connections from the Pi itself, so from an SSH session:
 - **CAN**: the BMS and the rest of the car run at 1 Mbit/s. The charger runs at 250 kbit/s unless it is
   re-flashed. On a shared bus its `HYC_Error` frame (`0x1A0`) collides with `TsacMainboardShutdown`, so the
   charger also needs new IDs. `tests/test_dbc_contract.py` tracks this.
-- **BMS watchdog**: the handcart sends `EcuFsm` every 0.2 s, standing in for the ECU.
+- **BMS requests**: `BmsSet` and `RaspberryTsacBalancingSet` are sent only when they change (5 frames each),
+  and no `EcuFsm` heartbeat is sent: this is what the charge script that worked on the TSAC did.
 - **Fonts**: Helvetica Neue is not on Raspberry Pi OS. Install `fonts-urw-base35` (Nimbus Sans) or
   `fonts-liberation` for a close match.
 

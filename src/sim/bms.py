@@ -13,7 +13,6 @@ from shared.models import TsacState
 CELL_CAPACITY = 13.5  # Ah
 CELL_RESISTANCE = 0.00125  # ohm
 BLEED_CURRENT = 0.2  # A through a balancing resistor
-ECU_WATCHDOG = 1.0  # s without the EcuFsm heartbeat before the BMS opens the AIRs
 AIRN_CHECK_TIME = 0.5  # s
 AIRP_CHECK_TIME = 0.3  # s
 PRECHARGE_TIME_CONSTANT = 0.4  # s, the TS charging through the precharge resistor
@@ -47,7 +46,6 @@ class SimBms:
 
         self._ts_requested = False
         self._balancing_requested = False
-        self._last_heartbeat = -math.inf
 
     @property
     def cell_voltages(self) -> list[float]:
@@ -68,8 +66,6 @@ class SimBms:
             self._ts_requested = bool(decode(self._db, frame)["status"])
         elif name == "RaspberryTsacBalancingSet":
             self._balancing_requested = bool(decode(self._db, frame)["start"])
-        elif name == "EcuFsm":
-            self._last_heartbeat = now
         else:
             return False
         return True
@@ -89,16 +85,15 @@ class SimBms:
 
     def _update_airs(self, now: float, dt: float) -> None:
         elapsed = now - self._state_since
-        lost_ecu = now - self._last_heartbeat > ECU_WATCHDOG
         if self.faults:
             self._enter(TsacState.ERROR, now)
             return
         if self.state is TsacState.ERROR:  # the faults are gone
             self._enter(TsacState.IDLE, now)
             return
-        if self.state in HV_STATES and (not self._ts_requested or lost_ecu):
+        if self.state in HV_STATES and not self._ts_requested:
             self._enter(TsacState.IDLE, now)
-        elif self.state is TsacState.IDLE and self._ts_requested and not lost_ecu:
+        elif self.state is TsacState.IDLE and self._ts_requested:
             self._enter(TsacState.AIRN_CHECK, now)
         elif self.state is TsacState.AIRN_CHECK and elapsed > AIRN_CHECK_TIME:
             self._enter(TsacState.PRECHARGE, now)
