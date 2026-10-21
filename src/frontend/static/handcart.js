@@ -7,6 +7,7 @@ function fitScreen() {
   if (!screen) return;
   screen.style.width = Math.round((480 * innerWidth) / innerHeight) + 'px';
   screen.style.zoom = innerHeight / 480;
+  document.getElementById('boot')?.remove(); // the UI is drawn: the eagle of the boot splash can go
 }
 addEventListener('resize', fitScreen);
 

@@ -30,6 +30,8 @@ def main() -> None:
             '<link rel="stylesheet" href="/static/handcart.css"><script src="/static/handcart.js"></script>'
         )
         ui.colors(primary="#F3FF14", negative="#FF453A", dark="#141411")  # brand yellow and red
+        # the boot splash's eagle, in the first HTML: on screen while the page loads (handcart.js removes it)
+        ui.add_body_html('<div id="boot"><img src="/assets/eagle.png" alt=""></div>')
         Page(cfg, backend)
 
     if hardware_is_simulated(cfg):
