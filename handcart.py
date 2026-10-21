@@ -152,13 +152,11 @@ def install_hidden_cursor() -> int:
     draft = ROOT / "var" / "transparent.xcursor"
     draft.parent.mkdir(exist_ok=True)
     draft.write_bytes(transparent_xcursor())
-    theme = f"[Icon Theme]\nName={HIDDEN_CURSOR_THEME}\nComment=No visible pointer, for the touch display\n"
-    if rc := run(["sudo", "tee", f"{dest}/index.theme"], input=theme, stdout=subprocess.DEVNULL):
-        return rc
-    for name in CURSOR_NAMES:
+    for name in CURSOR_NAMES:  # install -D also creates the theme's folders
         if rc := run(["sudo", "install", "-D", "-m", "644", str(draft), f"{dest}/cursors/{name}"]):
             return rc
-    return 0
+    theme = f"[Icon Theme]\nName={HIDDEN_CURSOR_THEME}\nComment=No visible pointer, for the touch display\n"
+    return run(["sudo", "tee", f"{dest}/index.theme"], input=theme, stdout=subprocess.DEVNULL)
 
 
 def install_sudoers(text: str) -> int:
