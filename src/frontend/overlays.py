@@ -186,7 +186,7 @@ class Error:
             return  # redrawing the picture would restart its animation
         self._kind = kind
         self._art.set_content(ERROR_ART[kind])
-        screen = details_screen(kind, status.message)
+        screen = details_screen(status.fault)
         text, icon = {
             "cells": ("View cells", "grid_view"),
             "charger": ("Charger", "ev_station"),
@@ -283,9 +283,6 @@ class SettingsWindow:
             target = Target(key, priority=priority, adjusts=key, presses="save")
             settings.append(Reachable(target, box, press=save.press))
         return [*settings, *usable(button("cancel", self._cancel), save)]
-
-    def knob_step(self, key: str) -> float:
-        return self._fields[key].knob_step
 
     def turn(self, key: str, steps: int) -> None:
         """Encoder steps on a setting (signed), within its limits."""

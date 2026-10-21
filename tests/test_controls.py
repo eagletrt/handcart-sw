@@ -1,27 +1,14 @@
 """The rules of the physical controls (frontend/controls.py), without any UI."""
 
-from frontend.controls import (
-    FAST_FACTOR,
-    IDLE_TIME,
-    Adjust,
-    CancelTarget,
-    ConfirmTarget,
-    Context,
-    Controls,
-    DraftTarget,
-    Press,
-    SwitchScreen,
-    Target,
-    Turn,
-)
+from frontend.controls import IDLE_TIME, Adjust, Context, Controls, Press, SwitchScreen, Target
 from shared.models import InputEvent
 
 PRESS, CW, CCW = InputEvent.PRESS, InputEvent.TURN_CW, InputEvent.TURN_CCW
 LEFT, RIGHT, UP, DOWN = InputEvent.LEFT, InputEvent.RIGHT, InputEvent.UP, InputEvent.DOWN
 
 BUTTONS = [Target("info"), Target("main", priority=1), Target("alt"), Target("charge"), Target("cells")]
-CHARGE = Context(targets=BUTTONS, turn=Turn.DRAFT_TARGET)
-RUNNING = Context(targets=[*BUTTONS, Target("stop", priority=2)], turn=Turn.DRAFT_TARGET)
+CHARGE = Context(targets=BUTTONS)
+RUNNING = Context(targets=[*BUTTONS, Target("stop", priority=2)])
 VOLTS = Context(
     targets=[Target("volts", opens_map=True), Target("temps", opens_map=True)],
     map_name="volts",
@@ -90,43 +77,16 @@ def test_after_a_pause_the_next_click_only_shows_the_frame_again():
     assert controls.framed == "main"
 
 
-# Charge: drafting the target
+# Charge
 
 
-def test_turning_on_charge_drafts_the_target_and_a_click_sets_it():
+def test_turning_on_charge_moves_the_frame_like_the_arrows():
     controls = Controls()
-    assert controls.handle(CW, CHARGE, now=0) == DraftTarget(1)
-    assert controls.handle(CW, CHARGE, now=1) == DraftTarget(1)
-    assert controls.drafting
-    assert controls.handle(PRESS, CHARGE, now=2) == ConfirmTarget()
-    assert not controls.drafting
-
-
-def test_fast_turns_draft_bigger_steps():
-    controls = Controls()
-    controls.handle(CW, CHARGE, now=0)
-    assert controls.handle(CW, CHARGE, now=0.01) == DraftTarget(FAST_FACTOR)
-
-
-def test_any_arrow_cancels_the_draft_and_does_nothing_else():
-    controls = Controls()
-    controls.handle(CCW, CHARGE, now=0)
-    assert controls.handle(RIGHT, CHARGE, now=1) == CancelTarget()  # not a switch of screen
-    assert controls.handle(RIGHT, CHARGE, now=2) == SwitchScreen(1)
-
-
-def test_a_pause_cancels_the_draft():
-    controls = Controls()
-    controls.handle(CW, CHARGE, now=0)
-    controls.expire(now=IDLE_TIME + 1)
-    assert not controls.drafting
-
-
-def test_a_touch_cancels_the_draft():
-    controls = Controls()
-    controls.handle(CW, CHARGE, now=0)
-    controls.clear()
-    assert not controls.drafting
+    gestures(controls, CHARGE, CW)  # the first gesture shows the frame on the main action
+    assert controls.handle(CW, CHARGE, now=1) is None
+    assert controls.framed == "alt"
+    controls.handle(CCW, CHARGE, now=2)
+    assert controls.framed == "main"
 
 
 # Cells: the map
@@ -207,11 +167,11 @@ def test_the_cursor_goes_when_volts_switch_to_temps_or_the_screen_changes():
 # windows
 
 
-def test_turning_changes_the_framed_setting_and_fast_turns_step_more():
+def test_turning_changes_the_framed_setting_one_step_at_a_time():
     controls = Controls()
     gestures(controls, SETTINGS, PRESS)  # the frame starts on the target voltage
     assert controls.handle(CW, SETTINGS, now=1) == Adjust("target_voltage", 1)
-    assert controls.handle(CW, SETTINGS, now=1.01) == Adjust("target_voltage", FAST_FACTOR)
+    assert controls.handle(CW, SETTINGS, now=1.01) == Adjust("target_voltage", 1)  # fast: still one step
 
 
 def test_in_a_window_the_arrows_and_turns_move_the_frame_one_button_at_a_time():

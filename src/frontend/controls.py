@@ -8,24 +8,18 @@ Plain logic, no UI (tests/test_controls.py). At every gesture the page describes
   the click presses the framed button;
 - the first gesture after a pause only shows the frame, on the button with the highest priority
   (STOP while something runs, else the main action; the safe choice inside a window);
-- Charge: turning drafts a new target voltage (shown on the rail, nothing changes yet);
-  a click sets it, any arrow cancels it, and so does a pause;
 - Cells: a click, a touch on a cell, or pressing Volts or Temps with the controls puts the cursor on the map:
   the arrows move it across the grid, turning moves it cell after cell, a click takes it away;
 - in a window turning moves the frame, or changes the framed setting;
-- fast turns step a value FAST_FACTOR times more;
-- the frame and a draft go away after IDLE_TIME without gestures, or when the screen is touched;
+- the frame goes away after IDLE_TIME without gestures, or when the screen is touched;
   the cursor stays until a click, a switch of volts and temps, or another screen.
 """
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 
 from shared.models import InputEvent
 
 IDLE_TIME = 10.0  # s
-FAST_TURN = 0.06  # s: two encoder steps closer than this are a fast turn
-FAST_FACTOR = 5
 
 STEPS = {
     InputEvent.TURN_CW: 1,
@@ -36,12 +30,6 @@ STEPS = {
     InputEvent.LEFT: -1,
 }
 TURNS = (InputEvent.TURN_CW, InputEvent.TURN_CCW)
-
-
-class Turn(StrEnum):
-    """What turning the encoder does on a screen."""
-
-    DRAFT_TARGET = "DRAFT_TARGET"  # Charge
 
 
 @dataclass(frozen=True)
@@ -75,22 +63,7 @@ class Adjust:
     steps: int  # knob steps, signed
 
 
-@dataclass(frozen=True)
-class DraftTarget:
-    steps: int  # knob steps to add to the draft, signed
-
-
-@dataclass(frozen=True)
-class ConfirmTarget:
-    pass
-
-
-@dataclass(frozen=True)
-class CancelTarget:
-    pass
-
-
-Effect = Press | SwitchScreen | Adjust | DraftTarget | ConfirmTarget | CancelTarget | None
+Effect = Press | SwitchScreen | Adjust | None
 
 
 @dataclass(frozen=True)
@@ -99,7 +72,6 @@ class Context:
 
     targets: list[Target] = field(default_factory=list)  # in reading order
     window_open: bool = False
-    turn: Turn | None = None
     map_name: str | None = None  # the map shown, if any: "volts" or "temps"
     map_size: tuple[int, int] = (0, 0)  # its (rows, squares per row)
     map_start: int = 0  # where the cursor starts: the highest cell, the hottest probe
@@ -109,23 +81,14 @@ class Controls:
     def __init__(self) -> None:
         self.framed: str | None = None  # the key of the framed target
         self.cursor: int | None = None  # the square of the map under the cursor
-        self.drafting = False  # a new target voltage is being drafted on Charge
         self._cursor_map: str | None = None  # the map the cursor is on
         self._last_gesture = float("-inf")
-        self._last_turn = float("-inf")
 
     def handle(self, event: InputEvent, context: Context, now: float) -> Effect:
         """One gesture of the controls."""
         self.expire(now)
         self._last_gesture = now
         steps = STEPS.get(event, 0)
-        if event in TURNS:
-            if now - self._last_turn < FAST_TURN:
-                steps *= FAST_FACTOR
-            self._last_turn = now
-
-        if self.drafting:
-            return self._drafting(event, steps)
         if self._on_map(context):
             self._in_map(event, context.map_size)
             return None
@@ -148,14 +111,13 @@ class Controls:
             self.cursor = None  # another screen, a window, or volts switched to temps
 
     def expire(self, now: float) -> None:
-        """After a pause: no frame, no draft (the cursor stays)."""
+        """After a pause: no frame (the cursor stays)."""
         if now - self._last_gesture > IDLE_TIME:
             self.clear()
 
     def clear(self) -> None:
-        """No frame, no draft: after a pause, or a touch outside the map."""
+        """No frame: after a pause, or a touch outside the map."""
         self.framed = None
-        self.drafting = False
 
     # where the controls are
 
@@ -172,10 +134,6 @@ class Controls:
         if event in (InputEvent.LEFT, InputEvent.RIGHT):
             self.clear()
             return SwitchScreen(steps)
-        if event in TURNS and context.turn is Turn.DRAFT_TARGET:
-            self.framed = None
-            self.drafting = True
-            return DraftTarget(steps)
         if event is InputEvent.PRESS and framed is not None:
             return Press(framed.key, framed.opens_map)
         if event is InputEvent.PRESS and context.map_name is not None:
@@ -184,17 +142,8 @@ class Controls:
         if framed is None:
             self._start(context.targets)  # the first gesture only shows where the controls are
             return None
-        direction = 1 if steps > 0 else -1  # up, down, or a turn: one button at a time
-        self._move(context.targets, framed, direction)
+        self._move(context.targets, framed, steps)  # up, down, or a turn: one button at a time
         return None
-
-    def _drafting(self, event: InputEvent, steps: int) -> Effect:
-        if event in TURNS:
-            return DraftTarget(steps)
-        self.drafting = False
-        if event is InputEvent.PRESS:
-            return ConfirmTarget()
-        return CancelTarget()  # any arrow
 
     def _in_window(self, event: InputEvent, targets: list[Target], steps: int) -> Effect:
         framed = self._framed(targets)
@@ -205,8 +154,7 @@ class Controls:
             return Press(framed.presses or framed.key)
         if event in TURNS and framed.adjusts is not None:
             return Adjust(framed.adjusts, steps)
-        direction = 1 if steps > 0 else -1  # a fast turn still moves the frame one button
-        self._move(targets, framed, direction)
+        self._move(targets, framed, steps)
         return None
 
     def _in_map(self, event: InputEvent, size: tuple[int, int]) -> None:

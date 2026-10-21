@@ -3,25 +3,12 @@
 import time
 from datetime import datetime
 from functools import partial
-from pathlib import Path
 
-from nicegui import background_tasks, ui
+from nicegui import ui
 
-from frontend import overlays
+from frontend import local_files, overlays
 from frontend.backend import Backend
-from frontend.controls import (
-    IDLE_TIME,
-    Adjust,
-    CancelTarget,
-    ConfirmTarget,
-    Context,
-    Controls,
-    DraftTarget,
-    Press,
-    SwitchScreen,
-    Target,
-    Turn,
-)
+from frontend.controls import Adjust, Context, Controls, Press, SwitchScreen, Target
 from frontend.readings import (
     cell_overvoltage,
     details_screen,
@@ -38,11 +25,11 @@ from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
 from frontend.targets import Reachable, button, usable
-from shared.config import BACKEND_ERROR_FILE, LAST_UPDATE_FILE, UPDATE_STEP_FILE, Config
+from frontend.updating import Updating
+from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
-UPDATE_WARNING_TIME = 20.0  # s the "boot files changed" note stays: long enough to read and act on
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -74,7 +61,6 @@ class Page:
         self._tab = "charge"
         self._state: State | None = None
         self._stopped_with_ts_on = False  # the state before the last ERROR had the TS on
-        self._was_updating = False  # to tell how the update ended, once it is over
         self._entered = 0.0  # when the current state began
         self._told_updates = False  # the toast about updates shows once
         self._controls = Controls()
@@ -136,13 +122,7 @@ class Page:
             self._system = SystemWindow(
                 backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
             )
-            with ui.element("div").classes("updating") as self._updating:  # above everything, also offline
-                ui.element("div").classes("eagle")
-                ui.label("Updating").classes("ut")
-                self._update_step = ui.label("").classes("us")
-                ui.label(
-                    "Do not switch the handcart off. The screen goes blank for a moment while it restarts."
-                )
+            self._updating = Updating(self._toast)
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
@@ -168,9 +148,9 @@ class Page:
     def _refresh(self) -> None:
         status = self._backend.status
         self._offline.set_visibility(status is None)
-        self._show_update(read_text(UPDATE_STEP_FILE))
+        self._updating.refresh()
         if status is None:
-            self._backend_error.set_text(backend_error())
+            self._backend_error.set_text(local_files.backend_error())
         self._clock.set_text(datetime.now().strftime("%H:%M"))
         self._toast.update()
         self._update_system()
@@ -206,21 +186,6 @@ class Page:
             self._discharge.root.set_visibility(False)
             self._discharge.done()
         self._follow_controls()
-
-    def _show_update(self, step: str) -> None:
-        """While ./handcart.py update runs, its step on the whole screen; when it ends, how it went."""
-        self._updating.set_visibility(step != "")
-        self._update_step.set_text(step)
-        if step:
-            self._was_updating = True
-        elif self._was_updating:
-            self._was_updating = False
-            result = read_text(LAST_UPDATE_FILE)  # "2026-10-21 18:30 Updated abc -> def"
-            ok = "fail" not in result and "Not updated" not in result
-            if "by hand" in result:  # BOOT_CHANGED in handcart.py: something to do on the Pi by hand
-                self._toast.show(result, ok=ok, seconds=UPDATE_WARNING_TIME, warning=True)
-            else:
-                self._toast.show(result or "Update finished", ok=ok)
 
     def _update_system(self) -> None:
         """The gear's badge and, once, a toast when the branch has updates."""
@@ -286,7 +251,7 @@ class Page:
             cells_badge.classes(add="y")  # white: balancing
 
     def _error_kind(self, status: Status) -> str:
-        return error_kind(status.message, status.bms, self._cfg.accumulator)
+        return error_kind(status.fault, status.bms, self._cfg.accumulator)
 
     # actions
 
@@ -341,7 +306,7 @@ class Page:
         if status is None:
             return
         kind = self._error_kind(status)
-        screen = details_screen(kind, status.message)
+        screen = details_screen(status.fault)
         if screen != "cells":
             self._show(screen)
             return
@@ -375,13 +340,6 @@ class Page:
             self._show(keys[(keys.index(self._tab) + effect.step) % len(keys)])
         elif isinstance(effect, Adjust):
             self._settings.turn(effect.setting, effect.steps)
-        elif isinstance(effect, DraftTarget):
-            self._draft_target(effect.steps)
-        elif isinstance(effect, ConfirmTarget) and self._charge.draft is not None:
-            draft, self._charge.draft = self._charge.draft, None  # taken now: the draft is done
-            background_tasks.create(self._set_target(draft))  # it waits for the backend
-        elif isinstance(effect, CancelTarget):
-            self._drop_draft("Target not changed")
         self._follow_controls()
 
     def _cursor_on_map_start(self, pressed: str) -> None:
@@ -396,33 +354,8 @@ class Page:
         _, context = self._context()
         self._controls.touch_map(context.map_start, context)
 
-    def _draft_target(self, steps: int) -> None:
-        """Move the drafted target by encoder steps, within the limits; nothing is set yet."""
-        status = self._backend.status
-        if status is None:
-            return
-        limits = self._cfg.charge
-        start = status.settings.target_voltage if self._charge.draft is None else self._charge.draft
-        draft = start + steps * self._settings.knob_step("target_voltage")
-        self._charge.draft = max(limits.target_voltage_min, min(limits.target_voltage_max, draft))
-        self._toast.show(
-            f"Click to set {self._charge.draft:g} V · any arrow cancels", ok=True, seconds=IDLE_TIME
-        )
-        self._charge.update(status)
-
-    async def _set_target(self, volts: float) -> None:
-        status = self._backend.status
-        if status is not None:
-            await self._save_settings(status.settings.model_copy(update={"target_voltage": volts}))
-
-    def _drop_draft(self, message: str) -> None:
-        self._charge.draft = None
-        self._toast.show(message, ok=True)
-        if self._backend.status is not None:
-            self._charge.update(self._backend.status)
-
     def _on_touch(self) -> None:
-        """The operator touched the screen outside the map: the frame and a draft go."""
+        """The operator touched the screen outside the map: the frame goes."""
         self._controls.clear()
         self._follow_controls()
 
@@ -436,8 +369,6 @@ class Page:
         """Draw the frame and the cursor where controls.py says (after a gesture, and at every refresh)."""
         reachable, context = self._context()
         self._controls.follow(context, time.monotonic())
-        if self._charge.draft is not None and not self._controls.drafting:
-            self._drop_draft("Target not changed")  # a pause or a touch
         self._draw_frame(reachable)
         if self._cells.cursor != self._controls.cursor:
             self._cells.cursor = self._controls.cursor
@@ -446,14 +377,13 @@ class Page:
 
     def _context(self) -> tuple[list[Reachable], Context]:
         """What the controls can reach now (in reading order), and where they are."""
-        if self._updating.visible:
+        if self._updating.root.visible:
             return [], Context(window_open=True)  # updating: nothing to press until it is over
         for window in (self._confirm, self._system, self._settings, self._info):  # the topmost first
             if window.root.visible:
                 reachable = window.reachable()
                 return reachable, Context(targets=[item.target for item in reachable], window_open=True)
 
-        turn = None
         map_name, map_size, map_start = None, (0, 0), 0
         if self._precharge.root.visible:
             content: list[Reachable] = []  # it covers the screen, nothing to press there
@@ -463,9 +393,6 @@ class Page:
             content = self._error.reachable()
         else:
             content = self._screens[self._tab].reachable()
-            charging = self._state is State.CHARGE
-            if self._tab == "charge" and self._charge.settings_shown() and not charging:
-                turn = Turn.DRAFT_TARGET  # while charging the target changes only from the settings window
             if self._tab == "cells" and self._backend.status is not None:
                 map_name, map_size = self._cells.map_name(), self._cells.map_size()
                 map_start = self._cells.map_start(self._backend.status.bms)
@@ -475,7 +402,6 @@ class Page:
         reachable = [*top, *content, *tabs, *stop]
         context = Context(
             targets=[item.target for item in reachable],
-            turn=turn,
             map_name=map_name,
             map_size=map_size,
             map_start=map_start,
@@ -496,16 +422,3 @@ class Page:
         if element is not None and "kframe" not in element.classes:
             element.classes(add="kframe")
         self._framed_element = element
-
-
-def backend_error() -> str:
-    """Why the backend stopped, as it left it on disk before it was started again; "" if it did not say."""
-    return read_text(BACKEND_ERROR_FILE)
-
-
-def read_text(path: Path) -> str:
-    """A small file the backend or the update leave for the display; "" if it is not there."""
-    try:
-        return path.read_text().strip()
-    except OSError:  # no file: nothing to say, or the frontend runs on another machine
-        return ""

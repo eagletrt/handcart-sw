@@ -206,6 +206,28 @@ def test_an_open_tsms_reads_as_tsms(board, cfg):
     # on the handcart channel 4 is after the TSMS and channel 5 after the BMS
     adc = cfg.adc
     twelve_volts = round(12.0 / (adc.divider + adc.divider_correction) / adc.vref * 4096)
-    board.adc.results = [result(channel, twelve_volts) for channel in (0, 1, 2, 3, 5)] + [result(4, 0)]
+    # the ADC answers in channel order; only channel 4 has no voltage
+    board.adc.results = [result(channel, 0 if channel == 4 else twelve_volts) for channel in range(6)]
     board.hal.poll(0.0)
     assert first_open(board.hal.shutdown_loop(), cfg.shutdown.open_below) == "TSMS"
+
+
+def test_a_lost_loop_supply_reads_zero_not_the_last_value(board, cfg):
+    adc = cfg.adc
+    twelve_volts = round(12.0 / (adc.divider + adc.divider_correction) / adc.vref * 4096)
+    board.adc.results = [result(channel, twelve_volts) for channel in range(6)]
+    board.hal.poll(0.0)
+    board.adc.results = [result(channel, 0) for channel in range(6)]  # 00 00 first: channel 0 at 0 V
+    board.hal.poll(0.2)
+    assert all(volts == 0.0 for _, volts in board.hal.shutdown_loop())
+
+
+def test_a_reading_not_refreshed_becomes_unknown(cfg):
+    now = 0.0
+    gpio, pwm, adc = FakeGpio(), FakePwm(), FakeAdc()
+    hal = BoardHal(cfg, gpio, pwm, adc, clock=lambda: now)
+    adc.results = [result(0, 1000)]
+    hal.poll(now)
+    assert dict(hal.shutdown_loop())["supply"] is not None
+    now = 2.0  # no scan since: say the SPI reads stopped
+    assert dict(hal.shutdown_loop())["supply"] is None  # unknown, not stuck at its last value

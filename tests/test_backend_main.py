@@ -4,6 +4,8 @@ import socket
 import tempfile
 from pathlib import Path
 
+import pytest
+
 import backend.__main__ as main
 
 
@@ -29,3 +31,19 @@ def test_the_reason_of_a_failure_is_left_for_the_frontend(monkeypatch, tmp_path)
     monkeypatch.setattr(main, "BACKEND_ERROR_FILE", error_file)
     main.report_failure(OSError("can0: No such device"))
     assert error_file.read_text() == "OSError: can0: No such device"
+
+
+def test_a_busy_port_is_a_clear_reason(monkeypatch):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
+        other.bind(("127.0.0.1", 0))
+        other.listen()
+        port = other.getsockname()[1]
+        with pytest.raises(OSError, match=f"port {port} is already in use"):
+            main.check_port_free("127.0.0.1", port)
+
+
+def test_a_free_port_passes():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    main.check_port_free("127.0.0.1", port)  # closed again: free

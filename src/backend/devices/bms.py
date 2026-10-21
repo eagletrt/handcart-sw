@@ -1,5 +1,6 @@
 """HV BMS (TSAC): reads its CAN frames into a BmsSnapshot and builds the commands the handcart sends."""
 
+import logging
 import time
 from collections.abc import Callable
 from functools import partial
@@ -9,6 +10,8 @@ from cantools.database.can import Database
 from backend.canbus import Frame, Signals, as_float, decode, encode
 from shared.config import Accumulator
 from shared.models import BmsSnapshot, TsacState
+
+log = logging.getLogger(__name__)
 
 
 class Bms:
@@ -110,7 +113,13 @@ class Bms:
         self._handlers[self._db.get_message_by_name(message).frame_id] = handler
 
     def _on_status(self, s: Signals) -> None:
-        self._state = TsacState(str(s["mainboardStatus"]))
+        name = str(s["mainboardStatus"])
+        if name not in TsacState.__members__:
+            # a state this code does not know yet (newer firmware or libcan): unknown, never a crash
+            log.warning("unknown BMS state %s", name)
+            self._state = None
+            return
+        self._state = TsacState(name)
 
     def _on_voltages(self, s: Signals) -> None:
         self._ts_voltage = s["ts"]

@@ -16,7 +16,7 @@ from frontend.readings import (
     ts_discharging,
     waiting_for,
 )
-from shared.models import Settings, State, Status
+from shared.models import Fault, Settings, State, Status
 
 MAX_CELL = 4.2
 OPEN_BELOW = 2.0
@@ -51,28 +51,24 @@ def test_error_kind(cfg):
     pack = cfg.accumulator
     over = replace(NO_BMS, cells=(pack.max_cell_voltage + 0.1,))
     hot = replace(NO_BMS, temp_max=pack.max_temperature + 1)
-    # the mushroom first: it is what the operator did
-    assert error_kind("shutdown loop open at mushroom", over, pack) == "mushroom"
-    assert error_kind("BMS: overvoltage", over, pack) == "cell"
-    assert error_kind("Cell temperature 60.0 °C, above 55 °C", hot, pack) == "hot"
-    assert error_kind("BMS: connectorDisconnected", NO_BMS, pack) == "bms"
-    assert error_kind("BMS in error", NO_BMS, pack) == "bms"
-    assert error_kind("Charger: Error_Overtemperature", NO_BMS, pack) == "charger"
-    assert error_kind("The BMS stopped responding", hot, pack) == "offline"  # its readings are old
-    assert error_kind("The charger stopped responding", NO_BMS, pack) == "offline"
-    assert error_kind("shutdown loop open at TSMS", NO_BMS, pack) == "loop"
-    # in ERROR the SD relay is open, so the loop reads open: not a reason to show the mushroom
-    assert error_kind("BMS: connectorDisconnected", NO_BMS, pack) != "mushroom"
+    assert error_kind(Fault.MUSHROOM, over, pack) == "mushroom"  # what the operator did comes first
+    assert error_kind(Fault.BMS, over, pack) == "cell"
+    assert error_kind(Fault.HOT, hot, pack) == "hot"
+    assert error_kind(Fault.BMS, NO_BMS, pack) == "bms"
+    assert error_kind(Fault.CHARGER, NO_BMS, pack) == "charger"
+    assert error_kind(Fault.BMS_OFFLINE, hot, pack) == "offline"  # the readings of a silent BMS are old
+    assert error_kind(Fault.CHARGER_OFFLINE, NO_BMS, pack) == "offline"
+    assert error_kind(Fault.LOOP_OPEN, NO_BMS, pack) == "loop"
 
 
 def test_details_open_the_screen_about_the_error():
-    assert details_screen("hot", "") == "cells"
-    assert details_screen("bms", "BMS in error") == "cells"
-    assert details_screen("charger", "Charger: in error") == "charger"
-    assert details_screen("offline", "The charger stopped responding") == "charger"
-    assert details_screen("offline", "The BMS stopped responding") == "cells"
-    assert details_screen("mushroom", "shutdown loop open at mushroom") == "shutdown"
-    assert details_screen("loop", "shutdown loop open at TSMS") == "shutdown"
+    assert details_screen(Fault.HOT) == "cells"
+    assert details_screen(Fault.BMS) == "cells"
+    assert details_screen(Fault.BMS_OFFLINE) == "cells"
+    assert details_screen(Fault.CHARGER) == "charger"
+    assert details_screen(Fault.CHARGER_OFFLINE) == "charger"
+    assert details_screen(Fault.MUSHROOM) == "shutdown"
+    assert details_screen(Fault.LOOP_OPEN) == "shutdown"
 
 
 def test_hot_probes_by_index():

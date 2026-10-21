@@ -132,11 +132,25 @@ class CommandRequest(BaseModel):
     command: Command
 
 
+class Fault(StrEnum):
+    """Why the handcart went to ERROR, for the picture the UI shows; the message says it in words."""
+
+    MUSHROOM = "MUSHROOM"  # the shutdown loop open at the mushroom
+    LOOP_OPEN = "LOOP_OPEN"  # open at another point
+    BMS = "BMS"  # errors, or the ERROR state, reported by the BMS
+    HOT = "HOT"  # a cell above the temperature limit
+    BMS_OFFLINE = "BMS_OFFLINE"  # the BMS stopped answering
+    CHARGER = "CHARGER"  # the charger in ERROR
+    CHARGER_OFFLINE = "CHARGER_OFFLINE"  # the charger stopped answering
+    SETPOINT = "SETPOINT"  # the setpoints went outside the limits while charging
+
+
 class Status(BaseModel):
     """Everything the UI shows: GET /api/status, and every few hundred ms on /api/ws."""
 
     state: State
     message: str
+    fault: Fault | None = None  # why it is in ERROR; None in every other state
     settings: Settings
     bms: BmsSnapshot
     charger: ChargerSnapshot

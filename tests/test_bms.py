@@ -120,3 +120,11 @@ def test_commands(bms, primary, cfg):
     balancing = decoded(bms.balancing_command(True, threshold=0.020))
     assert balancing["start"] == 1
     assert balancing["threshold"] == pytest.approx(0.020)
+
+
+def test_an_unknown_state_is_unknown_not_a_crash(bms, primary):
+    status = primary.get_message_by_name("TsacStatus")
+    bms.on_frame(Frame(status.frame_id, bytes([0x0F, 0, 0])))  # 15: no such state in the DBC
+    snap = bms.snapshot()
+    assert snap.state is None
+    assert snap.connected  # the BMS is there, only its state is not understood

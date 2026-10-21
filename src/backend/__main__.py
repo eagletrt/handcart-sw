@@ -17,7 +17,7 @@ from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.system import System
 from shared import config
-from shared.config import BACKEND_ERROR_FILE, Config, hardware_is_simulated
+from shared.config import BACKEND_ERROR_FILE, SETTINGS_FILE, Config, hardware_is_simulated
 from shared.scenario import SCENARIO_FILE
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
@@ -38,10 +38,11 @@ def make_hal(cfg: Config) -> Hal:
 
 async def run() -> None:
     cfg = config.load()
+    check_port_free(cfg.network.backend_host, cfg.network.backend_port)
     bms_bus = open_bus(cfg.can, cfg.can.bms_channel)
     charger_bus = bms_bus if cfg.can.shared_bus else open_bus(cfg.can, cfg.can.charger_channel)
     hal = make_hal(cfg)
-    handcart = Handcart(cfg, hal, bms_bus, charger_bus)
+    handcart = Handcart(cfg, hal, bms_bus, charger_bus, settings_file=SETTINGS_FILE)
     hal.play(Sound.STARTUP)
 
     system = System(cfg.update)
@@ -85,6 +86,19 @@ async def run() -> None:
             charger_bus.shutdown()
     if failed:
         raise SystemExit(1)  # systemd sees a failure, not a clean stop
+
+
+def check_port_free(host: str, port: int) -> None:
+    """Fail with a clear reason if another program listens on the API port: uvicorn would just exit.
+
+    SO_REUSEADDR, as uvicorn: right after a restart the old connections must not count as "in use".
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind((host, port))
+        except OSError as error:
+            raise OSError(f"port {port} is already in use: is another backend running?") from error
 
 
 def notify_systemd(state: str) -> None:

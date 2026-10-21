@@ -6,8 +6,7 @@ import pytest
 
 from backend.core.fsm import ChargeFsm, Inputs
 from backend.devices.charger import ChargerCommand
-from frontend.readings import error_kind
-from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, State, TsacState
+from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, Fault, State, TsacState
 
 CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("BMS", 11.9), ("TSMS", 11.9))
 
@@ -232,12 +231,22 @@ def test_loop_opening_while_charging(bench):
     assert_stopped_safely(bench.step(), "open at mushroom")
 
 
-def test_the_ui_shows_the_mushroom_from_the_reason_of_the_stop(bench, cfg):
-    # the frontend picks the picture from this message (frontend.readings.error_kind)
+def test_the_kind_of_fault_is_kept_while_in_error(bench):
+    # the frontend picks its picture from it (frontend.readings.error_kind)
     bench.go_to(State.CHARGE)
     bench.shutdown = (("mushroom", 0.0), ("charger", 0.0))
-    out = bench.step()
-    assert error_kind(out.message, bench.bms, cfg.accumulator) == "mushroom"
+    bench.step()
+    assert bench.fsm.fault is Fault.MUSHROOM
+    bench.shutdown = (("mushroom", 12.0), ("charger", 12.0))
+    bench.step(Command.RESET)
+    assert bench.fsm.fault is None  # out of ERROR: no fault
+
+
+def test_another_open_point_is_not_the_mushroom(bench):
+    bench.go_to(State.CHARGE)
+    bench.shutdown = (("mushroom", 12.0), ("charger", 0.0))
+    bench.step()
+    assert bench.fsm.fault is Fault.LOOP_OPEN
 
 
 def test_an_unknown_loop_reading_does_not_trip(bench):
@@ -320,3 +329,21 @@ def test_a_refusal_is_not_hidden_by_the_state_message(bench):
     out = bench.step(Command.PRECHARGE)
     assert out.state is State.CHECK
     assert "not possible" in out.message
+
+
+def test_a_precharge_that_never_ends_gives_up(bench, cfg):
+    bench.go_to(State.PRECHARGE)
+    bench.bms = replace(bench.bms, state=TsacState.PRECHARGE)
+    out = bench.step(after=cfg.timing.precharge_timeout + 0.1)
+    assert out.state is State.IDLE and not out.ts_on
+    assert "Precharge not done" in out.message
+
+
+def test_no_charge_before_every_cell_is_read(bench):
+    bench.go_to(State.READY)
+    bench.bms = replace(bench.bms, cells=(3.8, None, 3.81))
+    out = bench.step(Command.START_CHARGE)
+    assert out.state is State.READY
+    assert out.refusal == "Cannot charge: 1 cells not read yet"
+    bench.bms = replace(bench.bms, cells=(3.8, 3.79, 3.81))
+    assert bench.step(Command.START_CHARGE).state is State.CHARGE

@@ -19,6 +19,7 @@ from shared.config import Config
 from shared.models import InputEvent, ShutdownLoop
 
 ADC_READ_PERIOD = 0.1  # s between two scans of the feedbacks
+READING_MAX_AGE = 1.0  # s: a feedback not read again for this long is unknown, never stuck at its last value
 
 
 class BoardHal:
@@ -48,14 +49,14 @@ class BoardHal:
         self._encoder = Encoder()
         self._player = Player()
         self._events: list[InputEvent] = []
-        self._volts: dict[int, float] = {}  # last reading of each ADC channel
+        self._readings: dict[int, tuple[float, float]] = {}  # ADC channel -> (volts, when read)
         self._next_adc_read = 0.0
         self._adc.transfer(configuration_word())
 
     def poll(self, now: float) -> None:
         self._read_controls(now)
         if now >= self._next_adc_read:
-            self._read_feedbacks()
+            self._read_feedbacks(now)
             self._next_adc_read = now + ADC_READ_PERIOD
         self._buzzer.tone(self._player.frequency(now))
 
@@ -64,7 +65,11 @@ class BoardHal:
             self._gpio.write(pin, high)
 
     def shutdown_loop(self) -> ShutdownLoop:
-        return shutdown_loop(self._volts)
+        now = self._clock()
+        fresh = {
+            ch: volts for ch, (volts, read_at) in self._readings.items() if now - read_at <= READING_MAX_AGE
+        }
+        return shutdown_loop(fresh)
 
     def input_events(self) -> list[InputEvent]:
         events, self._events = self._events, []
@@ -79,13 +84,15 @@ class BoardHal:
         pins = self._cfg.gpio
         self._events += self._encoder.update(self._gpio.read(pins.encoder_a), self._gpio.read(pins.encoder_b))
 
-    def _read_feedbacks(self) -> None:
-        """One scan: ask for all the channels, then read a result per channel from the ADC FIFO."""
+    def _read_feedbacks(self, now: float) -> None:
+        """One scan: ask for all the channels, then read one result per channel, in order, from the FIFO.
+
+        Every result is read: 00 00 is also channel 0 at 0 V (the loop supply gone), not "nothing left".
+        A result for another channel than expected (the ADC out of step, or not answering) is left out.
+        """
         self._adc.transfer(scan_word())
         self._adc.transfer(b"\x00")
-        for _ in range(LAST_CHANNEL + 1):
-            result = self._adc.transfer(b"\x00\x00")
-            if result == b"\x00\x00":
-                break  # FIFO empty
-            channel, volts = parse_result(result, self._cfg.adc)
-            self._volts[channel] = volts
+        for expected in range(LAST_CHANNEL + 1):
+            channel, volts = parse_result(self._adc.transfer(b"\x00\x00"), self._cfg.adc)
+            if channel == expected:
+                self._readings[channel] = (volts, now)

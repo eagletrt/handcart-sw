@@ -18,7 +18,6 @@ cellboards = 6
 cells_per_cellboard = 24
 temps_per_cellboard = 48
 max_cell_voltage = 4.20       # V, charging stops here
-min_cell_voltage = 2.80       # V, never balance below this
 balancing_threshold = 0.010   # V, cells above min + threshold are bled: the default, the operator can change it
 balancing_threshold_min = 0.005   # V, the BMS takes it in 5 mV steps
 balancing_threshold_max = 0.100   # V
@@ -37,7 +36,8 @@ current_default = 6.0         # A
 [timing]
 bms_presence_timeout = 0.5        # s without BMS frames before it counts as gone
 charger_presence_timeout = 0.4    # s without charger frames before it counts as gone
-bms_response_timeout = 3.0        # s for the BMS to reach TS_ON, or to start balancing
+bms_response_timeout = 3.0        # s for the BMS to start the precharge (or balancing)
+precharge_timeout = 5.0          # s for the whole precharge, once started: then the TS goes off
 charger_stop_delay = 0.2          # s between stopping the charger and cutting its power, on error
 balancing_period = 1.0            # s, RaspberryTsacBalancingSet while balancing (the BMS gives up after 3 s)
 charger_ctrl_period = 0.01        # s, HYC_Ctrl

@@ -10,7 +10,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATH = ROOT / "config.toml"
 LOCAL_PATH = ROOT / "config.local.toml"  # optional, not in git: overrides for this machine
+# files in var/ (not in git); the ones the display reads are explained in frontend/local_files.py
 BACKEND_ERROR_FILE = ROOT / "var" / "backend-error.txt"  # why the backend stopped; shown by the frontend
+SETTINGS_FILE = ROOT / "var" / "settings.json"  # the operator's setpoints, kept across restarts
 # written by ./handcart.py update (handcart.py has the same paths): the step it is at, and how it ended
 UPDATE_STEP_FILE = ROOT / "var" / "update-step.txt"
 LAST_UPDATE_FILE = ROOT / "var" / "last-update.txt"
@@ -61,7 +63,6 @@ class Accumulator(_Section):
     cells_per_cellboard: int = Field(gt=0)
     temps_per_cellboard: int = Field(gt=0)
     max_cell_voltage: float = Field(gt=0)
-    min_cell_voltage: float = Field(gt=0)
     balancing_threshold: float = Field(gt=0)  # the default
     balancing_threshold_min: float = Field(gt=0)
     balancing_threshold_max: float = Field(gt=0)
@@ -83,8 +84,6 @@ class Accumulator(_Section):
 
     @model_validator(mode="after")
     def _cell_limits(self) -> Self:
-        if self.min_cell_voltage >= self.max_cell_voltage:
-            raise ValueError("min_cell_voltage must be below max_cell_voltage")
         if not self.balancing_threshold_min <= self.balancing_threshold <= self.balancing_threshold_max:
             raise ValueError("balancing_threshold must be between balancing_threshold_min and _max")
         if not self.cold_temperature < self.warm_temperature < self.max_temperature:
@@ -114,6 +113,7 @@ class Timing(_Section):
     bms_presence_timeout: float = Field(gt=0)
     charger_presence_timeout: float = Field(gt=0)
     bms_response_timeout: float = Field(gt=0)
+    precharge_timeout: float = Field(gt=0)
     charger_stop_delay: float = Field(gt=0)
     balancing_period: float = Field(gt=0)
     charger_ctrl_period: float = Field(gt=0)

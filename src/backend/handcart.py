@@ -7,6 +7,7 @@ import logging
 import time
 from collections import deque
 from collections.abc import Callable
+from pathlib import Path
 
 import can
 from cantools.database.errors import DecodeError
@@ -36,6 +37,7 @@ class Handcart:
         bms_bus: can.BusABC,
         charger_bus: can.BusABC,
         clock: Callable[[], float] = time.monotonic,
+        settings_file: Path | None = None,
     ) -> None:
         self._cfg = cfg
         self._hal = hal
@@ -55,6 +57,8 @@ class Handcart:
             max_current=cfg.charge.current_default,
             balancing_threshold=cfg.accumulator.balancing_threshold,
         )
+        self._settings_file = settings_file  # if given, the settings are kept there across restarts
+        self._load_settings()
         self._command: Command | None = None  # for the tick that request() runs
         self._inputs: deque[tuple[int, InputEvent]] = deque(maxlen=64)  # (number, event), for the frontend
         self._input_count = 0
@@ -63,9 +67,11 @@ class Handcart:
 
     def request(self, command: Command) -> str | None:
         """Handle a command right away, with one extra tick. Returns why it was refused, or None."""
-        self._hal.play(Sound.CONFIRM)
         self._command = command
-        return self.tick().refusal
+        refusal = self.tick().refusal
+        if refusal is None:
+            self._hal.play(Sound.CONFIRM)  # a refusal is shown on the screen: no beep for it
+        return refusal
 
     def maintenance_problem(self) -> str | None:
         """Why the handcart cannot be updated, rebooted or shut down now (TS on, or running), or None."""
@@ -83,7 +89,22 @@ class Handcart:
             problem = f"balancing threshold outside {low * 1000:g}-{high * 1000:g} mV"
         if problem is None:
             self.settings = settings
+            if self._settings_file is not None:
+                self._settings_file.parent.mkdir(exist_ok=True)
+                self._settings_file.write_text(settings.model_dump_json(indent=2))
         return problem
+
+    def _load_settings(self) -> None:
+        """The settings saved last time, if still within the limits of the config; else the defaults."""
+        if self._settings_file is None or not self._settings_file.exists():
+            return
+        try:
+            saved = Settings.model_validate_json(self._settings_file.read_text())
+        except ValueError as error:  # unreadable, or from an older version
+            log.warning("saved settings not used: %s", error)
+            return
+        if problem := self.change_settings(saved):
+            log.warning("saved settings not used: %s", problem)
 
     def inputs_since(self, last: int) -> tuple[int, list[InputEvent]]:
         """The control presses after number `last`, and the number of the newest one."""
@@ -93,6 +114,7 @@ class Handcart:
         return Status(
             state=self._fsm.state,
             message=self._fsm.message,
+            fault=self._fsm.fault,
             settings=self.settings,
             bms=self.bms.snapshot(),
             charger=self.charger.snapshot(),
@@ -143,8 +165,9 @@ class Handcart:
             try:
                 if not self.bms.on_frame(frame):
                     self.charger.on_frame(frame)
-            except DecodeError:
-                log.warning("malformed frame %#x: %s", frame.id, frame.data.hex())
+            except (DecodeError, ValueError, KeyError) as error:
+                # a frame we cannot read is dropped: it must never stop the control loop
+                log.warning("unreadable frame %#x (%s): %s", frame.id, error, frame.data.hex())
 
     def _send(self, now: float, out: Outputs) -> None:
         due, timing = self._periodic.due, self._cfg.timing

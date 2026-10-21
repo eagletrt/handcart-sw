@@ -104,9 +104,12 @@ def test_settings_outside_the_limits_are_refused(rig, cfg):
     assert rig.handcart.settings == settings
 
 
-def test_every_command_beeps(rig):
-    rig.handcart.request(Command.PRECHARGE)
-    assert rig.hal.played == [Sound.CONFIRM]
+def test_an_accepted_command_beeps_a_refused_one_does_not(rig):
+    assert rig.handcart.request(Command.PRECHARGE) is not None  # still in CHECK: refused
+    assert Sound.CONFIRM not in rig.hal.played
+    rig.run(1.0, until=State.IDLE)
+    assert rig.handcart.request(Command.PRECHARGE) is None
+    assert rig.hal.played[-1] is Sound.CONFIRM
 
 
 def test_a_command_is_answered_right_away(rig):
@@ -177,3 +180,21 @@ def test_the_balancing_request_is_repeated_while_balancing(cfg, primary, charger
         assert all(threshold == pytest.approx(0.020) for _, threshold in requests)  # the operator's
     finally:
         rig.close()
+
+
+def test_the_settings_are_kept_across_restarts(cfg, tmp_path):
+    path = tmp_path / "settings.json"
+    bus = UnpluggedBus()
+    first = Handcart(cfg, FakeHal(), bus, bus, settings_file=path)
+    changed = first.settings.model_copy(update={"target_voltage": cfg.charge.target_voltage_min})
+    assert first.change_settings(changed) is None
+    again = Handcart(cfg, FakeHal(), bus, bus, settings_file=path)
+    assert again.settings == changed
+
+
+def test_saved_settings_outside_the_limits_are_not_used(cfg, tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text('{"target_voltage": 9999, "max_current": 6, "balancing_threshold": 0.01}')
+    bus = UnpluggedBus()
+    handcart = Handcart(cfg, FakeHal(), bus, bus, settings_file=path)
+    assert handcart.settings.target_voltage == cfg.charge.target_voltage_default

@@ -62,7 +62,6 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 @keyframes flow { to { background-position: 19.8px 0; } }
 .mark { position: absolute; top: 13px; height: 30px; width: 3px; transform: translateX(-1.5px); }
 .mark.target { background: var(--y); }
-.mark.target.draft { background: repeating-linear-gradient(to bottom, var(--y) 0 4px, transparent 4px 7px); }  /* not set yet */
 .mark.limit { width: 3px; background: repeating-linear-gradient(to bottom, var(--red) 0 3px, transparent 3px 6px); }
 .rlbl { position: absolute; font-size: 15px; font-weight: 600; white-space: nowrap; transform: translateX(-50%); }
 .rlbl.target { top: -6px; color: var(--y); transform: translateX(calc(-100% - 6px)); }
@@ -87,7 +86,6 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .setp .q-btn__content { width: 100%; justify-content: space-between; flex-wrap: nowrap; }
 .setp .sv { display: flex; gap: 22px; text-align: left; }
 .setp .sv b { display: block; font-size: 22px; color: #fff; font-weight: 400; }
-.setp .sv b.draft { color: var(--y); font-weight: 600; }
 .setp .sv span { font-size: 15px; color: var(--faint); letter-spacing: .1em; text-transform: uppercase; }
 .setp .q-icon { font-size: 26px; color: var(--mute); }
 

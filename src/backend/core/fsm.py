@@ -10,7 +10,16 @@ from dataclasses import dataclass
 
 from backend.devices.charger import ChargerCommand
 from shared.config import Charge, Config
-from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, ShutdownLoop, State, TsacState
+from shared.models import (
+    BmsSnapshot,
+    ChargerSnapshot,
+    ChargerState,
+    Command,
+    Fault,
+    ShutdownLoop,
+    State,
+    TsacState,
+)
 
 TS_ON_STATES = {State.PRECHARGE, State.READY, State.CHARGE, State.CHARGE_DONE}
 
@@ -74,6 +83,7 @@ class ChargeFsm:
         self.state = State.CHECK
         self.message = "Waiting for the BMS and the charger"
         self._since = now  # when the current state was entered
+        self.fault: Fault | None = None  # why it is in ERROR
         self._refusal: str | None = None  # why the command of the current step was refused
         self._balancing_seen = False  # the BMS has reported BALANCING since balancing was asked
         self._handlers = {
@@ -97,7 +107,9 @@ class ChargeFsm:
         state_before = self.state
         fault = None if self.state is State.ERROR else self._fault(inputs)
         if fault:
-            self._go(State.ERROR, inputs.now, fault)
+            kind, message = fault
+            self._go(State.ERROR, inputs.now, message)
+            self.fault = kind
         elif command is Command.STOP:
             self._go(State.IDLE, inputs.now, "Stopped by the operator")
         else:
@@ -127,7 +139,8 @@ class ChargeFsm:
         if not (inputs.bms.connected and inputs.charger.connected):
             self._go(State.CHECK, inputs.now, "A device stopped responding")
         elif command is Command.PRECHARGE:
-            problem = self._open_point(inputs) or self._setpoint_problem(inputs)
+            point = self._open_point(inputs)
+            problem = f"shutdown loop open at {point}" if point else self._setpoint_problem(inputs)
             if problem:
                 self._refusal = f"Cannot precharge: {problem}"
             else:
@@ -139,7 +152,11 @@ class ChargeFsm:
         if inputs.bms.state is TsacState.TS_ON:
             self._go(State.READY, inputs.now, "TS on")
         elif inputs.bms.state in BMS_PRECHARGE_STATES:
-            self.message = f"Precharging: BMS in {inputs.bms.state}"
+            limit = self._cfg.timing.precharge_timeout
+            if inputs.now - self._since > limit:  # the BMS stuck on the way: give up, the TS goes off
+                self._go(State.IDLE, inputs.now, f"Precharge not done in {limit:g} s")
+            else:
+                self.message = f"Precharging: BMS in {inputs.bms.state}"
         elif inputs.now - self._since > self._cfg.timing.bms_response_timeout:
             self._go(
                 State.IDLE,
@@ -180,7 +197,7 @@ class ChargeFsm:
             # with the TS off and the charger unpowered, only the BMS can still tell what is wrong
             problem = self._bms_fault(inputs.bms)
             if problem:
-                self._refusal = f"Still present: {problem}"
+                self._refusal = f"Still present: {problem[1]}"
             else:
                 self._go(State.CHECK, inputs.now, "Errors cleared")
 
@@ -190,9 +207,15 @@ class ChargeFsm:
         self.state = state
         self.message = message
         self._since = now
+        self.fault = None  # set right after, when the state is ERROR
 
     def _start_charging(self, inputs: Inputs) -> None:
         problem = self._setpoint_problem(inputs)
+        missing = inputs.bms.cells.count(None)
+        if problem is None and missing:
+            # the cell max (which stops the charge at the limit) is not complete yet: a moment after the
+            # BMS connects, until every group of cells has arrived
+            problem = f"{missing} cells not read yet"
         if problem:
             self._refusal = f"Cannot charge: {problem}"
         else:
@@ -208,39 +231,40 @@ class ChargeFsm:
 
     # checks
 
-    def _fault(self, inputs: Inputs) -> str | None:
-        """Why the handcart must stop now, or None."""
+    def _fault(self, inputs: Inputs) -> tuple[Fault, str] | None:
+        """Why the handcart must stop now, as (kind, message for the operator), or None."""
         if problem := self._bms_fault(inputs.bms):
             return problem
         if self.state in TS_ON_STATES | {State.BALANCING} and not inputs.bms.connected:
-            return "The BMS stopped responding"
+            return Fault.BMS_OFFLINE, "The BMS stopped responding"
         if self.state in TS_ON_STATES:
             if not inputs.charger.connected:
-                return "The charger stopped responding"
+                return Fault.CHARGER_OFFLINE, "The charger stopped responding"
             # only the ERROR state trips, as on master: HYC_Error flags can be set on a working charger
             if inputs.charger.state is ChargerState.ERROR:
-                return "Charger: " + (", ".join(sorted(inputs.charger.errors)) or "in error")
+                return Fault.CHARGER, "Charger: " + (", ".join(sorted(inputs.charger.errors)) or "in error")
             if point := self._open_point(inputs):
-                return point
-        if self.state is State.CHARGE and (problem := self._setpoint_problem(inputs)):
-            return problem
+                kind = Fault.MUSHROOM if point == "mushroom" else Fault.LOOP_OPEN
+                return kind, f"shutdown loop open at {point}"
+        if self.state is State.CHARGE and (setpoints := self._setpoint_problem(inputs)):
+            return Fault.SETPOINT, setpoints
         return None
 
-    def _bms_fault(self, bms: BmsSnapshot) -> str | None:
+    def _bms_fault(self, bms: BmsSnapshot) -> tuple[Fault, str] | None:
         limit = self._cfg.accumulator.max_temperature
         if bms.errors:
-            return "BMS: " + ", ".join(sorted(bms.errors))
+            return Fault.BMS, "BMS: " + ", ".join(sorted(bms.errors))
         if bms.state is TsacState.ERROR:
-            return "BMS in error"
+            return Fault.BMS, "BMS in error"
         if bms.temp_max is not None and bms.temp_max > limit:
-            return f"Cell temperature {bms.temp_max:.1f} °C, above {limit:g} °C"
+            return Fault.HOT, f"Cell temperature {bms.temp_max:.1f} °C, above {limit:g} °C"
         return None
 
     def _open_point(self, inputs: Inputs) -> str | None:
         """The first point of the shutdown loop that reads open, if any. Unknown readings never trip."""
         for point, volts in inputs.shutdown:
             if volts is not None and volts < self._cfg.shutdown.open_below:
-                return f"shutdown loop open at {point}"
+                return point
         return None
 
     def _setpoint_problem(self, inputs: Inputs) -> str | None:

@@ -64,10 +64,8 @@ What they do (the rules are in `src/frontend/controls.py`):
 - ← → change screen; inside a window or the cell map they move instead.
 - ↑ ↓ move a yellow frame over the screen's buttons; a click presses the framed one. After a pause the
   first click only shows the frame: on STOP while something runs, else on the main action.
-- Turning the encoder on Charge drafts a new target voltage on the rail: a click sets it, any arrow
-  (or a pause) cancels it; not while charging, when the target changes only from the settings window.
-  In the settings window turning changes the framed value (1 V or 0.1 A a step, five times that when
-  turned fast), and a click saves.
+- Turning the encoder moves the frame like ↑ ↓. In a settings window it changes the framed value
+  (1 V, 0.1 A or 5 mV a step), and a click saves.
 - On Cells, a click, a touch on a cell, or pressing Volts or Temps with the controls puts a cursor on the
   map: the arrows and the encoder move it and the reading shows under the map; a click takes it away.
 
