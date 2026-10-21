@@ -7,6 +7,8 @@ from pathlib import Path
 
 from nicegui import ui
 
+from frontend.controls import Target
+from frontend.targets import Reachable, button, usable
 from shared.config import Config
 from shared.models import Settings, State, Status, TsacState
 
@@ -123,13 +125,15 @@ class Error:
                 )
             self._art = ui.html("").classes("eart")
             with ui.element("div").classes("eact"):
-                ui.button("Reset errors", icon="restart_alt", on_click=on_reset).props(
-                    "unelevated no-caps"
-                ).classes("reset")
+                self._reset = ui.button("Reset errors", icon="restart_alt", on_click=on_reset)
+                self._reset.props("unelevated no-caps").classes("reset")
                 self._details = (
                     ui.button("", on_click=on_details).props("flat no-caps text-color=white").classes("det")
                 )
         self._kind = ""
+
+    def reachable(self) -> list[Reachable]:
+        return usable(button("reset", self._reset, priority=1), button("details", self._details))
 
     def update(self, status: Status, kind: str) -> None:
         self._reason.set_text(status.message)
@@ -147,12 +151,13 @@ class Error:
 
 @dataclass(frozen=True)
 class Field:
-    """One setting in the window: its limits, the step of − and +, and how it reads."""
+    """One setting in the window: its limits, its steps, and how it reads."""
 
     title: str
     low: float
     high: float
-    step: float
+    button_step: float  # of − and +, for a finger
+    knob_step: float  # of one encoder step: finer
     unit: str
     digits: int  # decimals shown
     note: Callable[[float], str]  # a line under the value
@@ -168,7 +173,8 @@ class SettingsWindow:
                 title="Target",
                 low=charge.target_voltage_min,
                 high=charge.target_voltage_max,
-                step=2.0,
+                button_step=2.0,
+                knob_step=1.0,
                 unit="V",
                 digits=0,
                 note=lambda volts: f"{volts / cells:.3f} V per cell",
@@ -177,7 +183,8 @@ class SettingsWindow:
                 title="Max current",
                 low=0.5,
                 high=charge.current_max,
-                step=0.5,
+                button_step=0.5,
+                knob_step=0.1,
                 unit="A",
                 digits=1,
                 note=lambda amps: f"{amps * charge.target_voltage_max / 1000:.1f} kW max",
@@ -185,6 +192,7 @@ class SettingsWindow:
         }
         self._draft: dict[str, float] = {}
         self._labels: dict[str, tuple[ui.label, ui.label]] = {}  # value, note
+        self._boxes: dict[str, ui.element] = {}  # the frame of the controls goes on these
         self._save = save
 
         with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet set"):
@@ -193,11 +201,28 @@ class SettingsWindow:
                 for key, field in self._fields.items():
                     self._build_field(key, field)
             with ui.element("div").classes("sheet-actions"):
-                ui.button("Cancel", on_click=lambda: self.root.set_visibility(False)).props(
-                    "flat no-caps text-color=white"
-                ).classes("cancel")
-                ui.button("Save", on_click=self._on_save).props("unelevated no-caps text-color=black")
+                self._cancel = ui.button("Cancel", on_click=lambda: self.root.set_visibility(False))
+                self._cancel.props("flat no-caps text-color=white").classes("cancel")
+                self._save_button = ui.button("Save", on_click=self._on_save)
+                self._save_button.props("unelevated no-caps text-color=black")
         self.root.set_visibility(False)
+
+    def reachable(self) -> list[Reachable]:
+        """The settings themselves (turning changes them, a click saves), then the buttons."""
+        save = button("save", self._save_button)
+        settings = []
+        for i, (key, box) in enumerate(self._boxes.items()):
+            priority = 1 if i == 0 else 0  # turning on Charge opens this window on the first setting
+            target = Target(key, priority=priority, adjusts=key, presses="save")
+            settings.append(Reachable(target, box, press=save.press))
+        return [*settings, *usable(button("cancel", self._cancel), save)]
+
+    def knob_step(self, key: str) -> float:
+        return self._fields[key].knob_step
+
+    def turn(self, key: str, steps: int) -> None:
+        """Encoder steps on a setting (signed), within its limits."""
+        self._change(key, steps * self._fields[key].knob_step)
 
     def open(self, settings: Settings) -> None:
         self._draft = settings.model_dump()
@@ -206,21 +231,20 @@ class SettingsWindow:
         self.root.set_visibility(True)
 
     def _build_field(self, key: str, field: Field) -> None:
-        with ui.element("div").classes("fld"):
+        with ui.element("div").classes("fld") as self._boxes[key]:
             with ui.element("div"):
                 ui.label(field.title).classes("lbl")
                 self._labels[key] = (ui.label("").classes("v num"), ui.label("").classes("n num"))
             with ui.element("div").classes("steps"):
-                ui.button("−", on_click=lambda: self._change(key, -field.step)).props(
-                    "flat text-color=white"
-                ).classes("stp")
-                ui.button("+", on_click=lambda: self._change(key, +field.step)).props(
-                    "flat text-color=white"
-                ).classes("stp")
+                minus = ui.button("−", on_click=lambda: self._change(key, -field.button_step))
+                plus = ui.button("+", on_click=lambda: self._change(key, +field.button_step))
+                for step_button in (minus, plus):
+                    step_button.props("flat text-color=white").classes("stp")
 
     def _change(self, key: str, amount: float) -> None:
         field = self._fields[key]
-        self._draft[key] = max(field.low, min(field.high, self._draft[key] + amount))
+        value = max(field.low, min(field.high, self._draft[key] + amount))
+        self._draft[key] = round(value, field.digits)  # 0.1 + 0.2 is not 0.3 in floats
         self._draw(key)
 
     def _draw(self, key: str) -> None:
@@ -244,18 +268,20 @@ class ConfirmWindow:
             self._title = ui.label("").classes("sheet-title")
             self._text = ui.html("")
             with ui.element("div").classes("sheet-actions"):
-                ui.button("Cancel", on_click=lambda: self.root.set_visibility(False)).props(
-                    "flat no-caps text-color=white"
-                ).classes("cancel")
-                self._confirm = ui.button("", on_click=self._on_confirm).props(
-                    "unelevated no-caps color=negative"
-                )
+                self._cancel = ui.button("Cancel", on_click=lambda: self.root.set_visibility(False))
+                self._cancel.props("flat no-caps text-color=white").classes("cancel")
+                self._confirm = ui.button("", on_click=self._on_confirm)
+                self._confirm.props("unelevated no-caps color=negative")
         self.root.set_visibility(False)
 
-    def ask(self, title: str, text: str, button: str, action: Callable[[], Awaitable[None]]) -> None:
+    def reachable(self) -> list[Reachable]:
+        # the controls start on the safe choice
+        return usable(button("cancel", self._cancel, priority=1), button("confirm", self._confirm))
+
+    def ask(self, title: str, text: str, confirm_text: str, action: Callable[[], Awaitable[None]]) -> None:
         self._title.set_text(title)
         self._text.set_content(f"<p>{text}</p>")
-        self._confirm.set_text(button)
+        self._confirm.set_text(confirm_text)
         self._action = action
         self.root.set_visibility(True)
 
@@ -270,10 +296,12 @@ class InfoWindow:
         with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet inf"):
             self._title = ui.label("").classes("sheet-title")
             self._text = ui.html("")
-            ui.button("Got it", on_click=lambda: self.root.set_visibility(False)).props(
-                "unelevated no-caps text-color=black"
-            ).classes("ok")
+            self._ok = ui.button("Got it", on_click=lambda: self.root.set_visibility(False))
+            self._ok.props("unelevated no-caps text-color=black").classes("ok")
         self.root.set_visibility(False)
+
+    def reachable(self) -> list[Reachable]:
+        return usable(button("ok", self._ok, priority=1))
 
     def open(self, state: State) -> None:
         title, text = INFO[state]
@@ -290,15 +318,18 @@ class Toast:
         self.root.set_visibility(False)
         self._until = 0.0
 
-    def show(self, text: str, ok: bool) -> None:
+    def show(self, text: str, ok: bool, seconds: float = TOAST_TIME) -> None:
         self.root.set_text(text)
         if ok:
             self.root.classes(replace="toast")  # yellow
         else:
             self.root.classes(replace="toast bad")  # red
         self.root.set_visibility(True)
-        self._until = time.monotonic() + TOAST_TIME
+        self._until = time.monotonic() + seconds
 
     def update(self) -> None:
         if self.root.visible and time.monotonic() > self._until:
             self.root.set_visibility(False)
+
+    def hide(self) -> None:
+        self.root.set_visibility(False)

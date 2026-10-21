@@ -3,6 +3,7 @@
 from nicegui import ui
 
 from frontend.readings import first_open
+from frontend.targets import Reachable
 from shared.config import Config
 from shared.models import Status
 
@@ -13,6 +14,9 @@ class ShutdownScreen:
         with ui.element("div").classes("tab mid") as self.root:
             self._loop = ui.html("")
             self._verdict = ui.html("")
+
+    def reachable(self) -> list[Reachable]:
+        return []  # nothing to press: only readings
 
     def update(self, status: Status) -> None:
         opened_at = first_open(status.shutdown, self._cfg.open_below)

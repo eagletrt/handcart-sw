@@ -192,11 +192,15 @@ def update(args: list[str]) -> int:
 
     Steps: fetch, move to the new commit, submodules, uv sync, tests, restart, wait for the backend.
     If a step after the move fails, the same steps bring back the commit it started from.
+    Never while the TS is on or something runs: the restart would cut it (the System page checks the same).
     """
     cfg = tomllib.loads((ROOT / "config.toml").read_text())["update"]
     remote, branch = cfg["remote"], cfg["branch"]
     upstream = f"{remote}/{branch}"
 
+    state = backend_state()
+    if state not in (None, "CHECK", "IDLE"):
+        return finish(1, f"Not updated: the handcart is in {state}, stop it first")
     if output(["git", "status", "--porcelain", "--untracked-files=no"]):
         return finish(1, "Not updated: this copy has local changes (commit or discard them first)")
     if run(["git", "fetch", "--quiet", remote, branch]):
@@ -230,6 +234,14 @@ def update(args: list[str]) -> int:
             1, f"Update to {new} failed ({problem}) and going back failed too ({back}): fix it by SSH"
         )
     return finish(1, f"Update to {new} failed ({problem}), back to {old}")
+
+
+def backend_state() -> str | None:
+    """The state of the backend running on this machine, or None if it is not running."""
+    try:
+        return api("GET", "/api/status")["state"]
+    except OSError:  # not listening: nothing is running, nothing to cut
+        return None
 
 
 def install(commit: str) -> str | None:

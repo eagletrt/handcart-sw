@@ -1,18 +1,32 @@
 """Cells screen: a map of every cell (or temperature probe), min/max/delta, and balancing."""
 
-import json
 import time
 from collections import deque
+from dataclasses import dataclass
 
 from nicegui import ui
 
 from frontend import colors
 from frontend.readings import balancing_progress, overvoltage_cells
 from frontend.screens import Actions
+from frontend.targets import Reachable, button, usable
 from shared.config import Config
 from shared.models import BmsSnapshot, Command, State, Status
 
 MAP_WINDOW = 0.030  # V: full violet 30 mV under the pack average, full orange 30 mV over it
+HINT = "Tap a cell, or click the knob, to read it"
+
+
+@dataclass(frozen=True)
+class Square:
+    """One cell or probe on the map."""
+
+    classes: str  # CSS: "c", plus hi (highest), lo (lowest), bal (balancing), flt (blinking red)
+    color: str
+    text: str  # shown under the map when the cursor is on it
+    alarm: bool = False  # that text in red
+
+
 TREND_PERIOD = 5.0  # s between two points of the balancing trend
 TREND_POINTS = 120  # points kept: the last 10 minutes
 
@@ -24,8 +38,10 @@ class CellsScreen:
         self._trend: deque[float] = deque(maxlen=TREND_POINTS)  # cell delta while balancing, V
         self._next_trend_point = 0.0  # s, monotonic
         self._start_delta: float | None = None  # V, when balancing began: 0 % on the progress bar
+        self.cursor: int | None = None  # the square under the cursor (set by the page, from controls.py)
+        self._squares: list[Square] = []  # as last drawn
 
-        with ui.element("div").classes("tab") as self.root:
+        with ui.element("div").classes("tab cells") as self.root:
             with ui.element("div").classes("cells-head"):
                 with ui.element("div").classes("seg"):
                     self._volts_button = ui.button("Volts", on_click=lambda: self._set_mode(True))
@@ -44,7 +60,7 @@ class CellsScreen:
             with ui.element("div").classes("cfoot"):
                 with ui.element("div").classes("cleft"):
                     self._legend = ui.html("").classes("cleg num")
-                    ui.html('<div id="cell-detail" class="hint num">Tap a cell to read it</div>')
+                    self._detail = ui.label(HINT).classes("detail hint num")
                 with (
                     ui.button(on_click=lambda: actions.send(Command.BALANCE))
                     .props("unelevated no-caps")
@@ -77,17 +93,52 @@ class CellsScreen:
         else:
             self._show_temps(status.bms)
             self._trend_chart.set_content("")
+        self._update_detail()
         self._update_balance(status.bms, status.state)
 
-    def show_cell(self, index: int, bms: BmsSnapshot) -> None:
-        """Volts mode, with one cell already read out under the map (from the error's Details)."""
+    def reachable(self) -> list[Reachable]:
+        # the frame starts on the mode shown: one turn to the other one, a click to the map (controls.py)
+        if self._volts:
+            volts_priority, temps_priority = 1, 0
+        else:
+            volts_priority, temps_priority = 0, 1
+        return usable(
+            button("volts", self._volts_button, priority=volts_priority, opens_map=True),
+            button("temps", self._temps_button, priority=temps_priority, opens_map=True),
+            button("balance", self._balance),
+        )
+
+    # for the physical controls (controls.py)
+
+    def map_name(self) -> str:
+        if self._volts:
+            return "volts"
+        return "temps"
+
+    def map_size(self) -> tuple[int, int]:
+        """(cellboards, squares per cellboard) of the map shown."""
+        if self._volts:
+            return self._cfg.cellboards, self._cfg.cells_per_cellboard
+        return self._cfg.cellboards, self._cfg.temps_per_cellboard
+
+    def map_start(self, bms: BmsSnapshot) -> int:
+        """Where the cursor starts: a faulty cell, else the highest cell; in temps, the hottest probe."""
+        if self._volts:
+            faulty = overvoltage_cells(bms, self._cfg.max_cell_voltage)
+            if faulty:
+                return min(faulty)
+            values = bms.cells
+        else:
+            values = bms.temps
+        readings = [(value, i) for i, value in enumerate(values) if value is not None]
+        if not readings:
+            return 0
+        return max(readings)[1]
+
+    def show_volts(self) -> None:
         self._set_mode(True)
-        board, cell = divmod(index, self._cfg.cells_per_cellboard)
-        text = f"CB{board + 1} · cell {cell + 1} · {bms.cells[index]:.3f} V · overvoltage"
-        ui.run_javascript(f"showCellDetail({json.dumps(text)}, true)")
 
     def show_temps(self) -> None:
-        """Temps mode (from the error's Details, for a cell too hot)."""
         self._set_mode(False)
 
     # volts and temperatures
@@ -121,8 +172,10 @@ class CellsScreen:
             else:
                 position = (v - average) / MAP_WINDOW
                 color, reading = colors.diverging(position, colors.VOLTS_LOW, colors.VOLTS_HIGH), f"{v:.3f} V"
-            squares.append((classes, color, f"CB{board + 1} · cell {cell + 1} · {reading}"))
-        self._map.set_content(self._grid(squares, self._cfg.cells_per_cellboard, gap=3))
+            squares.append(
+                Square(classes, color, f"CB{board + 1} · cell {cell + 1} · {reading}", i in faulty)
+            )
+        self._draw(squares, self._cfg.cells_per_cellboard, column_gap=3)
 
         self._min.set_text(f"{min(healthy):.3f} V")
         self._max.set_text(f"{max(healthy):.3f} V")
@@ -133,8 +186,9 @@ class CellsScreen:
             f'<span class="li"><i class="grad" style="background:{scale}"></i>{low:.3f}–{high:.3f}</span>'
             '<span class="li"><i class="sw hi"></i>Highest</span>'
             '<span class="li"><i class="sw lo"></i>Lowest</span>'
-            '<span class="li"><i class="sw bal"></i>Balancing</span>'
         )
+        if any(bms.balancing):  # only then: with Fault too the legend would not fit
+            legend += '<span class="li"><i class="sw bal"></i>Balancing</span>'
         if faulty:
             legend += '<span class="li"><i class="sw flt"></i>Fault</span>'
         self._legend.set_content(legend)
@@ -152,20 +206,22 @@ class CellsScreen:
             classes = "c"
             if i == hottest:
                 classes += " hi"
+            alarm = False
             if t is None:
                 color, reading = colors.NO_READING, "—"
-            elif t < pack.cold_temperature:
-                color, reading = colors.TEMPS_COLD, f"{t:.1f} °C · cold"
-            elif t <= pack.warm_temperature:
-                color, reading = self._temperature_color(t), f"{t:.1f} °C"
-            elif t <= pack.max_temperature:
-                color, reading = self._temperature_color(t), f"{t:.1f} °C · warm"
-            else:
-                color, reading = colors.NEUTRAL, f"{t:.1f} °C · too hot"
+            elif t > pack.max_temperature:
+                color, reading, alarm = colors.NEUTRAL, f"{t:.1f} °C · too hot", True
                 classes += " flt"  # blinking red, from the CSS
+            elif t > pack.warm_temperature:
+                color, reading = self._temperature_color(t), f"{t:.1f} °C · warm"
+            elif t < pack.cold_temperature:
+                color, reading = self._temperature_color(t), f"{t:.1f} °C · cold"
+            else:
+                color, reading = self._temperature_color(t), f"{t:.1f} °C"
             board, probe = divmod(i, pack.temps_per_cellboard)
-            squares.append((classes, color, f"CB{board + 1} · probe {probe + 1} · {reading}"))
-        self._map.set_content(self._grid(squares, self._cfg.temps_per_cellboard, gap=2))
+            squares.append(Square(classes, color, f"CB{board + 1} · probe {probe + 1} · {reading}", alarm))
+        # narrower columns (48 probes), same rows: the map keeps its height, nothing below it moves
+        self._draw(squares, pack.temps_per_cellboard, column_gap=2)
 
         self._min.set_text(f"{min(temps):.1f} °C")
         self._max.set_text(f"{max(temps):.1f} °C")
@@ -185,21 +241,42 @@ class CellsScreen:
         return colors.temperature(temp, pack.cold_temperature, pack.warm_temperature, pack.max_temperature)
 
     def _empty(self) -> None:
+        self._squares = []
         self._map.set_content("")
         for label in (self._min, self._max, self._delta):
             label.set_text("—")
         self._legend.set_content("")
 
-    def _grid(self, squares: list[tuple[str, str, str]], per_board: int, gap: int) -> str:
-        """One row per cellboard: its name, then a square per cell (classes, background, text on tap)."""
+    def _draw(self, squares: list[Square], per_board: int, column_gap: int) -> None:
+        """One row per cellboard: its name, then its squares; "cur" marks the cursor.
+
+        data-i tells handcart.js which square was touched.
+        """
+        self._squares = squares
         columns = f"38px repeat({per_board}, minmax(0,1fr))"
-        rows = [f'<div class="cmap" style="grid-template-columns: {columns}; gap: {gap}px">']
-        for i, (classes, color, text) in enumerate(squares):
+        rows = [f'<div class="cmap" style="grid-template-columns: {columns}; column-gap: {column_gap}px">']
+        for i, square in enumerate(squares):
             if i % per_board == 0:
                 rows.append(f'<div class="rl">CB{i // per_board + 1}</div>')
-            rows.append(f'<div class="{classes}" style="background:{color}" data-l="{text}"></div>')
+            classes = square.classes
+            if i == self.cursor:
+                classes += " cur"
+            rows.append(f'<div class="{classes}" style="background:{square.color}" data-i="{i}"></div>')
         rows.append("</div>")
-        return "".join(rows)
+        self._map.set_content("".join(rows))
+
+    def _update_detail(self) -> None:
+        """Under the map: the square under the cursor, or how to get one."""
+        if self.cursor is None or self.cursor >= len(self._squares):
+            self._detail.set_text(HINT)
+            self._detail.classes(replace="detail hint num")
+            return
+        square = self._squares[self.cursor]
+        self._detail.set_text(square.text)
+        if square.alarm:
+            self._detail.classes(replace="detail alarm num")
+        else:
+            self._detail.classes(replace="detail num")
 
     def _trend_svg(self) -> str:
         """Delta over the last minutes of balancing, with the threshold as a dashed line."""
@@ -258,7 +335,6 @@ class CellsScreen:
         else:
             self._volts_button.classes(remove="sel")
             self._temps_button.classes(add="sel")
-        ui.run_javascript("showCellDetail(null)")
 
     def _cstat(self, title: str) -> ui.label:
         with ui.element("div"):

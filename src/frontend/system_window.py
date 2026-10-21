@@ -1,11 +1,13 @@
 """The System window, behind the gear in the top bar: version, updates, reboot and shut down."""
 
+import html
 from collections.abc import Awaitable, Callable
 
 from nicegui import ui
 
 from frontend.backend import Backend
 from frontend.overlays import ConfirmWindow
+from frontend.targets import Reachable, button, usable
 from shared.models import SystemInfo
 
 COMMITS_SHOWN = 4  # the rest is "+ N more"
@@ -25,9 +27,8 @@ class SystemWindow:
                 self._updates_title = ui.label("").classes("ut")
                 self._commits = ui.html("").classes("commits num")
                 with ui.element("div").classes("ubtns"):
-                    ui.button("Check for updates", icon="refresh", on_click=self._on_check).props(
-                        "flat no-caps text-color=white"
-                    ).classes("cancel")
+                    self._check = ui.button("Check for updates", icon="refresh", on_click=self._on_check)
+                    self._check.props("flat no-caps text-color=white").classes("cancel")
                     self._update_button = ui.button(
                         "Update & restart", icon="system_update", on_click=self._on_update
                     )
@@ -36,16 +37,24 @@ class SystemWindow:
                 "sheet-sub"
             )
             with ui.element("div").classes("sheet-actions power"):
-                ui.button("Close", on_click=lambda: self.root.set_visibility(False)).props(
-                    "flat no-caps text-color=white"
-                ).classes("cancel")
-                ui.button("Reboot", icon="restart_alt", on_click=self._on_reboot).props(
-                    "flat no-caps text-color=white"
-                ).classes("cancel")
-                ui.button("Shut down", icon="power_settings_new", on_click=self._on_shut_down).props(
-                    "unelevated no-caps color=negative"
+                self._close = ui.button("Close", on_click=lambda: self.root.set_visibility(False))
+                self._close.props("flat no-caps text-color=white").classes("cancel")
+                self._reboot = ui.button("Reboot", icon="restart_alt", on_click=self._on_reboot)
+                self._reboot.props("flat no-caps text-color=white").classes("cancel")
+                self._shut_down = ui.button(
+                    "Shut down", icon="power_settings_new", on_click=self._on_shut_down
                 )
+                self._shut_down.props("unelevated no-caps color=negative")
         self.root.set_visibility(False)
+
+    def reachable(self) -> list[Reachable]:
+        return usable(
+            button("check", self._check),
+            button("update", self._update_button),
+            button("close", self._close, priority=1),
+            button("reboot", self._reboot),
+            button("shut down", self._shut_down),
+        )
 
     def open(self) -> None:
         self.update()
@@ -76,7 +85,8 @@ class SystemWindow:
         else:
             self._updates_title.set_text(f"{count} updates")
 
-        lines = [f"<div>{commit}</div>" for commit in info.updates[:COMMITS_SHOWN]]
+        # escaped: a commit message is text written by anyone who can push, never HTML for the display
+        lines = [f"<div>{html.escape(commit)}</div>" for commit in info.updates[:COMMITS_SHOWN]]
         if count > COMMITS_SHOWN:
             lines.append(f"<div>+ {count - COMMITS_SHOWN} more</div>")
         self._commits.set_content("".join(lines))

@@ -46,16 +46,27 @@ async def run() -> None:
     handcart = Handcart(cfg, hal, bms_bus, charger_bus)
     hal.play(Sound.STARTUP)
 
-    async def loop() -> None:
-        while True:
-            handcart.tick()
-            await asyncio.sleep(TICK)
-
     system = System(cfg.update)
     asyncio.get_running_loop().run_in_executor(None, system.check)  # look for updates at every start
 
     app = create_app(handcart, system)
     server = uvicorn.Server(uvicorn.Config(app, host=cfg.network.backend_host, port=cfg.network.backend_port))
+    failed = False
+
+    async def loop() -> None:
+        """Tick for ever. If a tick fails the whole backend stops: an API still answering without the loop
+        would look alive while nothing watches the charge. The finally below leaves the hardware safe, and
+        systemd starts the backend again."""
+        nonlocal failed
+        try:
+            while True:
+                handcart.tick()
+                await asyncio.sleep(TICK)
+        except Exception:
+            log.exception("The control loop failed: stopping the backend")
+            failed = True
+            server.should_exit = True
+
     ticking = asyncio.create_task(loop())
     try:
         await server.serve()
@@ -67,6 +78,8 @@ async def run() -> None:
         bms_bus.shutdown()
         if charger_bus is not bms_bus:
             charger_bus.shutdown()
+    if failed:
+        raise SystemExit(1)  # systemd sees a failure, not a clean stop
 
 
 if __name__ == "__main__":

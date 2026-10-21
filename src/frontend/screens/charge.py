@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from nicegui import ui
 
 from frontend.screens import Actions, number
+from frontend.targets import Reachable, button, usable
 from shared.config import Config
 from shared.models import Command, State, Status
 
@@ -43,6 +44,7 @@ RAIL_BELOW_TARGET_MIN = 14  # V shown left of the lowest target
 RAIL_ABOVE_PACK_LIMIT = 6  # V shown right of the pack limit
 RAIL_TICK_STEP = 20  # V between the numbers under the rail
 TARGET_LABEL_MIN_POSITION = 12  # %: the target label sits left of its mark; keep it on the rail
+LIMIT_LABEL_WIDTH = 17  # % of the rail taken by "max 605 V": a target label further right would cover it
 
 
 class ChargeScreen:
@@ -51,6 +53,7 @@ class ChargeScreen:
         self._state = State.CHECK
         self._rail_low = cfg.charge.target_voltage_min - RAIL_BELOW_TARGET_MIN  # V at the left end
         self._rail_high = cfg.accumulator.max_pack_voltage + RAIL_ABOVE_PACK_LIMIT  # V at the right end
+        self.draft: float | None = None  # V: a target being drafted with the encoder, not set yet
 
         with ui.element("div").classes("tab charge") as self.root:
             with ui.element("div").classes("left"):
@@ -83,7 +86,8 @@ class ChargeScreen:
         s, bms, charger = status.state, status.bms, status.charger
         self._state = s
         self._voltage.set_text(number(bms.pack_voltage))
-        self._update_rail(bms.pack_voltage, status.settings.target_voltage, s is State.CHARGE)
+        target = status.settings.target_voltage if self.draft is None else self.draft
+        self._update_rail(bms.pack_voltage, target, s is State.CHARGE)
         self._current.set_content(f"{number(charger.current)}<small>A</small>")
         self._power.set_content(f"{number(bms.power, 2)}<small>kW</small>")
         self._cell_max.set_content(f"{number(bms.cell_max, 3)}<small>V</small>")
@@ -112,9 +116,24 @@ class ChargeScreen:
         self._checks.set_content(
             self._check("BMS", bms.connected) + self._check("Charger", charger.connected)
         )
+        if self.draft is None:
+            target_html = f"<b>{status.settings.target_voltage:g} V</b>"
+        else:
+            target_html = f'<b class="draft">{self.draft:g} V</b>'  # yellow: not set yet
         self._setpoints.set_content(
-            f"<div><span>Target</span><b>{status.settings.target_voltage:g} V</b></div>"
+            f"<div><span>Target</span>{target_html}</div>"
             f"<div><span>Max current</span><b>{status.settings.max_current:g} A</b></div>"
+        )
+
+    def settings_shown(self) -> bool:
+        """The target can be changed only when its box is shown (not while checking, balancing, in error)."""
+        return self._setpoints_button.visible
+
+    def reachable(self) -> list[Reachable]:
+        return usable(
+            button("main", self._main, priority=1),
+            button("alt", self._alt),
+            button("setpoints", self._setpoints_button),
         )
 
     # building blocks
@@ -137,7 +156,7 @@ class ChargeScreen:
             self._target_mark = ui.element("div").classes("mark target")
             self._target_label = ui.label("").classes("rlbl target num")
             ui.element("div").classes("mark limit").style(f"left:{self._position(limit):.2f}%")
-            ui.label(f"max {limit:.0f} V").classes("rlbl limit num")
+            self._limit_label = ui.label(f"max {limit:.0f} V").classes("rlbl limit num")
             first_tick = math.ceil(self._rail_low / RAIL_TICK_STEP) * RAIL_TICK_STEP
             for volts in range(first_tick, int(self._rail_high) + 1, RAIL_TICK_STEP):
                 ui.label(str(volts)).classes("tick num").style(f"left:{self._position(volts):.2f}%")
@@ -152,6 +171,12 @@ class ChargeScreen:
         label_position = max(self._position(target), TARGET_LABEL_MIN_POSITION)
         self._target_label.style(f"left:{label_position:.2f}%")
         self._target_label.set_text(f"{target:g} V")
+        # close to the limit the two labels would overlap: the dashed red mark still shows the limit
+        self._limit_label.set_visibility(self._position(target) < 100 - LIMIT_LABEL_WIDTH)
+        if self.draft is None:
+            self._target_mark.classes(remove="draft")
+        else:
+            self._target_mark.classes(add="draft")
 
     def _position(self, volts: float) -> float:
         """Where a voltage sits on the rail, in percent."""

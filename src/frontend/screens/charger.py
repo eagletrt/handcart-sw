@@ -3,6 +3,7 @@
 from nicegui import ui
 
 from frontend.screens import number
+from frontend.targets import Reachable
 from shared.models import ChargerState, Status
 
 PHASE_FULL_SCALE = 250  # V, a full phase bar
@@ -23,6 +24,9 @@ class ChargerScreen:
                     self._temperature = ui.label("—").classes("v")
                     ui.label("Errors").classes("k")
                     self._errors = ui.label("—").classes("v")
+
+    def reachable(self) -> list[Reachable]:
+        return []  # nothing to press: only readings
 
     def update(self, status: Status) -> None:
         charger = status.charger

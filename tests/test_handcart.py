@@ -7,7 +7,7 @@ from backend.canbus.bus import receive, send
 from backend.hal import Sound
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
-from shared.models import Command, State, TsacState
+from shared.models import Command, InputEvent, State, TsacState
 from sim.bms import SimBms
 from sim.charger import SimCharger
 
@@ -120,3 +120,9 @@ def test_no_update_or_reboot_while_the_ts_is_on(rig):
     rig.handcart.request(Command.PRECHARGE)
     rig.run(3.0, until=State.READY)
     assert "Stop first" in rig.handcart.maintenance_problem()
+
+
+def test_turning_the_encoder_ticks(rig):
+    rig.hal.press(InputEvent.TURN_CW)
+    rig.handcart.tick()
+    assert rig.hal.played[-1] is Sound.TICK

@@ -6,6 +6,7 @@ from typing import Protocol
 
 from nicegui import ui
 
+from frontend.targets import Reachable
 from shared.models import Command, Status
 
 
@@ -13,6 +14,10 @@ class Screen(Protocol):
     root: ui.element
 
     def update(self, status: Status) -> None: ...
+
+    def reachable(self) -> list[Reachable]:
+        """Its buttons the physical controls can reach now, in reading order."""
+        ...
 
 
 @dataclass

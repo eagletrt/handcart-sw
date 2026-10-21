@@ -27,6 +27,7 @@ Run `./handcart.py` with no arguments for the list of commands.
 | `vcan-up` | Create `vcan0` for the simulator |
 | `status` | Show what the running backend sees |
 | `command <NAME>` | Send a command to the state machine, e.g. `command STOP` |
+| `update` | Update to the latest commit of the branch in `config.toml`, then restart (goes back if it fails) |
 | `install-services` | Set up the Pi to boot straight into the handcart UI |
 | `update-libcan` | Move libcan to its latest commit and run the tests |
 
@@ -41,12 +42,34 @@ Create `config.local.toml` (not in git), which overrides `config.toml` on this m
 interface = "udp_multicast"
 ```
 
-Then, in two terminals:
+Then, in three terminals:
 
 ```bash
 ./handcart.py sim --speed 30   # charge 30 times faster than real life
 ./handcart.py backend
+./handcart.py frontend         # then open http://127.0.0.1:8080, best at 800 x 480 like the display
 ```
+
+On the computer the keyboard and the mouse stand in for the handcart's controls:
+
+| Handcart | Computer |
+|---|---|
+| left / right buttons | ← / → |
+| up / down buttons | ↑ / ↓ |
+| turning the encoder | Q / E, or the mouse wheel |
+| clicking the encoder | Enter or Space |
+
+What they do (the rules are in `src/frontend/controls.py`):
+
+- ← → change screen; inside a window or the cell map they move instead.
+- ↑ ↓ move a yellow frame over the screen's buttons; a click presses the framed one. After a pause the
+  first click only shows the frame: on STOP while something runs, else on the main action.
+- Turning the encoder on Charge drafts a new target voltage on the rail: a click sets it, any arrow
+  (or a pause) cancels it; not while charging, when the target changes only from the settings window.
+  In the settings window turning changes the framed value (1 V or 0.1 A a step, five times that when
+  turned fast), and a click saves.
+- On Cells, a click, a touch on a cell, or pressing Volts or Temps with the controls puts a cursor on the
+  map: the arrows and the encoder move it and the reading shows under the map; a click takes it away.
 
 ## Layout
 

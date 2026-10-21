@@ -57,3 +57,14 @@ def test_a_local_file_overrides_single_keys(tmp_path):
     cfg = config.load(local=local)
     assert cfg.can.interface == "udp_multicast"
     assert cfg.can.bms_channel == "can0"  # untouched keys keep the repo value
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.4.1", "pi.local"])
+def test_the_api_and_the_ui_stay_on_this_machine_until_there_is_a_login(raw, host):
+    raw["network"]["backend_host"] = host
+    with pytest.raises(ValidationError, match="until there is a login"):
+        Config.model_validate(raw)
+    raw["network"]["backend_host"] = "127.0.0.1"
+    raw["network"]["frontend_host"] = host
+    with pytest.raises(ValidationError, match="until there is a login"):
+        Config.model_validate(raw)

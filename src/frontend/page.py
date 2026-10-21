@@ -2,11 +2,25 @@
 
 import time
 from datetime import datetime
+from functools import partial
 
-from nicegui import ui
+from nicegui import background_tasks, ui
 
 from frontend import overlays
 from frontend.backend import Backend
+from frontend.controls import (
+    IDLE_TIME,
+    Adjust,
+    CancelTarget,
+    ConfirmTarget,
+    Context,
+    Controls,
+    DraftTarget,
+    Press,
+    SwitchScreen,
+    Target,
+    Turn,
+)
 from frontend.readings import cell_overvoltage, error_kind, first_open, hot_probes, overvoltage_cells
 from frontend.screens import Actions, Screen
 from frontend.screens.cells import CellsScreen
@@ -14,6 +28,7 @@ from frontend.screens.charge import ChargeScreen
 from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
+from frontend.targets import Reachable, button, usable
 from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
@@ -50,6 +65,8 @@ class Page:
         self._state: State | None = None
         self._entered = 0.0  # when the current state began
         self._told_updates = False  # the toast about updates shows once
+        self._controls = Controls()
+        self._framed_element: ui.element | None = None  # the element the frame is drawn on
 
         actions = Actions(send=self._send, show=self._show, open_settings=self._open_settings)
         with ui.element("div").classes("screen"):
@@ -57,14 +74,13 @@ class Page:
             with ui.element("div").classes("top"):
                 ui.element("div").classes("eagle")
                 self._pill = ui.label("").classes("pill").on("click", lambda: self._show("charge"))
-                ui.button(icon="info_outline", on_click=self._open_info).props(
-                    "flat round dense text-color=white"
-                ).classes("info")
+                self._info_button = ui.button(icon="info_outline", on_click=self._open_info)
+                self._info_button.props("flat round dense text-color=white").classes("info")
                 ui.element("div").classes("spacer")
                 with (
                     ui.button(icon="settings", on_click=self._open_system)
                     .props("flat round dense text-color=white")
-                    .classes("info gear")
+                    .classes("info gear") as self._gear
                 ):
                     self._gear_badge = ui.element("div").classes("badge")
                 self._hv = ui.label("").classes("ts num")
@@ -115,6 +131,10 @@ class Page:
         self._select("charge")
         self._client = ui.context.client
         self._client.on_disconnect(backend.on_input(self._on_input))
+        # on a computer, handcart.js turns keys and the mouse wheel into the same controls
+        ui.on("handcart_control", lambda event: self._on_input(InputEvent(event.args)))
+        ui.on("handcart_touch", self._on_touch)
+        ui.on("handcart_cell", lambda event: self._on_cell_touched(int(event.args)))
         ui.timer(REFRESH_PERIOD, self._refresh)
         # size the screen to the display once the browser has drawn the page (handcart.js)
         ui.timer(0.1, lambda: ui.run_javascript("fitScreen()"), once=True)
@@ -148,6 +168,7 @@ class Page:
         self._error.root.set_visibility(on_charge and s is State.ERROR)
         if s is State.ERROR:
             self._error.update(status, self._error_kind(status))
+        self._follow_controls()
 
     def _update_system(self) -> None:
         """The gear's badge and, once, a toast when the branch has updates."""
@@ -269,29 +290,146 @@ class Page:
         if kind != "cell":
             self._show("shutdown")
             return
+        self._cells.show_volts()
         self._show("cells")
         cells = overvoltage_cells(status.bms, self._cfg.accumulator.max_cell_voltage)
         if cells:  # empty when only the BMS reported it: the map shows the cells anyway
-            self._cells.show_cell(min(cells), status.bms)
+            self._on_cell_touched(min(cells))
+
+    # physical controls (rules in controls.py)
 
     def _on_input(self, event: InputEvent) -> None:
-        """The physical controls: left and right change screen, the rest moves and presses the focus.
+        """A press of the handcart's controls, or of the computer's keys.
 
-        Called by the backend connection, outside this page's context: hence self._client.
+        From the backend connection it arrives outside this page's context: elements still update.
         """
-        keys = [key for key, _, _ in TABS]
-        modal_open = (
-            self._settings.root.visible
-            or self._info.root.visible
-            or self._system.root.visible
-            or self._confirm.root.visible
+        reachable, context = self._context()
+        effect = self._controls.handle(event, context, time.monotonic())
+        if isinstance(effect, Press):
+            for item in reachable:
+                if item.target.key == effect.key:
+                    item.press()
+            if effect.opens_map:
+                self._cursor_on_map_start(effect.key)
+        elif isinstance(effect, SwitchScreen):
+            keys = [key for key, _, _ in TABS]
+            self._show(keys[(keys.index(self._tab) + effect.step) % len(keys)])
+        elif isinstance(effect, Adjust):
+            self._settings.turn(effect.setting, effect.steps)
+        elif isinstance(effect, DraftTarget):
+            self._draft_target(effect.steps)
+        elif isinstance(effect, ConfirmTarget) and self._charge.draft is not None:
+            draft, self._charge.draft = self._charge.draft, None  # taken now: the draft is done
+            background_tasks.create(self._set_target(draft))  # it waits for the backend
+        elif isinstance(effect, CancelTarget):
+            self._drop_draft("Target not changed")
+        self._follow_controls()
+
+    def _cursor_on_map_start(self, pressed: str) -> None:
+        """Volts or Temps pressed with the controls: the cursor goes on that map, on its highest square.
+
+        The button's click reaches the browser and comes back a moment later: the mode is set here too.
+        """
+        if pressed == "temps":
+            self._cells.show_temps()
+        else:
+            self._cells.show_volts()
+        _, context = self._context()
+        self._controls.touch_map(context.map_start, context)
+
+    def _draft_target(self, steps: int) -> None:
+        """Move the drafted target by encoder steps, within the limits; nothing is set yet."""
+        status = self._backend.status
+        if status is None:
+            return
+        limits = self._cfg.charge
+        start = status.settings.target_voltage if self._charge.draft is None else self._charge.draft
+        draft = start + steps * self._settings.knob_step("target_voltage")
+        self._charge.draft = max(limits.target_voltage_min, min(limits.target_voltage_max, draft))
+        self._toast.show(
+            f"Click to set {self._charge.draft:g} V · any arrow cancels", ok=True, seconds=IDLE_TIME
         )
-        if event in (InputEvent.LEFT, InputEvent.RIGHT) and not modal_open:
-            step = 1 if event is InputEvent.RIGHT else -1
-            self._show(keys[(keys.index(self._tab) + step) % len(keys)])
-        elif event in (InputEvent.UP, InputEvent.TURN_CCW):
-            self._client.run_javascript("moveFocus(-1)")
-        elif event in (InputEvent.DOWN, InputEvent.TURN_CW):
-            self._client.run_javascript("moveFocus(1)")
-        elif event is InputEvent.PRESS:
-            self._client.run_javascript("pressFocused()")
+        self._charge.update(status)
+
+    async def _set_target(self, volts: float) -> None:
+        status = self._backend.status
+        if status is not None:
+            await self._save_settings(status.settings.model_copy(update={"target_voltage": volts}))
+
+    def _drop_draft(self, message: str) -> None:
+        self._charge.draft = None
+        self._toast.show(message, ok=True)
+        if self._backend.status is not None:
+            self._charge.update(self._backend.status)
+
+    def _on_touch(self) -> None:
+        """The operator touched the screen outside the map: the frame and a draft go."""
+        self._controls.clear()
+        self._follow_controls()
+
+    def _on_cell_touched(self, square: int) -> None:
+        """A touch on the map: the cursor goes there, to be corrected with the controls if it missed."""
+        _, context = self._context()
+        self._controls.touch_map(square, context)
+        self._follow_controls()
+
+    def _follow_controls(self) -> None:
+        """Draw the frame and the cursor where controls.py says (after a gesture, and at every refresh)."""
+        reachable, context = self._context()
+        self._controls.follow(context, time.monotonic())
+        if self._charge.draft is not None and not self._controls.drafting:
+            self._drop_draft("Target not changed")  # a pause or a touch
+        self._draw_frame(reachable)
+        if self._cells.cursor != self._controls.cursor:
+            self._cells.cursor = self._controls.cursor
+            if self._tab == "cells" and self._backend.status is not None:
+                self._cells.update(self._backend.status)  # move the cursor now, not at the next refresh
+
+    def _context(self) -> tuple[list[Reachable], Context]:
+        """What the controls can reach now (in reading order), and where they are."""
+        for window in (self._confirm, self._system, self._settings, self._info):  # the topmost first
+            if window.root.visible:
+                reachable = window.reachable()
+                return reachable, Context(targets=[item.target for item in reachable], window_open=True)
+
+        turn = None
+        map_name, map_size, map_start = None, (0, 0), 0
+        if self._precharge.root.visible:
+            content: list[Reachable] = []  # it covers the screen, nothing to press there
+        elif self._error.root.visible:
+            content = self._error.reachable()
+        else:
+            content = self._screens[self._tab].reachable()
+            charging = self._state is State.CHARGE
+            if self._tab == "charge" and self._charge.settings_shown() and not charging:
+                turn = Turn.DRAFT_TARGET  # while charging the target changes only from the settings window
+            if self._tab == "cells" and self._backend.status is not None:
+                map_name, map_size = self._cells.map_name(), self._cells.map_size()
+                map_start = self._cells.map_start(self._backend.status.bms)
+        top = usable(button("info", self._info_button), button("system", self._gear))
+        tabs = [Reachable(Target(key), tab, partial(self._show, key)) for key, (tab, _) in self._tabs.items()]
+        stop = usable(button("stop", self._stop, priority=2))  # while something runs, the frame starts here
+        reachable = [*top, *content, *tabs, *stop]
+        context = Context(
+            targets=[item.target for item in reachable],
+            turn=turn,
+            map_name=map_name,
+            map_size=map_size,
+            map_start=map_start,
+        )
+        return reachable, context
+
+    def _draw_frame(self, reachable: list[Reachable]) -> None:
+        """The yellow frame on the framed target.
+
+        Checked at every refresh: a screen's update may replace the classes of its buttons, frame included.
+        """
+        element = None
+        for item in reachable:
+            if item.target.key == self._controls.framed:
+                element = item.element
+        if self._framed_element is not None and self._framed_element is not element:
+            self._framed_element.classes(remove="kframe")
+        if element is not None and "kframe" not in element.classes:
+            element.classes(add="kframe")
+        self._framed_element = element

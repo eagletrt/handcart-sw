@@ -171,6 +171,15 @@ def test_a_melody_plays_over_time():
     assert player.frequency(11.0) is None  # finished
 
 
+def test_a_tick_never_cuts_a_melody():
+    player = Player()
+    player.play(Sound.ERROR, now=10.0)
+    player.play(Sound.TICK, now=10.1)
+    assert player.frequency(10.25) is not None  # the alarm goes on
+    player.play(Sound.TICK, now=20.0)
+    assert player.frequency(20.001) == RE7  # alone, it ticks
+
+
 def test_board_drives_the_buzzer_while_polling(board):
     board.hal.play(Sound.CONFIRM)
     board.hal.poll(0.01)

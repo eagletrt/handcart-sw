@@ -3,7 +3,7 @@
 [network]
 backend_host = "127.0.0.1"   # only this machine: the frontend, telemetry, and SSH sessions on the Pi
 backend_port = 8000
-frontend_host = "127.0.0.1"   # only the display; 0.0.0.0 to reach it from a phone, once there is a PIN
+frontend_host = "127.0.0.1"   # only the display (another address is refused until there is a PIN)
 frontend_port = 8080
 
 [can]

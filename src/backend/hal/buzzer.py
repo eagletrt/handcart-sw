@@ -25,6 +25,7 @@ MELODIES: dict[Sound, Melody] = {
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
     Sound.CHARGE_DONE: [(LA6, 0.15), (REST, 0.05), (DO7, 0.15), (REST, 0.05), (RE7, 0.40)],
     Sound.ERROR: [(RE7, 0.20), (LA6, 0.20)] * 3,
+    Sound.TICK: [(RE7, 0.008)],
 }
 
 
@@ -34,7 +35,9 @@ class Player:
         self._started = 0.0
 
     def play(self, sound: Sound, now: float) -> None:
-        """Start a melody, replacing the one playing."""
+        """Start a melody, replacing the one playing; a tick never cuts one (an error alarm, say)."""
+        if sound is Sound.TICK and self.frequency(now) is not None:
+            return
         self._melody, self._started = MELODIES[sound], now
 
     def frequency(self, now: float) -> float | None:

@@ -18,6 +18,7 @@ class Sound(StrEnum):
     CONFIRM = "CONFIRM"  # a command reached the backend
     CHARGE_DONE = "CHARGE_DONE"
     ERROR = "ERROR"
+    TICK = "TICK"  # one step of the encoder
 
 
 class Hal(Protocol):

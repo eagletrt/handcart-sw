@@ -123,6 +123,8 @@ class Handcart:
         for event in self._hal.input_events():
             self._input_count += 1
             self._inputs.append((self._input_count, event))
+            if event in (InputEvent.TURN_CW, InputEvent.TURN_CCW):
+                self._hal.play(Sound.TICK)  # heard without looking at the screen
 
     def _receive(self) -> None:
         frames = receive(self._bms_bus)

@@ -1,5 +1,6 @@
 """Handcart configuration: config.toml loaded into typed, read-only sections and checked at startup."""
 
+import ipaddress
 import tomllib
 from pathlib import Path
 from typing import Self
@@ -20,6 +21,23 @@ class Network(_Section):
     backend_port: int = Field(gt=0, lt=65536)
     frontend_host: str
     frontend_port: int = Field(gt=0, lt=65536)
+
+    @model_validator(mode="after")
+    def _only_this_machine(self) -> Self:
+        """There is no login yet: anyone reaching the API or the UI could turn the HV on."""
+        for name, host in (("backend_host", self.backend_host), ("frontend_host", self.frontend_host)):
+            if not _is_this_machine(host):
+                raise ValueError(f"{name} must stay 127.0.0.1 until there is a login, not {host}")
+        return self
+
+
+def _is_this_machine(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:  # a name, e.g. pi.local: it can be reached from the network
+        return False
 
 
 class Can(_Section):

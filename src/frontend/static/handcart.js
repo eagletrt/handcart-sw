@@ -10,38 +10,43 @@ function fitScreen() {
 }
 addEventListener('resize', fitScreen);
 
-// Arrow buttons and encoder move the focus between the buttons on screen; the encoder click presses one.
-// Inside an open window (settings, info) only its buttons take part.
-function focusableButtons() {
-  const visible = (el) => el.offsetParent !== null;
-  const openModal = [...document.querySelectorAll('.screen .modal')].find(visible);
-  const scope = openModal || document.querySelector('.screen');
-  return [...scope.querySelectorAll('button:not([disabled]), .nt')].filter(visible);
-}
+// On a computer the keyboard and the mouse wheel stand in for the handcart's controls: they become the
+// same events (shared.models.InputEvent), and the page handles them as if they came from the handcart.
+const KEYS = {
+  ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', ArrowUp: 'UP', ArrowDown: 'DOWN',
+  Enter: 'PRESS', ' ': 'PRESS', q: 'TURN_CCW', e: 'TURN_CW',
+};
 
-function moveFocus(step) {
-  const buttons = focusableButtons();
-  if (!buttons.length) return;
-  const current = buttons.indexOf(document.activeElement);
-  const next = current === -1 ? 0 : (current + step + buttons.length) % buttons.length;
-  buttons[next].setAttribute('tabindex', '0');
-  buttons[next].focus();
-}
+// In the capture phase, before the buttons see the key: a focused Quasar button would take Enter and
+// Space for itself and press itself again on key up.
+document.addEventListener('keydown', (event) => {
+  const control = KEYS[event.key];
+  if (control === undefined) return;
+  event.preventDefault(); // no scrolling, no native press
+  event.stopPropagation();
+  if (!event.repeat) emitEvent('handcart_control', control);
+}, { capture: true });
+document.addEventListener('keyup', (event) => {
+  if (KEYS[event.key] !== undefined) event.stopPropagation();
+}, { capture: true });
 
-function pressFocused() {
-  if (focusableButtons().includes(document.activeElement)) document.activeElement.click();
-}
+const WHEEL_STEP = 100; // about one notch of a mouse wheel; a trackpad sends many small deltas
+let wheel = 0;
+document.addEventListener('wheel', (event) => {
+  wheel += event.deltaY;
+  while (Math.abs(wheel) >= WHEEL_STEP) {
+    const direction = Math.sign(wheel);
+    wheel -= direction * WHEEL_STEP;
+    emitEvent('handcart_control', direction > 0 ? 'TURN_CW' : 'TURN_CCW');
+  }
+}, { passive: true });
 
-// Under the cell map, the reading of one cell: tapped (touch has no hover), or the faulty one. null clears it.
-function showCellDetail(text, fault = false) {
-  const detail = document.getElementById('cell-detail');
-  if (!detail) return;
-  detail.textContent = text ?? 'Tap a cell to read it';
-  detail.classList.toggle('hint', text == null);
-  detail.style.color = fault ? 'var(--red)' : '';
-}
-
-document.addEventListener('click', (event) => {
-  const cell = event.target.closest('.cmap .c');
-  if (cell) showCellDetail(cell.dataset.l, cell.classList.contains('flt'));
+// A touch: on a square of the cell map it selects that square, anywhere else the frame of the controls goes.
+// On pointerdown, not on click: the map is redrawn several times a second, and a click needs the same
+// element under the finger when it goes down and when it lifts.
+document.addEventListener('pointerdown', (event) => {
+  if (!event.isTrusted) return;
+  const square = event.target.closest('.cmap .c');
+  if (square) emitEvent('handcart_cell', Number(square.dataset.i));
+  else emitEvent('handcart_touch');
 });
