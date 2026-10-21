@@ -6,14 +6,15 @@ from collections import deque
 
 from nicegui import ui
 
+from frontend import colors
 from frontend.readings import balancing_progress, overvoltage_cells
 from frontend.screens import Actions
 from shared.config import Config
 from shared.models import BmsSnapshot, Command, State, Status
 
-MAP_WINDOW = 0.030  # V: the map spans the average ±30 mV, so balanced cells look alike
-TEMP_WARN, TEMP_HOT = 45.0, 55.0  # °C
-TEMP_COLD = 18.0  # °C, darkest on the map
+MAP_WINDOW = 0.030  # V: full violet 30 mV under the pack average, full orange 30 mV over it
+# °C: full blue at or below COLD, gray at NORMAL, full red at or above HOT (to agree with the team)
+TEMP_COLD, TEMP_NORMAL, TEMP_HOT = 15.0, 30.0, 55.0
 TREND_PERIOD = 5.0  # s between two points of the balancing trend
 TREND_POINTS = 120  # points kept: the last 10 minutes
 
@@ -112,26 +113,22 @@ class CellsScreen:
                 classes += " bal"
             board, cell = divmod(i, self._cfg.cells_per_cellboard)
             if v is None:
-                brightness, reading = 0.0, "—"
+                color, reading = colors.NO_READING, "—"
             elif i in faulty:
-                brightness, reading = 1.0, f"{v:.3f} V · overvoltage"
+                color, reading = colors.NEUTRAL, f"{v:.3f} V · overvoltage"  # the CSS paints it red
             else:
-                brightness, reading = 0.5 + (v - average) / (2 * MAP_WINDOW), f"{v:.3f} V"
-            squares.append(
-                (
-                    classes,
-                    f"rgba(255,255,255,{0.10 + 0.85 * clamp(brightness):.3f})",
-                    f"CB{board + 1} · cell {cell + 1} · {reading}",
-                )
-            )
+                position = (v - average) / MAP_WINDOW
+                color, reading = colors.diverging(position, colors.VOLTS_LOW, colors.VOLTS_HIGH), f"{v:.3f} V"
+            squares.append((classes, color, f"CB{board + 1} · cell {cell + 1} · {reading}"))
         self._map.set_content(self._grid(squares, self._cfg.cells_per_cellboard, gap=3))
 
         self._min.set_text(f"{min(healthy):.3f} V")
         self._max.set_text(f"{max(healthy):.3f} V")
         self._delta.set_text(f"{(max(healthy) - min(healthy)) * 1000:.0f} mV")
         low, high = average - MAP_WINDOW, average + MAP_WINDOW
+        scale = colors.gradient(colors.VOLTS_LOW, colors.VOLTS_HIGH)
         legend = (
-            f'<span class="li"><i class="grad"></i>{low:.3f}–{high:.3f}</span>'
+            f'<span class="li"><i class="grad" style="background:{scale}"></i>{low:.3f}–{high:.3f}</span>'
             '<span class="li"><i class="sw hi"></i>Highest</span>'
             '<span class="li"><i class="sw lo"></i>Lowest</span>'
             '<span class="li"><i class="sw bal"></i>Balancing</span>'
@@ -150,15 +147,13 @@ class CellsScreen:
         squares = []
         for i, t in enumerate(bms.temps):
             if t is None:
-                color = "rgba(255,255,255,.04)"
-            elif t >= TEMP_HOT:
-                color = "var(--red)"
-            elif t >= TEMP_WARN:
-                color = "var(--y)"
+                color = colors.NO_READING
             else:
-                color = (
-                    f"rgba(255,255,255,{0.08 + 0.85 * clamp((t - TEMP_COLD) / (TEMP_WARN - TEMP_COLD)):.3f})"
-                )
+                if t < TEMP_NORMAL:
+                    position = (t - TEMP_NORMAL) / (TEMP_NORMAL - TEMP_COLD)  # -1 at COLD
+                else:
+                    position = (t - TEMP_NORMAL) / (TEMP_HOT - TEMP_NORMAL)  # +1 at HOT
+                color = colors.diverging(position, colors.TEMPS_COLD, colors.TEMPS_HOT)
             board, probe = divmod(i, self._cfg.temps_per_cellboard)
             reading = "—" if t is None else f"{t:.1f} °C"
             classes = "c"
@@ -170,10 +165,10 @@ class CellsScreen:
         self._min.set_text(f"{min(temps):.1f} °C")
         self._max.set_text(f"{max(temps):.1f} °C")
         self._delta.set_text(f"{max(temps) - min(temps):.1f} °C")
+        scale = colors.gradient(colors.TEMPS_COLD, colors.TEMPS_HOT)
         self._legend.set_content(
-            f'<span class="li"><i class="grad t"></i>{TEMP_COLD:.0f}–60 °C</span>'
-            f'<span class="li"><i class="sw w45"></i>≥ {TEMP_WARN:.0f} °C</span>'
-            f'<span class="li"><i class="sw w55"></i>≥ {TEMP_HOT:.0f} °C</span>'
+            f'<span class="li"><i class="grad" style="background:{scale}"></i>'
+            f"{TEMP_COLD:.0f} · {TEMP_NORMAL:.0f} · {TEMP_HOT:.0f} °C</span>"
             '<span class="li"><i class="sw hi"></i>Hottest</span>'
         )
 
@@ -258,7 +253,3 @@ class CellsScreen:
             ui.label(title).classes("lbl")
             with ui.element("div").classes("vrow"):
                 return ui.label("—").classes("v num")
-
-
-def clamp(value: float) -> float:
-    return max(0.0, min(1.0, value))

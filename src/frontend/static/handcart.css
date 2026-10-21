@@ -146,8 +146,9 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .cmap { display: grid; gap: 3px; }
 .cmap .rl { font-size: 13px; font-weight: 600; color: var(--faint); align-self: center; }
 .cmap .c { height: 32px; border-radius: 1px; position: relative; cursor: pointer; }
-.cmap .c.hi { outline: 2px solid var(--y); outline-offset: 1px; z-index: 1; }
-.cmap .c.lo { outline: 2px solid rgba(255,255,255,.75); outline-offset: 1px; }
+/* highest and lowest: white outlines, visible on every colour of both scales */
+.cmap .c.hi { outline: 2px solid #fff; outline-offset: 1px; z-index: 1; }
+.cmap .c.lo { outline: 2px dashed #fff; outline-offset: 1px; z-index: 1; }
 .cmap .c.flt { background: var(--red) !important; outline: 3px solid var(--red); outline-offset: 2px; z-index: 2; animation: blink .9s steps(1) infinite; }
 .cleg .sw.flt { background: var(--red); }
 .cmap .c.bal::after { content: ""; position: absolute; left: 3px; right: 3px; bottom: 3px; height: 4px; background: var(--y); }
@@ -155,14 +156,11 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .cleft { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cleg { display: flex; gap: 12px; flex-wrap: nowrap; overflow: hidden; align-items: center; font-size: 13px; color: var(--mute); }
 .cleg .li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.cleg .grad { width: 54px; height: 12px; background: linear-gradient(90deg, rgba(255,255,255,.08), #fff); }
-.cleg .grad.t { background: linear-gradient(90deg, rgba(255,255,255,.08), #fff); }
-.cleg .sw { width: 14px; height: 14px; background: rgba(255,255,255,.35); position: relative; }
-.cleg .sw.hi { outline: 2px solid var(--y); outline-offset: 1px; }
-.cleg .sw.lo { outline: 2px solid rgba(255,255,255,.75); outline-offset: 1px; background: rgba(255,255,255,.1); }
+.cleg .grad { width: 54px; height: 12px; }  /* its colours come with the legend, from colors.py */
+.cleg .sw { width: 14px; height: 14px; background: #383835; position: relative; }
+.cleg .sw.hi { outline: 2px solid #fff; outline-offset: 1px; }
+.cleg .sw.lo { outline: 2px dashed #fff; outline-offset: 1px; }
 .cleg .sw.bal::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 2px; height: 3px; background: var(--y); }
-.cleg .sw.w45 { background: var(--y); }
-.cleg .sw.w55 { background: var(--red); }
 #cell-detail { color: #fff; font-size: 17px; font-weight: 600; }
 #cell-detail.hint { color: var(--faint); font-weight: 500; font-size: 14px; }
 .balbtn.q-btn { height: 64px; border-radius: 4px; font-size: 17px; font-weight: 700; }
