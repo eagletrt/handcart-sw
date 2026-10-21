@@ -20,6 +20,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .nicegui-content { padding: 0 !important; display: block !important; }
 .q-btn { font-family: var(--font); letter-spacing: 0; }
 .num { font-variant-numeric: tabular-nums; }
+.kiosk, .kiosk * { cursor: none !important; }  /* on the handcart's touch display (handcart.js) */
 
 /* the screen */
 .screen { width: 800px; height: 480px; background: var(--bg); position: relative; overflow: hidden;

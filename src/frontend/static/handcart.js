@@ -10,6 +10,9 @@ function fitScreen() {
 }
 addEventListener('resize', fitScreen);
 
+// The display's kiosk browser opens the page with ?kiosk=true: it is a touch screen, so no mouse pointer.
+if (new URLSearchParams(location.search).has('kiosk')) document.documentElement.classList.add('kiosk');
+
 // On a computer the keyboard and the mouse wheel stand in for the handcart's controls: they become the
 // same events (shared.models.InputEvent), and the page handles them as if they came from the handcart.
 const KEYS = {
