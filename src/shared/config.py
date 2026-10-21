@@ -107,6 +107,7 @@ class Timing(_Section):
     charger_presence_timeout: float = Field(gt=0)
     bms_response_timeout: float = Field(gt=0)
     charger_stop_delay: float = Field(gt=0)
+    balancing_period: float = Field(gt=0)
     charger_ctrl_period: float = Field(gt=0)
     charger_alive_period: float = Field(gt=0)
     charger_target_period: float = Field(gt=0)

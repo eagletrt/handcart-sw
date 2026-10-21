@@ -152,6 +152,9 @@ class Handcart:
             for _ in range(BMS_REQUEST_REPEATS):
                 send(self._bms_bus, self.bms.balancing_command(out.balancing))
             self._balancing_sent = out.balancing
+        elif out.balancing and due("balancing", timing.balancing_period, now):
+            # the BMS stops balancing if it gets no request for 3 s
+            send(self._bms_bus, self.bms.balancing_command(True))
         if due("charger control", timing.charger_ctrl_period, now):
             send(self._charger_bus, self.charger.control(out.charger))
         if due("charger alive", timing.charger_alive_period, now):

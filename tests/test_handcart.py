@@ -149,3 +149,26 @@ def test_the_backend_keeps_running_with_the_can_unplugged(cfg):
         now += TICK
         handcart.tick()
     assert handcart.status().state is State.CHECK  # waiting for the BMS, not crashed
+
+
+def test_the_balancing_request_is_repeated_while_balancing(cfg, primary, charger_db):
+    rig = Rig(cfg, primary, charger_db, speed=1)  # real speed: the balancing lasts much longer than the test
+    try:
+        assert rig.run(1.0, until=State.IDLE) is State.IDLE
+        balancing_id = primary.get_message_by_name("RaspberryTsacBalancingSet").frame_id
+        sent_at = []
+        on_frame = rig.bms.on_frame
+
+        def spy(frame, now):
+            if frame.id == balancing_id:
+                sent_at.append(now)
+            return on_frame(frame, now)
+
+        rig.bms.on_frame = spy
+        rig.handcart.request(Command.BALANCE)
+        rig.run(5.0)
+        assert rig.handcart.status().state is State.BALANCING
+        later = [t for t in sent_at if t > sent_at[0] + 0.5]  # after the first burst
+        assert len(later) >= 4  # about one per second
+    finally:
+        rig.close()

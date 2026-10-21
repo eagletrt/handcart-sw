@@ -37,6 +37,7 @@ bms_presence_timeout = 0.5        # s without BMS frames before it counts as gon
 charger_presence_timeout = 0.4    # s without charger frames before it counts as gone
 bms_response_timeout = 3.0        # s for the BMS to reach TS_ON, or to start balancing
 charger_stop_delay = 0.2          # s between stopping the charger and cutting its power, on error
+balancing_period = 1.0            # s, RaspberryTsacBalancingSet while balancing (the BMS gives up after 3 s)
 charger_ctrl_period = 0.01        # s, HYC_Ctrl
 charger_alive_period = 0.1        # s, HYC_Alive
 charger_target_period = 0.5       # s, HYC_Target
