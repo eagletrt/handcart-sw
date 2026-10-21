@@ -130,6 +130,14 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .wire-r { animation: pull-r 1.8s ease-in-out infinite alternate; }
 @keyframes pull { to { transform: translateX(-8px); } }
 @keyframes pull-r { to { transform: translateX(8px); } }
+.lever { transform-origin: 84px 44px; animation: lever 1.4s ease-in-out infinite alternate; }  /* loop.svg: around its hinge */
+@keyframes lever { to { transform: rotate(-14deg); } }
+.pulse { transform-box: fill-box; transform-origin: 50% 60%; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.1); } }
+.fade { animation: fade 1.5s ease-in-out infinite; }  /* offline.svg: the signal dots, one after the other */
+.fade.d2 { animation-delay: .25s; }
+.fade.d3 { animation-delay: .5s; }
+@keyframes fade { 0%, 100% { opacity: .15; } 30% { opacity: 1; } }
 .ovl.err .k { color: var(--red); }
 .ovl.err .d { color: rgba(255,255,255,.88); max-height: 115px; overflow-y: auto; }  /* a long BMS error list scrolls instead of pushing the buttons off screen */
 .efx { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
@@ -162,6 +170,12 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .cmap .c.bal::after { content: ""; position: absolute; left: 3px; right: 3px; bottom: 3px; height: 4px; background: var(--y); }
 /* the footer sits halfway between the map and the nav: 10 px above, 10 px below */
 .tab.cells { padding-bottom: 10px; }
+.cbody { display: contents; }  /* only there to hide it all at once */
+/* no BMS: one message instead of an empty map and buttons that do nothing */
+.nobms { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
+.nobms .nbi { font-size: 56px; color: var(--faint); }
+.nobms .nbt { font-size: 26px; font-weight: 700; }
+.nobms .nbd { font-size: 16px; color: var(--mute); max-width: 420px; line-height: 1.35; }
 .cfoot { display: grid; grid-template-columns: minmax(0, 1fr) 56px 260px; gap: 14px; align-items: center; margin-top: 10px; }
 .cleft { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cleg { display: flex; gap: 12px; flex-wrap: nowrap; overflow: hidden; align-items: center; font-size: 15px; color: var(--mute); }
@@ -279,7 +293,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .toast.bad { background: var(--red); color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cell-fill, .cell-over, .blink, .dome, .ripple, .spark, .wire-l, .wire-r { animation: none; }
+  .cell-fill, .cell-over, .blink, .dome, .ripple, .spark, .wire-l, .wire-r, .lever, .pulse, .fade { animation: none; }
   .flow, .halo.y, .halo.w, .halo.r { animation: none; }
   .halo.y, .halo.w, .halo.r { opacity: .8; }
 }

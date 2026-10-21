@@ -1,7 +1,7 @@
 """What the readings mean for the operator: plain functions of the status, no UI (tests/test_readings.py)."""
 
 from shared.config import Accumulator
-from shared.models import BmsSnapshot, ShutdownLoop, State
+from shared.models import BmsSnapshot, ShutdownLoop, State, Status
 
 TS_ASKED_ON = {State.PRECHARGE, State.READY, State.CHARGE, State.CHARGE_DONE}
 
@@ -32,16 +32,29 @@ def cell_overvoltage(bms: BmsSnapshot, max_cell_voltage: float) -> bool:
     return any(error == "overvoltage" or error.endswith("CellOvervoltage") for error in bms.errors)
 
 
-def error_kind(bms: BmsSnapshot, loop: ShutdownLoop, pack: Accumulator, open_below: float) -> str:
-    """Which picture explains an error: "mushroom" (pressed), "cell" (over its voltage limit),
-    "hot" (a cell too hot), or "loop" (open somewhere)."""
-    if first_open(loop, open_below) == "mushroom":
+def error_kind(reason: str, bms: BmsSnapshot, pack: Accumulator) -> str:
+    """Which picture explains an error, from the reason the state machine gave (backend/core/fsm.py):
+    "mushroom" (pressed), "offline" (the BMS or the charger stopped answering), "cell" (over its voltage
+    limit), "hot" (a cell too hot), "charger" (in error), "bms" (other BMS errors), or "loop" (open at
+    another point, or anything else).
+
+    The mushroom comes from the reason the state machine gave when it stopped ("shutdown loop open at
+    mushroom"), not from the loop read now: in ERROR the handcart opens its SD relay itself, so the loop
+    reads open from there on whatever the cause was.
+    """
+    if reason.endswith("open at mushroom"):
         return "mushroom"
+    if reason.endswith("stopped responding"):  # first: the readings of a silent BMS are old
+        return "offline"
     if cell_overvoltage(bms, pack.max_cell_voltage):
         return "cell"
     if bms.temp_max is not None and bms.temp_max > pack.max_temperature:
         return "hot"
-    return "loop"
+    if reason.startswith("Charger"):
+        return "charger"
+    if reason.startswith("BMS"):
+        return "bms"
+    return "loop"  # the shutdown loop open elsewhere, or anything else
 
 
 def balancing_progress(start_delta: float, delta: float, threshold: float) -> float:
@@ -58,3 +71,26 @@ def ts_discharging(state: State, bms: BmsSnapshot) -> bool:
     Only when the BMS says so: an unknown reading (None) shows as "HV ?" in the top bar instead.
     """
     return state not in TS_ASKED_ON and bms.ts_below_60v is False
+
+
+def details_screen(kind: str, reason: str) -> str:
+    """The screen that shows more about an error: "cells", "charger" or "shutdown"."""
+    if kind in ("cell", "hot", "bms"):
+        return "cells"
+    if kind == "charger" or (kind == "offline" and "charger" in reason):
+        return "charger"
+    if kind == "offline":
+        return "cells"  # the BMS: the cells screen shows what it last sent
+    return "shutdown"
+
+
+def waiting_for(status: Status) -> tuple[str, str]:
+    """In CHECK, the main button says what is missing: (label, icon)."""
+    bms, charger = status.bms.connected, status.charger.connected
+    if not bms and not charger:
+        return "Connect accumulator and charger", "cable"
+    if not bms:
+        return "Connect accumulator", "cable"
+    if not charger:
+        return "Connect charger", "ev_station"
+    return "Resetting charger", "restart_alt"  # both there: CHECK waits for the charger to leave ERROR

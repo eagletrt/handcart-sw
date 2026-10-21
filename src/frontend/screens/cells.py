@@ -42,36 +42,44 @@ class CellsScreen:
         self._squares: list[Square] = []  # as last drawn
 
         with ui.element("div").classes("tab cells") as self.root:
-            with ui.element("div").classes("cells-head"):
-                with ui.element("div").classes("seg"):
-                    self._volts_button = ui.button("Volts", on_click=lambda: self._set_mode(True))
-                    self._temps_button = ui.button("Temps", on_click=lambda: self._set_mode(False))
-                    for button in (self._volts_button, self._temps_button):
-                        button.props("flat no-caps text-color=white")
-                with ui.element("div").classes("cstats"):
-                    self._min = self._cstat("Min")
-                    self._max = self._cstat("Max")
-                    with ui.element("div"):
-                        ui.label("Delta").classes("lbl")
-                        with ui.element("div").classes("vrow"):
-                            self._delta = ui.label("—").classes("v num")
-                            self._trend_chart = ui.html("").classes("trend")
-            self._map = ui.html("")
-            with ui.element("div").classes("cfoot"):
-                with ui.element("div").classes("cleft"):
-                    self._legend = ui.html("").classes("cleg num")
-                    self._detail = ui.label(HINT).classes("detail hint num")
-                # the balancing threshold, in the settings window
-                self._threshold = ui.button(icon="tune", on_click=actions.open_balancing_settings)
-                self._threshold.props("flat text-color=white").classes("thrbtn")
-                with (
-                    ui.button(on_click=lambda: actions.send(Command.BALANCE))
-                    .props("unelevated no-caps")
-                    .classes("balbtn") as self._balance,
-                    ui.element("div").classes("btxt"),  # the note under the label: it can be long
-                ):
-                    self._balance_label = ui.label("Balance")
-                    self._balance_note = ui.label("").classes("bs num")
+            with ui.element("div").classes("nobms") as self._no_bms:  # instead of everything below
+                ui.icon("cable").classes("nbi")
+                ui.label("No BMS").classes("nbt")
+                ui.label("Connect the accumulator: the cells show up as soon as the BMS answers.").classes(
+                    "nbd"
+                )
+            with ui.element("div").classes("cbody") as self._body:
+                with ui.element("div").classes("cells-head"):
+                    with ui.element("div").classes("seg"):
+                        self._volts_button = ui.button("Volts", on_click=lambda: self._set_mode(True))
+                        self._temps_button = ui.button("Temps", on_click=lambda: self._set_mode(False))
+                        for button in (self._volts_button, self._temps_button):
+                            button.props("flat no-caps text-color=white")
+                    with ui.element("div").classes("cstats"):
+                        self._min = self._cstat("Min")
+                        self._max = self._cstat("Max")
+                        with ui.element("div"):
+                            ui.label("Delta").classes("lbl")
+                            with ui.element("div").classes("vrow"):
+                                self._delta = ui.label("—").classes("v num")
+                                self._trend_chart = ui.html("").classes("trend")
+                self._map = ui.html("")
+                with ui.element("div").classes("cfoot"):
+                    with ui.element("div").classes("cleft"):
+                        self._legend = ui.html("").classes("cleg num")
+                        self._detail = ui.label(HINT).classes("detail hint num")
+                    # the balancing threshold, in the settings window
+                    self._threshold = ui.button(icon="tune", on_click=actions.open_balancing_settings)
+                    self._threshold.props("flat text-color=white").classes("thrbtn")
+                    with (
+                        ui.button(on_click=lambda: actions.send(Command.BALANCE))
+                        .props("unelevated no-caps")
+                        .classes("balbtn") as self._balance,
+                        ui.element("div").classes("btxt"),  # the note under the label: it can be long
+                    ):
+                        self._balance_label = ui.label("Balance")
+                        self._balance_note = ui.label("").classes("bs num")
+        self._no_bms.set_visibility(False)  # until the first status says otherwise
         self._set_mode(True)
 
     def record(self, status: Status) -> None:
@@ -91,6 +99,11 @@ class CellsScreen:
             self._next_trend_point = now + TREND_PERIOD
 
     def update(self, status: Status) -> None:
+        connected = status.bms.connected
+        self._no_bms.set_visibility(not connected)
+        self._body.set_visibility(connected)
+        if not connected:
+            return
         if self._volts:
             self._show_volts(status.bms)
             self._trend_chart.set_content(self._trend_svg(status.settings.balancing_threshold))
@@ -102,6 +115,8 @@ class CellsScreen:
 
     def reachable(self) -> list[Reachable]:
         # the frame starts on the mode shown: one turn to the other one, a click to the map (controls.py)
+        if not self._body.visible:
+            return []  # no BMS: nothing to press
         if self._volts:
             volts_priority, temps_priority = 1, 0
         else:

@@ -1,8 +1,8 @@
 <svg viewBox="0 0 220 220" aria-hidden="true">
-  <rect x="88" y="14" width="44" height="140" rx="22" fill="none" stroke="#fff" stroke-width="5"/>
-  <circle cx="110" cy="172" r="34" fill="none" stroke="#fff" stroke-width="5"/>
+  <!-- one outline for tube and bulb: the tube (x 92-128) meets the bulb (r 34 at 110,172) at y 143.2 -->
+  <path d="M92 143.2 V36 A18 18 0 0 1 128 36 V143.2 A34 34 0 1 1 92 143.2 Z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <rect class="cell-fill" x="101" y="30" width="18" height="142" rx="9" fill="#FF453A"/>
   <circle cx="110" cy="172" r="24" fill="#FF453A"/>
-  <rect class="cell-fill" x="100" y="30" width="20" height="130" rx="10" fill="#FF453A"/>
   <line x1="58" y1="44" x2="162" y2="44" stroke="#FF453A" stroke-width="3" stroke-dasharray="8 6"/>
   <path class="blink" d="M150 70 h24 M150 90 h16 M150 110 h24" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
 </svg>

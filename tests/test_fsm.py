@@ -6,6 +6,7 @@ import pytest
 
 from backend.core.fsm import ChargeFsm, Inputs
 from backend.devices.charger import ChargerCommand
+from frontend.readings import error_kind
 from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, State, TsacState
 
 CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("BMS", 11.9), ("TSMS", 11.9))
@@ -229,6 +230,14 @@ def test_loop_opening_while_charging(bench):
     bench.go_to(State.CHARGE)
     bench.shutdown = (("mushroom", 0.0), ("charger", 0.0))
     assert_stopped_safely(bench.step(), "open at mushroom")
+
+
+def test_the_ui_shows_the_mushroom_from_the_reason_of_the_stop(bench, cfg):
+    # the frontend picks the picture from this message (frontend.readings.error_kind)
+    bench.go_to(State.CHARGE)
+    bench.shutdown = (("mushroom", 0.0), ("charger", 0.0))
+    out = bench.step()
+    assert error_kind(out.message, bench.bms, cfg.accumulator) == "mushroom"
 
 
 def test_an_unknown_loop_reading_does_not_trip(bench):

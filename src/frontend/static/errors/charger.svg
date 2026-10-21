@@ -1,0 +1,8 @@
+<svg viewBox="0 0 220 220" aria-hidden="true">
+  <!-- the charger, its display showing the error -->
+  <rect x="46" y="22" width="128" height="160" rx="12" fill="none" stroke="#fff" stroke-width="5"/>
+  <rect x="64" y="40" width="92" height="46" rx="4" fill="rgba(255,69,58,.18)"/>
+  <text class="blink" x="110" y="74" text-anchor="middle" font-size="28" font-weight="700" fill="#FF453A" font-family="Helvetica Neue, Arial">ERR</text>
+  <path d="M116 100 l-26 44 h18 l-8 30 l30 -46 h-18 l10 -28 z" fill="#fff" opacity=".35"/>
+  <path d="M110 182 V198 a10 10 0 0 0 10 10 H200" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+</svg>

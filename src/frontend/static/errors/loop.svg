@@ -1,5 +1,10 @@
 <svg viewBox="0 0 220 220" aria-hidden="true">
-  <g class="wire-l"><path d="M10 110 H88" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="92" cy="110" r="9" fill="#fff"/></g>
-  <g class="wire-r"><path d="M132 110 H210" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="128" cy="110" r="9" fill="#fff"/></g>
-  <path class="spark" d="M110 78 l6 20 l20 -6 l-14 16 l14 16 l-20 -6 l-6 20 l-6 -20 l-20 6 l14 -16 l-14 -16 l20 6 z" fill="#FF453A"/>
+  <!-- the shutdown loop, open at the switch on top: its lever swings, the current stops there -->
+  <path d="M84 44 H50 a22 22 0 0 0 -22 22 V158 a22 22 0 0 0 22 22 H170 a22 22 0 0 0 22 -22 V66 a22 22 0 0 0 -22 -22 H136" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="28" cy="112" r="8" fill="#fff"/>
+  <circle cx="110" cy="180" r="8" fill="#fff"/>
+  <circle cx="192" cy="112" r="8" fill="#fff"/>
+  <circle class="blink" cx="136" cy="44" r="8" fill="#FF453A"/>
+  <circle cx="84" cy="44" r="8" fill="#FF453A"/>
+  <line class="lever" x1="84" y1="44" x2="130" y2="14" stroke="#FF453A" stroke-width="7" stroke-linecap="round"/>
 </svg>

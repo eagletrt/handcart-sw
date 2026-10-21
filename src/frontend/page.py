@@ -23,6 +23,7 @@ from frontend.controls import (
 )
 from frontend.readings import (
     cell_overvoltage,
+    details_screen,
     error_kind,
     first_open,
     hot_probes,
@@ -70,6 +71,7 @@ class Page:
         self._backend = backend
         self._tab = "charge"
         self._state: State | None = None
+        self._stopped_with_ts_on = False  # the state before the last ERROR had the TS on
         self._entered = 0.0  # when the current state began
         self._told_updates = False  # the toast about updates shows once
         self._controls = Controls()
@@ -166,6 +168,8 @@ class Page:
 
         s = status.state
         if s is not self._state:
+            if s is State.ERROR:  # "Charging stopped" only if the TS was on
+                self._stopped_with_ts_on = self._state in TS_ON or self._state is State.PRECHARGE
             self._state = s
             self._entered = time.monotonic()
             if s in TAKEOVER_STATES:
@@ -183,7 +187,7 @@ class Page:
             self._precharge.update(status)
         self._error.root.set_visibility(on_charge and s is State.ERROR)
         if s is State.ERROR:
-            self._error.update(status, self._error_kind(status))
+            self._error.update(status, self._error_kind(status), self._stopped_with_ts_on)
         if ts_discharging(s, status.bms):
             self._discharge.root.set_visibility(not self._discharge.dismissed)
             self._discharge.update(status)
@@ -256,7 +260,7 @@ class Page:
             cells_badge.classes(add="y")  # white: balancing
 
     def _error_kind(self, status: Status) -> str:
-        return error_kind(status.bms, status.shutdown, self._cfg.accumulator, self._cfg.shutdown.open_below)
+        return error_kind(status.message, status.bms, self._cfg.accumulator)
 
     # actions
 
@@ -311,12 +315,13 @@ class Page:
         if status is None:
             return
         kind = self._error_kind(status)
+        screen = details_screen(kind, status.message)
+        if screen != "cells":
+            self._show(screen)
+            return
         if kind == "hot":
             self._show("cells")
             self._cells.show_temps()
-            return
-        if kind != "cell":
-            self._show("shutdown")
             return
         self._cells.show_volts()
         self._show("cells")

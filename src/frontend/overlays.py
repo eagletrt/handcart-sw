@@ -8,13 +8,14 @@ from pathlib import Path
 from nicegui import ui
 
 from frontend.controls import Target
+from frontend.readings import details_screen
 from frontend.targets import Reachable, button, usable
 from shared.config import Config
 from shared.models import Settings, State, Status, TsacState
 
 ERROR_ART = {
     kind: (Path(__file__).parent / "static" / "errors" / f"{kind}.svg").read_text()
-    for kind in ("cell", "hot", "mushroom", "loop")
+    for kind in ("cell", "hot", "mushroom", "loop", "bms", "offline", "charger")
 }
 PRECHARGE_PHASES = [
     (TsacState.AIRN_CHECK, "AIR− closed"),
@@ -154,13 +155,13 @@ class Discharge:
 
 
 class Error:
-    """Charging stopped: why, what the handcart did, and the way out."""
+    """The handcart stopped on a fault: why, what it did, and the way out."""
 
     def __init__(self, on_reset: Callable[[], Awaitable[None]], on_details: Callable[[], None]) -> None:
         with ui.element("div").classes("ovl err") as self.root:
             with ui.element("div").classes("etext"):
                 ui.label("Error").classes("k")
-                ui.label("Charging stopped").classes("t")
+                self._title = ui.label("").classes("t")
                 self._reason = ui.label("").classes("d")
                 ui.html(
                     '<div class="efx"><span>CHARGER OFF</span><span>TS OFF</span>'
@@ -178,18 +179,21 @@ class Error:
     def reachable(self) -> list[Reachable]:
         return usable(button("reset", self._reset, priority=1), button("details", self._details))
 
-    def update(self, status: Status, kind: str) -> None:
+    def update(self, status: Status, kind: str, ts_was_on: bool) -> None:
+        self._title.set_text("Charging stopped" if ts_was_on else "Handcart stopped")
         self._reason.set_text(status.message)
         if kind == self._kind:
             return  # redrawing the picture would restart its animation
         self._kind = kind
         self._art.set_content(ERROR_ART[kind])
-        if kind in ("cell", "hot"):
-            self._details.set_text("View cells")
-            self._details.props("icon=grid_view")
-        else:
-            self._details.set_text("Shutdown loop")
-            self._details.props("icon=power")
+        screen = details_screen(kind, status.message)
+        text, icon = {
+            "cells": ("View cells", "grid_view"),
+            "charger": ("Charger", "ev_station"),
+            "shutdown": ("Shutdown loop", "power"),
+        }[screen]
+        self._details.set_text(text)
+        self._details.props(f"icon={icon}")
 
 
 @dataclass(frozen=True)

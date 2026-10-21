@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from nicegui import ui
 
+from frontend.readings import waiting_for
 from frontend.screens import Actions, number
 from frontend.targets import Reachable, button, usable
 from shared.config import Config
@@ -93,16 +94,18 @@ class ChargeScreen:
         self._cell_max.set_content(f"{number(bms.cell_max, 3)}<small>V</small>")
 
         main = PRIMARY[s]
-        label = main.label
+        label, icon = main.label, main.icon
+        if s is State.CHECK:
+            label, icon = waiting_for(status)
         if s is State.PRECHARGE and bms.ts_voltage and bms.pack_voltage:
             label = f"Precharging {min(99.0, bms.ts_voltage / bms.pack_voltage * 100):.0f}%"
         self._main.set_text(label)
         if s is State.CHARGE_DONE:
-            self._main.props(f"icon={main.icon} text-color=white").classes(replace="main ghost done")
+            self._main.props(f"icon={icon} text-color=white").classes(replace="main ghost done")
         elif s in OUTLINED:
-            self._main.props(f"icon={main.icon} text-color=white").classes(replace="main ghost")
+            self._main.props(f"icon={icon} text-color=white").classes(replace="main ghost")
         else:
-            self._main.props(f"icon={main.icon} text-color=black").classes(replace="main")
+            self._main.props(f"icon={icon} text-color=black").classes(replace="main")
         self._main.set_enabled(main.command is not None or main.opens is not None)
 
         secondary = SECONDARY.get(s)
