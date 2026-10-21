@@ -12,14 +12,18 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 UV_RUN = ["uv", "run"]
+SERVICES = ["handcart-backend.service", "handcart-frontend.service"]  # restarted by update
+LAST_UPDATE = ROOT / "var" / "last-update.txt"  # what the last update did, shown on the System page
 
 # name: (description, commands run in order; extra args go to the last one)
 COMMANDS: dict[str, tuple[str, list[list[str]]]] = {
@@ -71,8 +75,9 @@ def run(cmd: list[str], input: str | None = None, **kwargs) -> int:
 def install_services() -> int:
     """Set up the Pi to boot straight into the handcart UI.
 
-    Copies the services and the CAN network (filling in user, paths and port), installs the boot
-    splash, enables everything and boots to console, so the display service owns the screen.
+    Copies the services and the CAN network (filling in user, paths and port), installs the sudo rule
+    of the System page and the boot splash, enables the services that start at boot and boots to
+    console, so the display service owns the screen.
     """
     uv = shutil.which("uv")
     config = tomllib.loads((ROOT / "config.toml").read_text())
@@ -85,13 +90,15 @@ def install_services() -> int:
     files = [(f, "/etc/systemd/system") for f in (ROOT / "system/services").glob("*.service")]
     files += [(f, "/etc/systemd/network") for f in (ROOT / "system/can").glob("*.network")]
     for src, dest in files:
-        text = src.read_text()
-        for key, value in values.items():
-            text = text.replace(key, value)
         print(f"{src.relative_to(ROOT)} -> {dest}/{src.name}")
-        if rc := run(["sudo", "tee", f"{dest}/{src.name}"], input=text, stdout=subprocess.DEVNULL):
+        if rc := run(
+            ["sudo", "tee", f"{dest}/{src.name}"], input=fill(src, values), stdout=subprocess.DEVNULL
+        ):
             return rc
-    units = [src.name for src, _ in files if src.suffix == ".service"]
+    if rc := install_sudoers(fill(ROOT / "system/sudoers/handcart", values)):
+        return rc
+    # handcart-update has no [Install]: it runs only when the System page asks
+    units = [src.name for src, _ in files if src.suffix == ".service" and "[Install]" in src.read_text()]
     splash = [str(f) for f in sorted((ROOT / "system/splash").iterdir())] + [str(ROOT / "assets/eagle.png")]
     for cmd in (
         ["systemctl", "daemon-reload"],
@@ -105,6 +112,31 @@ def install_services() -> int:
     print(
         "Done. Add system/raspberry/boot-config.txt and cmdline.txt to /boot/firmware by hand, then reboot."
     )
+    return 0
+
+
+def fill(src: Path, values: dict[str, str]) -> str:
+    """The file with its {{PLACEHOLDERS}} filled in."""
+    text = src.read_text()
+    for key, value in values.items():
+        text = text.replace(key, value)
+    return text
+
+
+def install_sudoers(text: str) -> int:
+    """Install the sudo rule only once visudo says it is valid: a broken sudoers file would lock sudo out."""
+    print("system/sudoers/handcart -> /etc/sudoers.d/handcart")
+    draft = "/etc/sudoers.d/handcart.new"  # sudo skips files with a dot in the name while this is checked
+    if rc := run(["sudo", "tee", draft], input=text, stdout=subprocess.DEVNULL):
+        return rc
+    for cmd in (
+        ["sudo", "visudo", "--check", "--quiet", "--file", draft],
+        ["sudo", "chmod", "440", draft],
+        ["sudo", "mv", draft, "/etc/sudoers.d/handcart"],
+    ):
+        if rc := run(cmd):
+            run(["sudo", "rm", "-f", draft])
+            return rc
     return 0
 
 
@@ -155,10 +187,103 @@ def command(args: list[str]) -> int:
     return 0
 
 
+def update(args: list[str]) -> int:
+    """Bring the handcart to the latest commit of its branch; go back if the new version does not work.
+
+    Steps: fetch, move to the new commit, submodules, uv sync, tests, restart, wait for the backend.
+    If a step after the move fails, the same steps bring back the commit it started from.
+    """
+    cfg = tomllib.loads((ROOT / "config.toml").read_text())["update"]
+    remote, branch = cfg["remote"], cfg["branch"]
+    upstream = f"{remote}/{branch}"
+
+    if output(["git", "status", "--porcelain", "--untracked-files=no"]):
+        return finish(1, "Not updated: this copy has local changes (commit or discard them first)")
+    if run(["git", "fetch", "--quiet", remote, branch]):
+        return finish(1, f"Not updated: could not fetch {upstream}")
+    old, new = (
+        output(["git", "rev-parse", "--short", "HEAD"]),
+        output(["git", "rev-parse", "--short", upstream]),
+    )
+    if old == new:
+        print(f"Up to date with {upstream} ({old})")
+        return 0
+    if run(["git", "merge-base", "--is-ancestor", "HEAD", upstream]):
+        return finish(1, f"Not updated: this copy has commits that are not on {upstream}")
+
+    print(f"Updating {old} -> {new}:")
+    run(["git", "log", "--oneline", f"HEAD..{upstream}"])
+    problem = install(new)
+    if problem is None:
+        problem = tests()
+    if problem is None:
+        problem = restart(cfg["health_timeout"])
+    if problem is None:
+        return finish(0, f"Updated {old} -> {new}")
+
+    print(f"{problem}: going back to {old}")
+    back = install(old)
+    if back is None:
+        back = restart(cfg["health_timeout"])
+    if back is not None:
+        return finish(
+            1, f"Update to {new} failed ({problem}) and going back failed too ({back}): fix it by SSH"
+        )
+    return finish(1, f"Update to {new} failed ({problem}), back to {old}")
+
+
+def install(commit: str) -> str | None:
+    """Move to commit with its submodules and dependencies. Returns what failed, or None."""
+    if run(["git", "reset", "--quiet", "--hard", commit]):
+        return f"git could not move to {commit}"
+    if run(["git", "submodule", "update", "--init", "--recursive"]):
+        return "the submodules did not update"
+    if run(["uv", "sync"]):
+        return "uv sync failed"
+    return None
+
+
+def tests() -> str | None:
+    if run([*UV_RUN, "pytest", "--quiet"]):
+        return "the tests failed"
+    return None
+
+
+def restart(timeout: float) -> str | None:
+    """Restart backend and frontend, then wait for the backend to answer. Returns what failed, or None."""
+    if not (Path("/etc/systemd/system") / SERVICES[0]).exists():
+        print("Not the handcart: restart the backend and the frontend by hand")
+        return None
+    if run(["sudo", "-n", "systemctl", "restart", *SERVICES]):
+        return "the services did not restart"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            api("GET", "/api/status")
+            return None
+        except OSError:  # not listening yet, or restarting
+            time.sleep(1)
+    return f"the backend did not answer within {timeout:g} s"
+
+
+def finish(code: int, message: str) -> int:
+    """Print what the update did and keep it for the System page."""
+    print(message, file=sys.stderr if code else sys.stdout)
+    LAST_UPDATE.parent.mkdir(exist_ok=True)
+    LAST_UPDATE.write_text(f"{datetime.now():%Y-%m-%d %H:%M} {message}\n")
+    return code
+
+
+def output(cmd: list[str]) -> str:
+    """What cmd prints, for the short git queries of update."""
+    return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+
+
 # name: (description, function), for the commands that are not just a list of programs to run
 FUNCTIONS = {
     "status": ("Show what the backend sees", status),
     "command": ("Send a command, e.g. ./handcart.py command STOP", command),
+    "update": ("Update to the latest commit of the branch in config.toml, then restart", update),
     "install-services": (
         "Set up the Pi to boot straight into the handcart UI",
         lambda args: install_services(),

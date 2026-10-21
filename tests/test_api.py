@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from backend.api import create_app
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
+from backend.system import System
 from shared.models import InputEvent, Status, StreamMessage
 
 
@@ -15,7 +16,7 @@ def client(cfg):
     bus = can.Bus(interface="virtual", channel="api", receive_own_messages=False)
     hal = FakeHal()
     handcart = Handcart(cfg, hal, bus, bus)
-    with TestClient(create_app(handcart)) as client:
+    with TestClient(create_app(handcart, System(cfg.update))) as client:
         client.handcart = handcart  # type: ignore[attr-defined]
         client.hal = hal  # type: ignore[attr-defined]
         yield client
@@ -66,3 +67,15 @@ def test_control_presses_reach_the_stream(client):
             if message.input is not None:
                 break
         assert message.input is InputEvent.UP
+
+
+def test_system_info(client, cfg):
+    info = client.get("/api/system").json()
+    assert info["branch"] == cfg.update.branch
+    assert info["version"]
+
+
+def test_reboot_is_refused_off_the_handcart(client):
+    response = client.post("/api/system/reboot")
+    assert response.status_code == 422
+    assert "Only on the handcart" in response.json()["detail"]

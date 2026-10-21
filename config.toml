@@ -20,6 +20,9 @@ temps_per_cellboard = 48
 max_cell_voltage = 4.20       # V, charging stops here
 min_cell_voltage = 2.80       # V, never balance below this
 balancing_threshold = 0.010   # V, cells above min + threshold are bled
+cold_temperature = 15.0       # °C: below this a cell is cold (what charging should do then: asked the team)
+warm_temperature = 45.0       # °C: above this a cell is warm
+max_temperature = 55.0        # °C: above this the handcart stops everything, as an error
 
 [charge]
 # 144 cells in series: 604.8 V at 4.20 V/cell. Confirm the limits with the accumulator team.
@@ -68,6 +71,11 @@ spi_max_speed_hz = 1000000
 vref = 3.310
 divider = 9.18
 divider_correction = 1.3
+
+[update]  # ./handcart.py update, and the System page of the UI
+remote = "origin"
+branch = "feat/backend"   # the branch the handcart follows: change it here when the branch is renamed
+health_timeout = 30       # s for the updated backend to answer; after that the update is rolled back
 
 [auth]
 session_timeout = 120     # s of inactivity before the operator is logged out

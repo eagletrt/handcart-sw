@@ -1,0 +1,18 @@
+# Handcart update: ./handcart.py update, started by the System page of the UI (through the backend).
+# Not enabled at boot: it runs only when asked. Its output: journalctl -u handcart-update
+#
+# Goes to: /etc/systemd/system/handcart-update.service
+# Installed by: ./handcart.py install-services, which fills in {{USER}}, {{ROOT}} and {{UV_DIR}}
+
+[Unit]
+Description=Handcart update
+
+[Service]
+Type=oneshot
+User={{USER}}
+WorkingDirectory={{ROOT}}
+Environment=PATH={{UV_DIR}}:/usr/local/bin:/usr/bin:/bin
+Environment=GIT_SSH_COMMAND=ssh -o BatchMode=yes
+# print each line at once, so the journal keeps them in order with the output of git, uv and pytest
+Environment=PYTHONUNBUFFERED=1
+ExecStart={{ROOT}}/handcart.py update

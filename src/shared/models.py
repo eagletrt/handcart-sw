@@ -142,6 +142,18 @@ class Status(BaseModel):
     shutdown: ShutdownLoop
 
 
+class SystemInfo(BaseModel):
+    """The System page: this version, what is new on the branch, and what the last update did."""
+
+    version: str  # "4df5420 2026-10-21": commit and date
+    branch: str  # the branch the handcart follows
+    updates: list[str]  # commits on the branch not installed yet, newest first: "abc1234 feat: ..."
+    checked_at: str | None  # "12:23", when the branch was last looked at; None if never yet
+    check_problem: str | None  # why the last check failed (no network, ...), or None
+    last_update: str | None  # what the last ./handcart.py update did, or None if it never ran
+    on_handcart: bool  # False on a computer: update, reboot and shut down are only for the handcart
+
+
 class StreamMessage(BaseModel):
     """One message on /api/ws: either the status, or a press of the physical controls."""
 

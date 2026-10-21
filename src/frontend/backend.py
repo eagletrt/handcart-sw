@@ -7,11 +7,21 @@ from collections.abc import Callable
 import httpx
 import websockets
 
-from shared.models import BmsSnapshot, ChargerSnapshot, Command, InputEvent, Settings, Status, StreamMessage
+from shared.models import (
+    BmsSnapshot,
+    ChargerSnapshot,
+    Command,
+    InputEvent,
+    Settings,
+    Status,
+    StreamMessage,
+    SystemInfo,
+)
 
 log = logging.getLogger(__name__)
 
 RECONNECT_DELAY = 1.0  # s
+SYSTEM_PERIOD = 10.0  # s between two reads of /api/system (the backend looks for updates when it starts)
 UNREACHABLE = "The backend is not reachable"
 
 # what the screen shows for a device that stopped talking: its last readings are no longer true
@@ -50,6 +60,7 @@ class Backend:
     def __init__(self, address: str) -> None:
         self._address = address  # host:port
         self.status: Status | None = None  # as the screen shows it; None while the backend is not reachable
+        self.system: SystemInfo | None = None  # version and updates; None until read
         self._listeners: list[Callable[[InputEvent], None]] = []
 
     async def run(self) -> None:
@@ -67,6 +78,21 @@ class Backend:
             self.status = None
             await asyncio.sleep(RECONNECT_DELAY)
 
+    async def follow_system(self) -> None:
+        """Read /api/system for ever, so the UI knows about updates without asking."""
+        while True:
+            await self.read_system()
+            await asyncio.sleep(SYSTEM_PERIOD)
+
+    async def read_system(self) -> None:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"http://{self._address}/api/system")
+        except httpx.HTTPError:
+            return  # keep the last one: the backend is restarting, or not there
+        if response.status_code == 200:
+            self.system = SystemInfo.model_validate_json(response.text)
+
     def on_input(self, listener: Callable[[InputEvent], None]) -> Callable[[], None]:
         """Call listener for every press of the physical controls. Returns a function that stops it."""
         self._listeners.append(listener)
@@ -80,9 +106,26 @@ class Backend:
         """Returns why the backend refused the settings, or None."""
         return await self._request("PUT", "/api/settings", settings.model_dump())
 
-    async def _request(self, method: str, path: str, body: dict) -> str | None:
+    async def check_updates(self) -> str | None:
+        """Look for updates now. Returns why it could not, or None; the result is in self.system."""
+        problem = await self._request("POST", "/api/system/check", timeout=30)
+        await self.read_system()
+        return problem
+
+    async def update(self) -> str | None:
+        return await self._request("POST", "/api/system/update")
+
+    async def reboot(self) -> str | None:
+        return await self._request("POST", "/api/system/reboot")
+
+    async def shut_down(self) -> str | None:
+        return await self._request("POST", "/api/system/shutdown")
+
+    async def _request(
+        self, method: str, path: str, body: dict | None = None, timeout: float = 5
+    ) -> str | None:
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.request(method, f"http://{self._address}{path}", json=body)
         except httpx.HTTPError:
             return UNREACHABLE

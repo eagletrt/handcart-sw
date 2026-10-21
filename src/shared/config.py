@@ -41,6 +41,9 @@ class Accumulator(_Section):
     max_cell_voltage: float = Field(gt=0)
     min_cell_voltage: float = Field(gt=0)
     balancing_threshold: float = Field(gt=0)
+    cold_temperature: float
+    warm_temperature: float
+    max_temperature: float
 
     @property
     def cells(self) -> int:
@@ -58,6 +61,8 @@ class Accumulator(_Section):
     def _cell_limits(self) -> Self:
         if self.min_cell_voltage >= self.max_cell_voltage:
             raise ValueError("min_cell_voltage must be below max_cell_voltage")
+        if not self.cold_temperature < self.warm_temperature < self.max_temperature:
+            raise ValueError("temperatures must be in order: cold < warm < max")
         return self
 
 
@@ -137,6 +142,12 @@ class Adc(_Section):
     divider_correction: float
 
 
+class Update(_Section):
+    remote: str
+    branch: str
+    health_timeout: float = Field(gt=0)
+
+
 class Auth(_Section):
     session_timeout: float = Field(gt=0)
     max_pin_failures: int = Field(gt=0)
@@ -155,6 +166,7 @@ class Config(_Section):
     hardware: Hardware
     gpio: GpioPins
     adc: Adc
+    update: Update
     auth: Auth
 
     @model_validator(mode="after")

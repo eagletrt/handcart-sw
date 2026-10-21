@@ -62,6 +62,13 @@ class Handcart:
         self._command = command
         return self.tick().refusal
 
+    def maintenance_problem(self) -> str | None:
+        """Why the handcart cannot be updated, rebooted or shut down now (TS on, or running), or None."""
+        state = self._fsm.state
+        if state not in (State.CHECK, State.IDLE):
+            return f"Stop first: the handcart is in {state}"
+        return None
+
     def change_settings(self, settings: Settings) -> str | None:
         """Use new setpoints. Returns why they were refused, or None."""
         problem = setpoint_problem(self._cfg.charge, settings.target_voltage, settings.max_current)

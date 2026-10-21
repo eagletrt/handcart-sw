@@ -221,12 +221,14 @@ class ChargeFsm:
             return problem
         return None
 
-    @staticmethod
-    def _bms_fault(bms: BmsSnapshot) -> str | None:
+    def _bms_fault(self, bms: BmsSnapshot) -> str | None:
+        limit = self._cfg.accumulator.max_temperature
         if bms.errors:
             return "BMS: " + ", ".join(sorted(bms.errors))
         if bms.state is TsacState.ERROR:
             return "BMS in error"
+        if bms.temp_max is not None and bms.temp_max > limit:
+            return f"Cell temperature {bms.temp_max:.1f} °C, above {limit:g} °C"
         return None
 
     def _open_point(self, inputs: Inputs) -> str | None:

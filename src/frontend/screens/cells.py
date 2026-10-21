@@ -13,8 +13,6 @@ from shared.config import Config
 from shared.models import BmsSnapshot, Command, State, Status
 
 MAP_WINDOW = 0.030  # V: full violet 30 mV under the pack average, full orange 30 mV over it
-# °C: full blue at or below COLD, gray at NORMAL, full red at or above HOT (to agree with the team)
-TEMP_COLD, TEMP_NORMAL, TEMP_HOT = 15.0, 30.0, 55.0
 TREND_PERIOD = 5.0  # s between two points of the balancing trend
 TREND_POINTS = 120  # points kept: the last 10 minutes
 
@@ -88,6 +86,10 @@ class CellsScreen:
         text = f"CB{board + 1} · cell {cell + 1} · {bms.cells[index]:.3f} V · overvoltage"
         ui.run_javascript(f"showCellDetail({json.dumps(text)}, true)")
 
+    def show_temps(self) -> None:
+        """Temps mode (from the error's Details, for a cell too hot)."""
+        self._set_mode(False)
+
     # volts and temperatures
 
     def _show_volts(self, bms: BmsSnapshot) -> None:
@@ -144,33 +146,43 @@ class CellsScreen:
             return
         hottest = bms.temps.index(max(temps))
 
+        pack = self._cfg
         squares = []
         for i, t in enumerate(bms.temps):
-            if t is None:
-                color = colors.NO_READING
-            else:
-                if t < TEMP_NORMAL:
-                    position = (t - TEMP_NORMAL) / (TEMP_NORMAL - TEMP_COLD)  # -1 at COLD
-                else:
-                    position = (t - TEMP_NORMAL) / (TEMP_HOT - TEMP_NORMAL)  # +1 at HOT
-                color = colors.diverging(position, colors.TEMPS_COLD, colors.TEMPS_HOT)
-            board, probe = divmod(i, self._cfg.temps_per_cellboard)
-            reading = "—" if t is None else f"{t:.1f} °C"
             classes = "c"
             if i == hottest:
                 classes += " hi"
+            if t is None:
+                color, reading = colors.NO_READING, "—"
+            elif t < pack.cold_temperature:
+                color, reading = colors.TEMPS_COLD, f"{t:.1f} °C · cold"
+            elif t <= pack.warm_temperature:
+                color, reading = self._temperature_color(t), f"{t:.1f} °C"
+            elif t <= pack.max_temperature:
+                color, reading = self._temperature_color(t), f"{t:.1f} °C · warm"
+            else:
+                color, reading = colors.NEUTRAL, f"{t:.1f} °C · too hot"
+                classes += " flt"  # blinking red, from the CSS
+            board, probe = divmod(i, pack.temps_per_cellboard)
             squares.append((classes, color, f"CB{board + 1} · probe {probe + 1} · {reading}"))
         self._map.set_content(self._grid(squares, self._cfg.temps_per_cellboard, gap=2))
 
         self._min.set_text(f"{min(temps):.1f} °C")
         self._max.set_text(f"{max(temps):.1f} °C")
         self._delta.set_text(f"{max(temps) - min(temps):.1f} °C")
-        scale = colors.gradient(colors.TEMPS_COLD, colors.TEMPS_HOT)
+        cold, warm, limit = pack.cold_temperature, pack.warm_temperature, pack.max_temperature
+        blue = f"background:{colors.TEMPS_COLD}"
+        scale = f"background:{colors.temperature_gradient(cold, warm, limit)}"
         self._legend.set_content(
-            f'<span class="li"><i class="grad" style="background:{scale}"></i>'
-            f"{TEMP_COLD:.0f} · {TEMP_NORMAL:.0f} · {TEMP_HOT:.0f} °C</span>"
+            f'<span class="li"><i class="sw" style="{blue}"></i>&lt; {cold:g}</span>'
+            f'<span class="li"><i class="grad" style="{scale}"></i>{cold:g} · {warm:g} · {limit:g}</span>'
+            f'<span class="li"><i class="sw flt"></i>&gt; {limit:g} °C</span>'
             '<span class="li"><i class="sw hi"></i>Hottest</span>'
         )
+
+    def _temperature_color(self, temp: float) -> str:
+        pack = self._cfg
+        return colors.temperature(temp, pack.cold_temperature, pack.warm_temperature, pack.max_temperature)
 
     def _empty(self) -> None:
         self._map.set_content("")

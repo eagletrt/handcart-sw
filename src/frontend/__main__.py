@@ -19,6 +19,7 @@ def main() -> None:
     cfg = config.load()
     backend = Backend(f"{cfg.network.backend_host}:{cfg.network.backend_port}")
     app.on_startup(lambda: asyncio.create_task(backend.run()))
+    app.on_startup(lambda: asyncio.create_task(backend.follow_system()))
     app.add_static_files("/static", STATIC)
     app.add_static_files("/assets", ROOT / "assets")
 

@@ -7,12 +7,13 @@ from nicegui import ui
 
 from frontend import overlays
 from frontend.backend import Backend
-from frontend.readings import cell_overvoltage, error_kind, first_open, overvoltage_cells
+from frontend.readings import cell_overvoltage, error_kind, first_open, hot_probes, overvoltage_cells
 from frontend.screens import Actions, Screen
 from frontend.screens.cells import CellsScreen
 from frontend.screens.charge import ChargeScreen
 from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
+from frontend.system_window import SystemWindow
 from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
@@ -48,6 +49,7 @@ class Page:
         self._tab = "charge"
         self._state: State | None = None
         self._entered = 0.0  # when the current state began
+        self._told_updates = False  # the toast about updates shows once
 
         actions = Actions(send=self._send, show=self._show, open_settings=self._open_settings)
         with ui.element("div").classes("screen"):
@@ -59,6 +61,12 @@ class Page:
                     "flat round dense text-color=white"
                 ).classes("info")
                 ui.element("div").classes("spacer")
+                with (
+                    ui.button(icon="settings", on_click=self._open_system)
+                    .props("flat round dense text-color=white")
+                    .classes("info gear")
+                ):
+                    self._gear_badge = ui.element("div").classes("badge")
                 self._hv = ui.label("").classes("ts num")
                 self._clock = ui.label("").classes("clock num")
 
@@ -90,6 +98,10 @@ class Page:
             self._settings = overlays.SettingsWindow(cfg, self._save_settings)
             self._info = overlays.InfoWindow()
             self._toast = overlays.Toast()
+            self._confirm = overlays.ConfirmWindow()
+            self._system = SystemWindow(
+                backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
+            )
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
@@ -112,6 +124,7 @@ class Page:
         self._offline.set_visibility(status is None)
         self._clock.set_text(datetime.now().strftime("%H:%M"))
         self._toast.update()
+        self._update_system()
         if status is None:
             return
 
@@ -135,6 +148,17 @@ class Page:
         self._error.root.set_visibility(on_charge and s is State.ERROR)
         if s is State.ERROR:
             self._error.update(status, self._error_kind(status))
+
+    def _update_system(self) -> None:
+        """The gear's badge and, once, a toast when the branch has updates."""
+        info = self._backend.system
+        has_updates = info is not None and len(info.updates) > 0
+        self._gear_badge.set_visibility(has_updates)
+        if has_updates and not self._told_updates:
+            self._told_updates = True
+            self._toast.show("Update available: open the gear", ok=True)
+        if self._system.root.visible:
+            self._system.update()
 
     def _update_top(self, status: Status) -> None:
         s, bms = status.state, status.bms
@@ -170,7 +194,10 @@ class Page:
         else:
             self._stop_note.set_text("TS off")
 
-        cell_fault = cell_overvoltage(status.bms, self._cfg.accumulator.max_cell_voltage)
+        pack = self._cfg.accumulator
+        cell_fault = cell_overvoltage(status.bms, pack.max_cell_voltage) or bool(
+            hot_probes(status.bms, pack.max_temperature)
+        )
         badges = {
             "charge": s is State.ERROR and self._tab != "charge",
             "cells": cell_fault or (s is State.BALANCING and self._tab != "cells"),
@@ -186,9 +213,7 @@ class Page:
             cells_badge.classes(add="y")  # white: balancing
 
     def _error_kind(self, status: Status) -> str:
-        return error_kind(
-            status.bms, status.shutdown, self._cfg.accumulator.max_cell_voltage, self._cfg.shutdown.open_below
-        )
+        return error_kind(status.bms, status.shutdown, self._cfg.accumulator, self._cfg.shutdown.open_below)
 
     # actions
 
@@ -225,6 +250,9 @@ class Page:
         if self._backend.status is not None:
             self._settings.open(self._backend.status.settings)
 
+    def _open_system(self) -> None:
+        self._system.open()
+
     def _open_info(self) -> None:
         if self._backend.status is not None:
             self._info.open(self._backend.status.state)
@@ -233,7 +261,12 @@ class Page:
         status = self._backend.status
         if status is None:
             return
-        if self._error_kind(status) != "cell":
+        kind = self._error_kind(status)
+        if kind == "hot":
+            self._show("cells")
+            self._cells.show_temps()
+            return
+        if kind != "cell":
             self._show("shutdown")
             return
         self._show("cells")
@@ -247,7 +280,12 @@ class Page:
         Called by the backend connection, outside this page's context: hence self._client.
         """
         keys = [key for key, _, _ in TABS]
-        modal_open = self._settings.root.visible or self._info.root.visible
+        modal_open = (
+            self._settings.root.visible
+            or self._info.root.visible
+            or self._system.root.visible
+            or self._confirm.root.visible
+        )
         if event in (InputEvent.LEFT, InputEvent.RIGHT) and not modal_open:
             step = 1 if event is InputEvent.RIGHT else -1
             self._show(keys[(keys.index(self._tab) + step) % len(keys)])

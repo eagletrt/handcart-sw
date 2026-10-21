@@ -220,6 +220,18 @@ def test_on_error_the_charger_power_is_cut_after_the_delay(bench, cfg):
     assert not bench.step(after=cfg.timing.charger_stop_delay + 0.01).charger_power
 
 
+def test_a_cell_too_hot_stops_everything(bench, cfg):
+    bench.go_to(State.CHARGE)
+    bench.bms = replace(bench.bms, temp_max=cfg.accumulator.max_temperature + 1)
+    out = bench.step()
+    assert out.state is State.ERROR
+    assert "temperature" in out.message
+    assert not out.ts_on and not out.sd_relay_closed
+
+    out = bench.step(Command.RESET)  # still hot: refused
+    assert out.state is State.ERROR and "Still present" in out.refusal
+
+
 def test_reset_is_refused_while_the_cause_is_there(bench):
     bench.go_to(State.CHARGE)
     bench.bms = replace(bench.bms, errors=frozenset({"overvoltage"}))

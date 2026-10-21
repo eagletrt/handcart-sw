@@ -112,3 +112,11 @@ def test_a_command_is_answered_right_away(rig):
     rig.run(1.0, until=State.IDLE)
     assert rig.handcart.request(Command.PRECHARGE) is None
     assert rig.handcart.status().state is State.PRECHARGE
+
+
+def test_no_update_or_reboot_while_the_ts_is_on(rig):
+    rig.run(1.0, until=State.IDLE)
+    assert rig.handcart.maintenance_problem() is None
+    rig.handcart.request(Command.PRECHARGE)
+    rig.run(3.0, until=State.READY)
+    assert "Stop first" in rig.handcart.maintenance_problem()

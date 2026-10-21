@@ -1,5 +1,6 @@
 """What the readings mean for the operator: plain functions of the status, no UI (tests/test_readings.py)."""
 
+from shared.config import Accumulator
 from shared.models import BmsSnapshot, ShutdownLoop
 
 
@@ -16,6 +17,11 @@ def overvoltage_cells(bms: BmsSnapshot, max_cell_voltage: float) -> set[int]:
     return {i for i, volts in enumerate(bms.cells) if volts is not None and volts > max_cell_voltage}
 
 
+def hot_probes(bms: BmsSnapshot, max_temperature: float) -> set[int]:
+    """The temperature probes above the limit, by index."""
+    return {i for i, temp in enumerate(bms.temps) if temp is not None and temp > max_temperature}
+
+
 def cell_overvoltage(bms: BmsSnapshot, max_cell_voltage: float) -> bool:
     """True if a cell is above its limit: read from the cells, or reported by the BMS."""
     if overvoltage_cells(bms, max_cell_voltage):
@@ -24,12 +30,15 @@ def cell_overvoltage(bms: BmsSnapshot, max_cell_voltage: float) -> bool:
     return any(error == "overvoltage" or error.endswith("CellOvervoltage") for error in bms.errors)
 
 
-def error_kind(bms: BmsSnapshot, loop: ShutdownLoop, max_cell_voltage: float, open_below: float) -> str:
-    """Which picture explains an error: "mushroom" (pressed), "cell" (over its limit), or "loop" (open)."""
+def error_kind(bms: BmsSnapshot, loop: ShutdownLoop, pack: Accumulator, open_below: float) -> str:
+    """Which picture explains an error: "mushroom" (pressed), "cell" (over its voltage limit),
+    "hot" (a cell too hot), or "loop" (open somewhere)."""
     if first_open(loop, open_below) == "mushroom":
         return "mushroom"
-    if cell_overvoltage(bms, max_cell_voltage):
+    if cell_overvoltage(bms, pack.max_cell_voltage):
         return "cell"
+    if bms.temp_max is not None and bms.temp_max > pack.max_temperature:
+        return "hot"
     return "loop"
 
 

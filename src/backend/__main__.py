@@ -14,6 +14,7 @@ from backend.hal import Hal, Sound
 from backend.hal.board import BoardHal
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
+from backend.system import System
 from shared import config
 from shared.config import Config
 
@@ -50,7 +51,10 @@ async def run() -> None:
             handcart.tick()
             await asyncio.sleep(TICK)
 
-    app = create_app(handcart)
+    system = System(cfg.update)
+    asyncio.get_running_loop().run_in_executor(None, system.check)  # look for updates at every start
+
+    app = create_app(handcart, system)
     server = uvicorn.Server(uvicorn.Config(app, host=cfg.network.backend_host, port=cfg.network.backend_port))
     ticking = asyncio.create_task(loop())
     try:

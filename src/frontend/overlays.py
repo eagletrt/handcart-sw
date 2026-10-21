@@ -12,7 +12,7 @@ from shared.models import Settings, State, Status, TsacState
 
 ERROR_ART = {
     kind: (Path(__file__).parent / "static" / "errors" / f"{kind}.svg").read_text()
-    for kind in ("cell", "mushroom", "loop")
+    for kind in ("cell", "hot", "mushroom", "loop")
 }
 PRECHARGE_PHASES = [
     (TsacState.AIRN_CHECK, "AIR− closed"),
@@ -137,7 +137,7 @@ class Error:
             return  # redrawing the picture would restart its animation
         self._kind = kind
         self._art.set_content(ERROR_ART[kind])
-        if kind == "cell":
+        if kind in ("cell", "hot"):
             self._details.set_text("View cells")
             self._details.props("icon=grid_view")
         else:
@@ -232,6 +232,37 @@ class SettingsWindow:
     async def _on_save(self) -> None:
         if await self._save(Settings(**self._draft)):
             self.root.set_visibility(False)
+
+
+class ConfirmWindow:
+    """Asks before something that cannot be undone from the screen: update, reboot, shut down."""
+
+    def __init__(self) -> None:
+        self._action: Callable[[], Awaitable[None]] | None = None
+        # "confirm": above the window that asks for it
+        with ui.element("div").classes("modal confirm") as self.root, ui.element("div").classes("sheet inf"):
+            self._title = ui.label("").classes("sheet-title")
+            self._text = ui.html("")
+            with ui.element("div").classes("sheet-actions"):
+                ui.button("Cancel", on_click=lambda: self.root.set_visibility(False)).props(
+                    "flat no-caps text-color=white"
+                ).classes("cancel")
+                self._confirm = ui.button("", on_click=self._on_confirm).props(
+                    "unelevated no-caps color=negative"
+                )
+        self.root.set_visibility(False)
+
+    def ask(self, title: str, text: str, button: str, action: Callable[[], Awaitable[None]]) -> None:
+        self._title.set_text(title)
+        self._text.set_content(f"<p>{text}</p>")
+        self._confirm.set_text(button)
+        self._action = action
+        self.root.set_visibility(True)
+
+    async def _on_confirm(self) -> None:
+        self.root.set_visibility(False)
+        if self._action is not None:
+            await self._action()
 
 
 class InfoWindow:

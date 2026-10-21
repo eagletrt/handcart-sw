@@ -10,6 +10,7 @@ from frontend.readings import (
     cell_overvoltage,
     error_kind,
     first_open,
+    hot_probes,
     overvoltage_cells,
 )
 
@@ -42,13 +43,20 @@ def test_cell_overvoltage_read_or_reported_by_the_bms():
     )
 
 
-def test_error_kind():
-    over = replace(NO_BMS, cells=(4.3,))
-    assert (
-        error_kind(over, MUSHROOM_PRESSED, MAX_CELL, OPEN_BELOW) == "mushroom"
-    )  # what the operator did first
-    assert error_kind(over, CLOSED, MAX_CELL, OPEN_BELOW) == "cell"
-    assert error_kind(NO_BMS, CLOSED, MAX_CELL, OPEN_BELOW) == "loop"
+def test_error_kind(cfg):
+    pack = cfg.accumulator
+    over = replace(NO_BMS, cells=(pack.max_cell_voltage + 0.1,))
+    hot = replace(NO_BMS, temp_max=pack.max_temperature + 1)
+    # the mushroom first: it is what the operator did
+    assert error_kind(over, MUSHROOM_PRESSED, pack, OPEN_BELOW) == "mushroom"
+    assert error_kind(over, CLOSED, pack, OPEN_BELOW) == "cell"
+    assert error_kind(hot, CLOSED, pack, OPEN_BELOW) == "hot"
+    assert error_kind(NO_BMS, CLOSED, pack, OPEN_BELOW) == "loop"
+
+
+def test_hot_probes_by_index():
+    bms = replace(NO_BMS, temps=(30.0, 56.0, None, 60.0))
+    assert hot_probes(bms, 55.0) == {1, 3}
 
 
 @pytest.mark.parametrize(

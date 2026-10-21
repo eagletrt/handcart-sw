@@ -1,0 +1,8 @@
+# Lets the handcart user run, without a password, only what the System page and the update need.
+#
+# Goes to: /etc/sudoers.d/handcart
+# Installed by: ./handcart.py install-services, which fills in {{USER}} and checks the file with visudo
+{{USER}} ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block handcart-update.service
+{{USER}} ALL=(root) NOPASSWD: /usr/bin/systemctl restart handcart-backend.service handcart-frontend.service
+{{USER}} ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
+{{USER}} ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
