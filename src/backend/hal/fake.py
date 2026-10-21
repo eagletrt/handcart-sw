@@ -1,27 +1,37 @@
 """Hardware stand-in for running the backend off the Pi.
 
 It remembers the relays and the sounds, reports a closed loop, and lets a test press buttons.
+Running with the simulator, the loop opens where the debug page says (shared/scenario.py).
 """
+
+from pathlib import Path
 
 from backend.hal import Sound
 from backend.hal.feedback import LOOP_CHANNELS
+from shared import scenario
 from shared.models import InputEvent, ShutdownLoop
 
 LOOP_POINTS = tuple(LOOP_CHANNELS.values())
 LOOP_VOLTAGE = 12.0  # V on a closed loop
+SCENARIO_PERIOD = 0.2  # s between two reads of the scenario file
 
 
 class FakeHal:
-    def __init__(self) -> None:
+    def __init__(self, scenario_file: Path | None = None) -> None:
         self.sd_relay_closed = False
         self.charger_power = False
         self.discharge = True
         self.open_at: str | None = None  # set to one of LOOP_POINTS to simulate an open loop
         self.played: list[Sound] = []
         self._pressed: list[InputEvent] = []
+        self._scenario_file = scenario_file  # if given, open_at is read from it
+        self._next_scenario_read = 0.0
 
     def poll(self, now: float) -> None:
-        pass
+        if self._scenario_file is None or now < self._next_scenario_read:
+            return
+        self._next_scenario_read = now + SCENARIO_PERIOD
+        self.open_at = scenario.read(self._scenario_file).shutdown_open_at
 
     def set_relays(self, sd_relay_closed: bool, charger_power: bool, discharge: bool) -> None:
         self.sd_relay_closed = sd_relay_closed

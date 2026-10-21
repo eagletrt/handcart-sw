@@ -33,6 +33,7 @@ from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
+BALANCING_THRESHOLD_STEP = 0.005  # V, of the − and + next to Balance: the BMS takes it in 5 mV steps
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -68,7 +69,12 @@ class Page:
         self._controls = Controls()
         self._framed_element: ui.element | None = None  # the element the frame is drawn on
 
-        actions = Actions(send=self._send, show=self._show, open_settings=self._open_settings)
+        actions = Actions(
+            send=self._send,
+            show=self._show,
+            open_settings=self._open_settings,
+            step_balancing_threshold=self._step_balancing_threshold,
+        )
         with ui.element("div").classes("screen"):
             self._halo = ui.element("div").classes("halo")
             with ui.element("div").classes("top"):
@@ -266,6 +272,21 @@ class Page:
             return False
         self._toast.show("Settings saved", ok=True)
         return True
+
+    async def _step_balancing_threshold(self, direction: int) -> None:
+        """The − and + next to Balance: one step of the threshold, within its limits, saved right away."""
+        if self._backend.status is None:
+            return
+        settings, pack = self._backend.status.settings, self._cfg.accumulator
+        threshold = settings.balancing_threshold + direction * BALANCING_THRESHOLD_STEP
+        threshold = round(max(pack.balancing_threshold_min, min(pack.balancing_threshold_max, threshold)), 3)
+        if threshold == settings.balancing_threshold:
+            return  # already at the limit
+        problem = await self._backend.change_settings(
+            settings.model_copy(update={"balancing_threshold": threshold})
+        )
+        if problem:
+            self._toast.show(problem, ok=False)
 
     def _open_settings(self) -> None:
         if self._backend.status is not None:

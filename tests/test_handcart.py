@@ -99,6 +99,8 @@ def test_settings_outside_the_limits_are_refused(rig, cfg):
     settings = rig.handcart.settings
     too_high = settings.model_copy(update={"target_voltage": cfg.charge.target_voltage_max + 1})
     assert rig.handcart.change_settings(too_high) is not None
+    too_low = settings.model_copy(update={"balancing_threshold": cfg.accumulator.balancing_threshold_min / 2})
+    assert rig.handcart.change_settings(too_low) is not None
     assert rig.handcart.settings == settings
 
 
@@ -151,24 +153,27 @@ def test_the_backend_keeps_running_with_the_can_unplugged(cfg):
     assert handcart.status().state is State.CHECK  # waiting for the BMS, not crashed
 
 
-def test_the_balancing_request_is_repeated_while_balancing(cfg, primary, charger_db):
+def test_the_balancing_request_is_repeated_while_balancing(cfg, primary, charger_db, monkeypatch):
     rig = Rig(cfg, primary, charger_db, speed=1)  # real speed: the balancing lasts much longer than the test
     try:
         assert rig.run(1.0, until=State.IDLE) is State.IDLE
-        balancing_id = primary.get_message_by_name("RaspberryTsacBalancingSet").frame_id
-        sent_at = []
+        settings = rig.handcart.settings.model_copy(update={"balancing_threshold": 0.020})
+        assert rig.handcart.change_settings(settings) is None
+        balancing = primary.get_message_by_name("RaspberryTsacBalancingSet")
+        requests = []  # (time, threshold)
         on_frame = rig.bms.on_frame
 
         def spy(frame, now):
-            if frame.id == balancing_id:
-                sent_at.append(now)
+            if frame.id == balancing.frame_id:
+                requests.append((now, balancing.decode(frame.data)["threshold"]))
             return on_frame(frame, now)
 
-        rig.bms.on_frame = spy
+        monkeypatch.setattr(rig.bms, "on_frame", spy)
         rig.handcart.request(Command.BALANCE)
         rig.run(5.0)
         assert rig.handcart.status().state is State.BALANCING
-        later = [t for t in sent_at if t > sent_at[0] + 0.5]  # after the first burst
+        later = [t for t, _ in requests if t > requests[0][0] + 0.5]  # after the first burst
         assert len(later) >= 4  # about one per second
+        assert all(threshold == pytest.approx(0.020) for _, threshold in requests)  # the operator's
     finally:
         rig.close()

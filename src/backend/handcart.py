@@ -51,7 +51,9 @@ class Handcart:
         self.charger = LittleSic(load_dbc(cfg.can.charger_dbc), timing.charger_presence_timeout, clock)
         self._fsm = ChargeFsm(cfg, now=clock())
         self.settings = Settings(
-            target_voltage=cfg.charge.target_voltage_default, max_current=cfg.charge.current_default
+            target_voltage=cfg.charge.target_voltage_default,
+            max_current=cfg.charge.current_default,
+            balancing_threshold=cfg.accumulator.balancing_threshold,
         )
         self._command: Command | None = None  # for the tick that request() runs
         self._inputs: deque[tuple[int, InputEvent]] = deque(maxlen=64)  # (number, event), for the frontend
@@ -75,6 +77,10 @@ class Handcart:
     def change_settings(self, settings: Settings) -> str | None:
         """Use new setpoints. Returns why they were refused, or None."""
         problem = setpoint_problem(self._cfg.charge, settings.target_voltage, settings.max_current)
+        pack = self._cfg.accumulator
+        low, high = pack.balancing_threshold_min, pack.balancing_threshold_max
+        if problem is None and not low <= settings.balancing_threshold <= high:
+            problem = f"balancing threshold outside {low * 1000:g}-{high * 1000:g} mV"
         if problem is None:
             self.settings = settings
         return problem
@@ -150,11 +156,14 @@ class Handcart:
             self._ts_on_sent = out.ts_on
         if out.balancing != self._balancing_sent:
             for _ in range(BMS_REQUEST_REPEATS):
-                send(self._bms_bus, self.bms.balancing_command(out.balancing))
+                send(
+                    self._bms_bus,
+                    self.bms.balancing_command(out.balancing, self.settings.balancing_threshold),
+                )
             self._balancing_sent = out.balancing
         elif out.balancing and due("balancing", timing.balancing_period, now):
             # the BMS stops balancing if it gets no request for 3 s
-            send(self._bms_bus, self.bms.balancing_command(True))
+            send(self._bms_bus, self.bms.balancing_command(True, self.settings.balancing_threshold))
         if due("charger control", timing.charger_ctrl_period, now):
             send(self._charger_bus, self.charger.control(out.charger))
         if due("charger alive", timing.charger_alive_period, now):

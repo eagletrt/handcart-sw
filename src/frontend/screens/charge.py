@@ -34,7 +34,7 @@ PRIMARY = {
 }
 # the button under it, only in some states
 SECONDARY = {
-    State.IDLE: Action("Balance cells", "tune", opens="cells"),
+    State.IDLE: Action("Balance cells", "balance", opens="cells"),
     State.CHARGE_DONE: Action("Charge again", "replay", command=Command.START_CHARGE),
 }
 OUTLINED = {State.CHARGE, State.CHARGE_DONE, State.BALANCING}  # the action is not the next step forward

@@ -27,6 +27,7 @@ class Actions:
     send: Callable[[Command], Awaitable[None]]  # a command to the backend
     show: Callable[[str], None]  # switch to another screen: "charge", "cells", "charger", "shutdown"
     open_settings: Callable[[], None]
+    step_balancing_threshold: Callable[[int], Awaitable[None]]  # one step down (-1) or up (+1), saved at once
 
 
 def number(value: float | None, digits: int = 1) -> str:

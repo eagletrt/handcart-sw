@@ -7,10 +7,11 @@ from pathlib import Path
 
 from nicegui import app, ui
 
+from frontend import debug
 from frontend.backend import Backend
 from frontend.page import Page
 from shared import config
-from shared.config import ROOT
+from shared.config import ROOT, hardware_is_simulated
 
 STATIC = Path(__file__).parent / "static"
 
@@ -30,6 +31,12 @@ def main() -> None:
         )
         ui.colors(primary="#F3FF14", negative="#FF453A", dark="#141411")  # brand yellow and red
         Page(cfg, backend)
+
+    if hardware_is_simulated(cfg):
+
+        @ui.page("/debug")
+        def debug_page() -> None:
+            debug.build()
 
     ui.run(
         host=cfg.network.frontend_host,

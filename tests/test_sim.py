@@ -56,7 +56,7 @@ def test_ts_on_follows_the_request(sim_bms, primary, cfg, clock):
 def test_balancing_ends_by_itself(primary, cfg, clock):
     sim_bms = SimBms(primary, cfg.accumulator, speed=1000)
     bms = Bms(primary, cfg.accumulator, cfg.timing.bms_presence_timeout, clock)
-    start = bms.balancing_command(True)
+    start = bms.balancing_command(True, cfg.accumulator.balancing_threshold)
 
     now = run(sim_bms, 0.1, handcart=[start])
     assert sim_bms.state is TsacState.BALANCING
@@ -98,3 +98,20 @@ def test_charger_tapers_close_to_the_target(charger_db, cfg, clock):
         current = sim.tick(TICK, pack_voltage=589.0)
     assert sim.state is ChargerState.RUNNING_VC
     assert current < 6.0
+
+
+def test_the_debug_page_can_push_a_cell_and_a_probe_over_their_limits(sim_bms, primary, cfg, clock):
+    bms = Bms(primary, cfg.accumulator, cfg.timing.bms_presence_timeout, clock)
+    sim_bms.high_cell, sim_bms.hot_cell = True, True
+    for frame in sim_bms.frames(now=0.0):
+        bms.on_frame(frame)
+    snap = bms.snapshot()
+    assert snap.cell_max > cfg.accumulator.max_cell_voltage
+    assert snap.temp_max > cfg.accumulator.max_temperature
+
+
+def test_the_debug_page_can_put_the_charger_in_error(charger_db):
+    charger = SimCharger(charger_db)
+    charger.forced_error = True
+    charger.tick(0.01, pack_voltage=550.0)
+    assert charger.state is ChargerState.ERROR

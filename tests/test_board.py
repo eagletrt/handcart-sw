@@ -7,7 +7,10 @@ import pytest
 from backend.hal import Sound
 from backend.hal.board import BoardHal
 from backend.hal.buzzer import RE7, Player
+from backend.hal.fake import FakeHal
 from backend.hal.feedback import configuration_word, parse_result, scan_word
+from frontend.readings import first_open
+from shared import scenario
 from shared.models import InputEvent
 
 
@@ -185,3 +188,24 @@ def test_board_drives_the_buzzer_while_polling(board):
     board.hal.poll(0.01)
     board.hal.poll(1.0)
     assert board.pwm.tones[-2:] == [RE7, None]
+
+
+def test_the_fake_loop_opens_where_the_scenario_says(tmp_path):
+    path = tmp_path / "sim.json"
+    hal = FakeHal(scenario_file=path)
+    hal.set_relays(sd_relay_closed=True, charger_power=True, discharge=False)
+    scenario.write(scenario.Scenario(shutdown_open_at="mushroom"), path)
+    hal.poll(1.0)
+    assert first_open(hal.shutdown_loop(), 2.0) == "mushroom"
+    path.unlink()
+    hal.poll(2.0)
+    assert first_open(hal.shutdown_loop(), 2.0) is None
+
+
+def test_an_open_tsms_reads_as_tsms(board, cfg):
+    # on the handcart channel 4 is after the TSMS and channel 5 after the BMS
+    adc = cfg.adc
+    twelve_volts = round(12.0 / (adc.divider + adc.divider_correction) / adc.vref * 4096)
+    board.adc.results = [result(channel, twelve_volts) for channel in (0, 1, 2, 3, 5)] + [result(4, 0)]
+    board.hal.poll(0.0)
+    assert first_open(board.hal.shutdown_loop(), cfg.shutdown.open_below) == "TSMS"

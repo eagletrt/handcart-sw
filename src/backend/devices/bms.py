@@ -100,9 +100,8 @@ class Bms:
         """Ask the BMS to close the AIRs (precharge, then TS on) or to open them."""
         return encode(self._db, "BmsSet", status=int(on))
 
-    def balancing_command(self, start: bool) -> Frame:
-        """Start or stop passive balancing, with the threshold from the config."""
-        threshold = self._pack.balancing_threshold
+    def balancing_command(self, start: bool, threshold: float) -> Frame:
+        """Start or stop passive balancing: cells above the lowest + threshold (V) are bled."""
         return encode(self._db, "RaspberryTsacBalancingSet", start=int(start), threshold=threshold)
 
     # frame readers

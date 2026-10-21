@@ -4,7 +4,6 @@ import asyncio
 import contextlib
 import logging
 import signal
-from pathlib import Path
 
 import uvicorn
 
@@ -16,7 +15,8 @@ from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.system import System
 from shared import config
-from shared.config import Config
+from shared.config import Config, hardware_is_simulated
+from shared.scenario import SCENARIO_FILE
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
 
@@ -25,17 +25,12 @@ log = logging.getLogger("backend")
 
 def make_hal(cfg: Config) -> Hal:
     """The real board on the Pi, unless the config asks for simulated hardware; a fake one elsewhere."""
-    if cfg.hardware.simulated or not on_raspberry_pi():
+    if hardware_is_simulated(cfg):
         log.warning("Hardware is simulated: relays, controls and shutdown feedbacks are not real")
-        return FakeHal()
+        return FakeHal(scenario_file=SCENARIO_FILE)
     from backend.hal import rpi  # needs RPi.GPIO and spidev, which exist only on the Pi
 
     return BoardHal(cfg, rpi.RpiGpio(cfg), rpi.RpiPwm(cfg.gpio.buzzer), rpi.RpiSpi(cfg))
-
-
-def on_raspberry_pi() -> bool:
-    model = Path("/proc/device-tree/model")
-    return model.exists() and "Raspberry Pi" in model.read_text()
 
 
 async def run() -> None:

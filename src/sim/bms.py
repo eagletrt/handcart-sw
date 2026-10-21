@@ -38,6 +38,8 @@ class SimBms:
         self.ts_voltage = 0.0
         self.current = 0.0
         self.faults: set[str] = set()  # TsacMainboardError flags to report, set from outside to test
+        self.high_cell = False  # report the first cell above the voltage limit, set from outside to test
+        self.hot_cell = False  # report the first probe above the temperature limit, set from outside to test
         self._state_since = 0.0
         self._soc = [0.46 + rnd.uniform(-0.025, 0.025) for _ in range(pack.cells)]
         self._capacity = [CELL_CAPACITY * rnd.uniform(0.97, 1.03) for _ in range(pack.cells)]
@@ -147,15 +149,27 @@ class SimBms:
             for name in ("TsacCellboardErrorA", "TsacCellboardErrorB", "TsacCellboardErrorC"):
                 frames.append(self._flags(name))
         if due("cell voltages", 0.2, now):
-            frames += self._cell_frames("Voltage", self.cell_voltages, pack.cells_per_cellboard)
+            frames += self._cell_frames("Voltage", self._reported_cells(), pack.cells_per_cellboard)
         if due("cell temperatures", 1.0, now):
-            frames += self._cell_frames("Temperature", self._temps, pack.temps_per_cellboard)
+            frames += self._cell_frames("Temperature", self._reported_temps(), pack.temps_per_cellboard)
         if due("balancing", 0.5, now):
             frames += self._balancing_frames()
         return frames
 
-    def _pack_voltages(self) -> Frame:
+    def _reported_cells(self) -> list[float]:
         cells = self.cell_voltages
+        if self.high_cell:
+            cells[0] = self._pack.max_cell_voltage + 0.05
+        return cells
+
+    def _reported_temps(self) -> list[float]:
+        temps = list(self._temps)
+        if self.hot_cell:
+            temps[0] = self._pack.max_temperature + 5
+        return temps
+
+    def _pack_voltages(self) -> Frame:
+        cells = self._reported_cells()
         return encode(
             self._db,
             "TsacMainboardVoltageInfo",
@@ -168,7 +182,7 @@ class SimBms:
         )
 
     def _pack_temperatures(self) -> Frame:
-        t = self._temps
+        t = self._reported_temps()
         return encode(
             self._db,
             "TsacMainboardTemperatureInfo",

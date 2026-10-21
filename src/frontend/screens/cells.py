@@ -61,6 +61,16 @@ class CellsScreen:
                 with ui.element("div").classes("cleft"):
                     self._legend = ui.html("").classes("cleg num")
                     self._detail = ui.label(HINT).classes("detail hint num")
+                with ui.element("div").classes("thr"):  # the balancing threshold, − and +
+                    self._threshold_down = ui.button(
+                        "−", on_click=lambda: actions.step_balancing_threshold(-1)
+                    )
+                    with ui.element("div").classes("thv"):
+                        self._threshold_value = ui.label("—").classes("num")
+                        ui.label("threshold").classes("cap")
+                    self._threshold_up = ui.button("+", on_click=lambda: actions.step_balancing_threshold(+1))
+                    for step_button in (self._threshold_down, self._threshold_up):
+                        step_button.props("flat text-color=white")
                 with (
                     ui.button(on_click=lambda: actions.send(Command.BALANCE))
                     .props("unelevated no-caps")
@@ -89,12 +99,12 @@ class CellsScreen:
     def update(self, status: Status) -> None:
         if self._volts:
             self._show_volts(status.bms)
-            self._trend_chart.set_content(self._trend_svg())
+            self._trend_chart.set_content(self._trend_svg(status.settings.balancing_threshold))
         else:
             self._show_temps(status.bms)
             self._trend_chart.set_content("")
         self._update_detail()
-        self._update_balance(status.bms, status.state)
+        self._update_balance(status.bms, status.state, status.settings.balancing_threshold)
 
     def reachable(self) -> list[Reachable]:
         # the frame starts on the mode shown: one turn to the other one, a click to the map (controls.py)
@@ -105,6 +115,8 @@ class CellsScreen:
         return usable(
             button("volts", self._volts_button, priority=volts_priority, opens_map=True),
             button("temps", self._temps_button, priority=temps_priority, opens_map=True),
+            button("threshold_down", self._threshold_down),
+            button("threshold_up", self._threshold_up),
             button("balance", self._balance),
         )
 
@@ -278,12 +290,11 @@ class CellsScreen:
         else:
             self._detail.classes(replace="detail num")
 
-    def _trend_svg(self) -> str:
-        """Delta over the last minutes of balancing, with the threshold as a dashed line."""
+    def _trend_svg(self, threshold: float) -> str:
+        """Delta over the last minutes of balancing, with the threshold (V) as a dashed line."""
         if len(self._trend) < 2:
             return ""
         width, height = 120, 34
-        threshold = self._cfg.balancing_threshold
         top = max(max(self._trend), threshold * 1.5)
 
         def y(delta: float) -> float:
@@ -301,10 +312,11 @@ class CellsScreen:
 
     # balancing
 
-    def _update_balance(self, bms: BmsSnapshot, s: State) -> None:
-        threshold_mv = self._cfg.balancing_threshold * 1000
+    def _update_balance(self, bms: BmsSnapshot, s: State, threshold: float) -> None:
+        threshold_mv = threshold * 1000
+        self._threshold_value.set_text(f"{threshold_mv:.0f} mV")
         if s is State.BALANCING:
-            start, delta, threshold = self._start_delta, bms.cell_delta, self._cfg.balancing_threshold
+            start, delta = self._start_delta, bms.cell_delta
             progress = 0.0
             if start is not None and delta is not None:
                 progress = balancing_progress(start, delta, threshold)
@@ -317,13 +329,13 @@ class CellsScreen:
             self._balance.set_enabled(False)  # stopping is the red STOP's job
         else:
             why_not = {
-                State.IDLE: f"until {threshold_mv:.0f} mV",
+                State.IDLE: "",  # the threshold is right beside it
                 State.ERROR: "clear the error first",
                 State.CHECK: "connect first",
             }
             self._balance_label.set_text("Balance")
             self._balance_note.set_text(why_not.get(s, "TS must be off"))
-            self._balance.props("icon=tune text-color=black")
+            self._balance.props("icon=balance text-color=black")
             self._balance.classes(replace="balbtn")
             self._balance.set_enabled(s is State.IDLE)
 

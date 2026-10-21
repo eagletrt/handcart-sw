@@ -11,7 +11,9 @@ from shared.models import ShutdownLoop
 # Each channel measures the loop just after a part, and is named after that part: no voltage there means
 # that part is open. On the PCB (handcart-hw): VSD -> SD relay -> SD_TO_MUSHROOM -> mushroom -> SD_TO_CHARGER
 # -> charger interlock -> SD_BMS_IN -> BMS -> SD_BMS_OUT -> TSMS key -> SD_END
-LOOP_CHANNELS = {0: "supply", 1: "SD relay", 2: "mushroom", 3: "charger", 4: "BMS", 5: "TSMS"}
+# Channels 4 and 5 are swapped on the handcart compared to the schematic: with the TSMS open, channel 4 drops
+# and channel 5 keeps its voltage. So channel 5 is after the BMS, channel 4 after the TSMS (in loop order).
+LOOP_CHANNELS = {0: "supply", 1: "SD relay", 2: "mushroom", 3: "charger", 5: "BMS", 4: "TSMS"}
 LAST_CHANNEL = 10  # channels 6-10 are other feedbacks: discharge coil, 12 V, PON, SD relay
 
 FULL_SCALE = 4096  # 12 bits

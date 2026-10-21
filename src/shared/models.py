@@ -125,6 +125,7 @@ class InputEvent(StrEnum):
 class Settings(BaseModel):
     target_voltage: float  # V
     max_current: float  # A
+    balancing_threshold: float  # V, cells above the lowest + this are bled
 
 
 class CommandRequest(BaseModel):

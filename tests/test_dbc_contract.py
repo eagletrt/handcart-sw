@@ -92,17 +92,17 @@ def test_no_signal_is_scaled_to_zero(primary, charger_db):
     assert zero == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="HYC_Error (0x1A0) collides with TsacMainboardShutdown: the charger needs new IDs on a shared bus",
-)
-def test_no_id_collisions_on_a_shared_bus(primary, charger_db, cfg):
+def test_the_charger_ids_are_reserved_on_a_shared_bus(primary, charger_db, cfg):
+    """On one bus, no car message may use a charger ID: libcan reserves each of them with a dummy
+    ChargerNNN message sent by the Charger node."""
     if not cfg.can.shared_bus:
         pytest.skip("charger on its own bus")
-    primary_ids = {m.frame_id: m.name for m in primary.messages}
-    clashes = [
-        f"{m.name} / {primary_ids[m.frame_id]} at {m.frame_id:#x}"
-        for m in charger_db.messages
-        if m.frame_id in primary_ids
-    ]
-    assert clashes == []
+    primary_by_id = {m.frame_id: m for m in primary.messages}
+    not_reserved = []
+    for m in charger_db.messages:
+        other = primary_by_id.get(m.frame_id)
+        if other is None:
+            not_reserved.append(f"{m.name} at {m.frame_id:#x}: not in libcan")
+        elif other.senders != ["Charger"]:
+            not_reserved.append(f"{m.name} at {m.frame_id:#x}: libcan uses it for {other.name}")
+    assert not_reserved == []

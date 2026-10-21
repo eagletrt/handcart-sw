@@ -42,10 +42,10 @@ def test_unknown_command_is_rejected(client):
 
 
 def test_settings(client, cfg):
-    ok = {"target_voltage": cfg.charge.target_voltage_min, "max_current": 5.0}
+    ok = {"target_voltage": cfg.charge.target_voltage_min, "max_current": 5.0, "balancing_threshold": 0.02}
     assert client.put("/api/settings", json=ok).json() == ok
 
-    too_high = {"target_voltage": cfg.charge.target_voltage_max + 1, "max_current": 5.0}
+    too_high = {**ok, "target_voltage": cfg.charge.target_voltage_max + 1}
     response = client.put("/api/settings", json=too_high)
     assert response.status_code == 422
     assert "outside" in response.json()["detail"]

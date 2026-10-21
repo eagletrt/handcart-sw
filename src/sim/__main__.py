@@ -5,11 +5,12 @@ import time
 
 from backend.canbus import load_dbc
 from backend.canbus.bus import open_bus, receive, send
-from shared import config
+from shared import config, scenario
 from sim.bms import SimBms
 from sim.charger import SimCharger
 
 TICK = 0.01  # s
+SCENARIO_PERIOD = 0.2  # s between two reads of the debug page's scenario
 
 
 def main() -> None:
@@ -25,10 +26,19 @@ def main() -> None:
     print(f"Simulating BMS and charger on {cfg.can.interface} ({cfg.can.bms_channel}), speed x{args.speed:g}")
 
     last = time.monotonic()
+    next_scenario_read = 0.0
+    test = scenario.Scenario()
     try:
         while True:
             now = time.monotonic()
             dt, last = now - last, now
+
+            if now >= next_scenario_read:  # what the debug page asks (shared/scenario.py)
+                next_scenario_read = now + SCENARIO_PERIOD
+                test = scenario.read()
+                bms.faults = {"overvoltage"} if test.bms_fault else set()
+                bms.high_cell, bms.hot_cell = test.high_cell, test.hot_cell
+                charger.forced_error = test.charger_error
 
             for frame in receive(bms_bus):
                 if not bms.on_frame(frame, now):
@@ -41,9 +51,11 @@ def main() -> None:
             bms.tick(now, dt, current)
 
             for frame in bms.frames(now):
-                send(bms_bus, frame)
+                if not test.bms_unplugged:
+                    send(bms_bus, frame)
             for frame in charger.frames(now):
-                send(charger_bus, frame)
+                if not test.charger_unplugged:
+                    send(charger_bus, frame)
             time.sleep(TICK)
     except KeyboardInterrupt:
         pass

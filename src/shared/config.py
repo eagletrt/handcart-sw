@@ -58,7 +58,9 @@ class Accumulator(_Section):
     temps_per_cellboard: int = Field(gt=0)
     max_cell_voltage: float = Field(gt=0)
     min_cell_voltage: float = Field(gt=0)
-    balancing_threshold: float = Field(gt=0)
+    balancing_threshold: float = Field(gt=0)  # the default
+    balancing_threshold_min: float = Field(gt=0)
+    balancing_threshold_max: float = Field(gt=0)
     cold_temperature: float
     warm_temperature: float
     max_temperature: float
@@ -79,6 +81,8 @@ class Accumulator(_Section):
     def _cell_limits(self) -> Self:
         if self.min_cell_voltage >= self.max_cell_voltage:
             raise ValueError("min_cell_voltage must be below max_cell_voltage")
+        if not self.balancing_threshold_min <= self.balancing_threshold <= self.balancing_threshold_max:
+            raise ValueError("balancing_threshold must be between balancing_threshold_min and _max")
         if not self.cold_temperature < self.warm_temperature < self.max_temperature:
             raise ValueError("temperatures must be in order: cold < warm < max")
         return self
@@ -212,3 +216,10 @@ def load(path: Path = DEFAULT_PATH, local: Path = LOCAL_PATH) -> Config:
             if key in data.get(section, {}):
                 data[section][key] = base / data[section][key]
     return Config.model_validate(data)
+
+
+def hardware_is_simulated(cfg: Config) -> bool:
+    """True off the Pi, or when the config asks for simulated hardware: fake board, simulator, /debug page."""
+    model = Path("/proc/device-tree/model")
+    on_raspberry_pi = model.exists() and "Raspberry Pi" in model.read_text()
+    return cfg.hardware.simulated or not on_raspberry_pi

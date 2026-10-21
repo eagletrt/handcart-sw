@@ -117,6 +117,6 @@ def test_commands(bms, primary, cfg):
     assert decoded(bms.ts_command(True))["status"] == 1
     assert decoded(bms.ts_command(False))["status"] == 0
 
-    balancing = decoded(bms.balancing_command(True))
+    balancing = decoded(bms.balancing_command(True, threshold=0.020))
     assert balancing["start"] == 1
-    assert balancing["threshold"] == pytest.approx(cfg.accumulator.balancing_threshold)
+    assert balancing["threshold"] == pytest.approx(0.020)

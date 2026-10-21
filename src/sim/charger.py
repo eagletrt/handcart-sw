@@ -18,6 +18,7 @@ class SimCharger:
         self._db = db
         self._periodic = Periodic()
         self.state = ChargerState.STANDBY
+        self.forced_error = False  # report the ERROR state, set from outside to test
         self.current = 0.0
         self.output_voltage = 0.0
         self._command = ChargerCommand.STOP
@@ -45,7 +46,10 @@ class SimCharger:
     def tick(self, dt: float, pack_voltage: float) -> float:
         """Advance by dt with the battery at pack_voltage, and return the current it pushes into it."""
         self.output_voltage = pack_voltage
-        if self._command is ChargerCommand.CHARGE and pack_voltage > 60:
+        if self.forced_error:
+            wanted = 0.0
+            self.state = ChargerState.ERROR
+        elif self._command is ChargerCommand.CHARGE and pack_voltage > 60:
             # constant current, then constant voltage when close to the target
             room = (self._target_voltage - pack_voltage) * CONSTANT_VOLTAGE_GAIN
             wanted = max(0.0, min(self._target_current, room))
