@@ -21,7 +21,14 @@ from frontend.controls import (
     Target,
     Turn,
 )
-from frontend.readings import cell_overvoltage, error_kind, first_open, hot_probes, overvoltage_cells
+from frontend.readings import (
+    cell_overvoltage,
+    error_kind,
+    first_open,
+    hot_probes,
+    overvoltage_cells,
+    ts_discharging,
+)
 from frontend.screens import Actions, Screen
 from frontend.screens.cells import CellsScreen
 from frontend.screens.charge import ChargeScreen
@@ -97,6 +104,7 @@ class Page:
                 self._charger = ChargerScreen()
                 self._shutdown = ShutdownScreen(cfg)
                 self._precharge = overlays.Precharge()
+                self._discharge = overlays.Discharge()  # above the error takeover (CSS)
                 self._error = overlays.Error(
                     on_reset=lambda: self._send(Command.RESET), on_details=self._on_details
                 )
@@ -176,6 +184,12 @@ class Page:
         self._error.root.set_visibility(on_charge and s is State.ERROR)
         if s is State.ERROR:
             self._error.update(status, self._error_kind(status))
+        if ts_discharging(s, status.bms):
+            self._discharge.root.set_visibility(not self._discharge.dismissed)
+            self._discharge.update(status)
+        else:
+            self._discharge.root.set_visibility(False)
+            self._discharge.done()
         self._follow_controls()
 
     def _update_system(self) -> None:
@@ -410,6 +424,8 @@ class Page:
         map_name, map_size, map_start = None, (0, 0), 0
         if self._precharge.root.visible:
             content: list[Reachable] = []  # it covers the screen, nothing to press there
+        elif self._discharge.root.visible:
+            content = self._discharge.reachable()
         elif self._error.root.visible:
             content = self._error.reachable()
         else:

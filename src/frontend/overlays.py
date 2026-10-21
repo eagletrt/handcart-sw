@@ -110,6 +110,49 @@ class Precharge:
         )
 
 
+class Discharge:
+    """After TS off, until the TS is below 60 V: on every screen, because the high voltage is still there."""
+
+    SAFE = 60.0  # V
+
+    def __init__(self) -> None:
+        self._start: float | None = None  # V when the discharge began: 0 % on the bar
+        self.dismissed = False  # hidden by the operator until the next discharge
+        with ui.element("div").classes("ovl pre dis") as self.root:
+            ui.label("High voltage").classes("k")
+            ui.label("TS discharging").classes("t")
+            ui.label("The AIRs are open but the TS is still live. Keep clear of the HV connectors.").classes(
+                "d"
+            )
+            with ui.element("div").classes("pbar"):
+                self._bar = ui.element("i").classes("flow")
+            self._numbers = ui.html("").classes("pnums num")
+            self._hide = ui.button("Hide", on_click=self._on_hide).props("flat no-caps text-color=white")
+            self._hide.classes("dhide")
+
+    def reachable(self) -> list[Reachable]:
+        return usable(button("hide", self._hide, priority=1))
+
+    def update(self, status: Status) -> None:
+        ts = status.bms.ts_voltage or 0.0
+        if self._start is None or ts > self._start:
+            self._start = ts
+        percent = 100.0
+        if self._start > self.SAFE:
+            percent = max(0.0, min(100.0, (self._start - ts) / (self._start - self.SAFE) * 100))
+        self._bar.style(f"width:{percent:.1f}%")
+        self._numbers.set_content(f"<span>TS <b>{ts:.0f} V</b></span><span>safe below <b>60 V</b></span>")
+
+    def done(self) -> None:
+        """The TS is below 60 V (or on again): the next discharge starts fresh."""
+        self._start = None
+        self.dismissed = False
+
+    def _on_hide(self) -> None:
+        self.dismissed = True
+        self.root.set_visibility(False)
+
+
 class Error:
     """Charging stopped: why, what the handcart did, and the way out."""
 

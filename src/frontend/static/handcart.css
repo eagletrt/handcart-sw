@@ -98,6 +98,8 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .ovl .d { font-size: 17px; color: var(--mute); margin-top: 12px; line-height: 1.35; }
 .ovl.pre { background: rgba(0,0,0,.94); }
 .ovl.pre .k { color: var(--y); }
+.ovl.dis { z-index: 31; }  /* above the error takeover: the high voltage first */
+.ovl.dis .dhide { align-self: flex-end; margin-top: 18px; height: 48px; padding: 0 22px; border: 1px solid var(--line-2); border-radius: 4px; }
 .pbar { height: 20px; background: rgba(255,255,255,.09); margin-top: 26px; position: relative; overflow: hidden; }
 .pbar i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .25s linear; }
 .pphases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }

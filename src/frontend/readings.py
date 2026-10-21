@@ -1,7 +1,9 @@
 """What the readings mean for the operator: plain functions of the status, no UI (tests/test_readings.py)."""
 
 from shared.config import Accumulator
-from shared.models import BmsSnapshot, ShutdownLoop
+from shared.models import BmsSnapshot, ShutdownLoop, State
+
+TS_ASKED_ON = {State.PRECHARGE, State.READY, State.CHARGE, State.CHARGE_DONE}
 
 
 def first_open(loop: ShutdownLoop, open_below: float) -> str | None:
@@ -48,3 +50,11 @@ def balancing_progress(start_delta: float, delta: float, threshold: float) -> fl
         return 100.0
     progress = (start_delta - delta) / (start_delta - threshold) * 100
     return max(0.0, min(100.0, progress))
+
+
+def ts_discharging(state: State, bms: BmsSnapshot) -> bool:
+    """The TS was turned off but still holds 60 V or more: the AIRs are open, the TS is still live.
+
+    Only when the BMS says so: an unknown reading (None) shows as "HV ?" in the top bar instead.
+    """
+    return state not in TS_ASKED_ON and bms.ts_below_60v is False

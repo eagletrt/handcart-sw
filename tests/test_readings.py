@@ -12,7 +12,9 @@ from frontend.readings import (
     first_open,
     hot_probes,
     overvoltage_cells,
+    ts_discharging,
 )
+from shared.models import State
 
 MAX_CELL = 4.2
 OPEN_BELOW = 2.0
@@ -69,3 +71,15 @@ def test_balancing_progress(delta, progress):
 
 def test_balancing_that_starts_under_the_threshold_is_done():
     assert balancing_progress(start_delta=0.008, delta=0.008, threshold=0.010) == 100.0
+
+
+def test_the_discharge_warning_shows_after_ts_off_until_below_60_volts():
+    live = replace(NO_BMS, connected=True, ts_below_60v=False, ts_voltage=420.0)
+    safe = replace(live, ts_below_60v=True, ts_voltage=30.0)
+    unknown = replace(live, ts_below_60v=None)
+    assert ts_discharging(State.IDLE, live)
+    assert ts_discharging(State.ERROR, live)
+    assert not ts_discharging(State.IDLE, safe)
+    assert not ts_discharging(State.CHARGE, live)  # asked on: it is supposed to be live
+    assert not ts_discharging(State.PRECHARGE, live)
+    assert not ts_discharging(State.IDLE, unknown)  # "HV ?" in the top bar instead
