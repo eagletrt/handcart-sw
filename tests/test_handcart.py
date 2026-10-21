@@ -126,3 +126,26 @@ def test_turning_the_encoder_ticks(rig):
     rig.hal.press(InputEvent.TURN_CW)
     rig.handcart.tick()
     assert rig.hal.played[-1] is Sound.TICK
+
+
+class UnpluggedBus(can.BusABC):
+    """A bus no one acks: the kernel queue is full, every send fails like on the Pi."""
+
+    def __init__(self) -> None:
+        super().__init__(channel="unplugged")
+
+    def send(self, msg, timeout=None):
+        raise can.CanOperationError("Failed to transmit: No buffer space available [Error Code 105]")
+
+    def _recv_internal(self, timeout):
+        return None, False
+
+
+def test_the_backend_keeps_running_with_the_can_unplugged(cfg):
+    now = 0.0
+    bus = UnpluggedBus()
+    handcart = Handcart(cfg, FakeHal(), bus, bus, clock=lambda: now)
+    for _ in range(1000):  # 5 s of ticks, every frame refused
+        now += TICK
+        handcart.tick()
+    assert handcart.status().state is State.CHECK  # waiting for the BMS, not crashed

@@ -10,5 +10,5 @@
 Name=can0
 
 [CAN]
-BitRate=1M
+BitRate=250K
 RestartSec=100ms

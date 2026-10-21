@@ -1,9 +1,17 @@
 """Opening a CAN bus with python-can, and moving Frames over it."""
 
+import logging
+import time
+
 import can
 
 from backend.canbus.frame import Frame
 from shared.config import Can
+
+log = logging.getLogger(__name__)
+
+WARNING_PERIOD = 5.0  # s between two warnings about frames not sent
+_last_warning = -WARNING_PERIOD  # so the first failure is always logged
 
 
 def open_bus(config: Can, channel: str) -> can.BusABC:
@@ -15,7 +23,20 @@ def open_bus(config: Can, channel: str) -> can.BusABC:
 
 
 def send(bus: can.BusABC, frame: Frame) -> None:
-    bus.send(can.Message(arbitration_id=frame.id, data=frame.data, is_extended_id=False))
+    """Send a frame; if the bus refuses it, log and go on.
+
+    With the BMS or the charger unplugged no one acks the frames, the kernel queue fills up and every
+    send fails. That is not a reason to stop the backend: the devices are just missing, and the state
+    machine already sees that from the frames that stop arriving.
+    """
+    global _last_warning
+    try:
+        bus.send(can.Message(arbitration_id=frame.id, data=frame.data, is_extended_id=False))
+    except can.CanOperationError as error:
+        now = time.monotonic()
+        if now - _last_warning > WARNING_PERIOD:  # one line every few seconds, not one per frame
+            log.warning("CAN %s: frame %#x not sent: %s", bus.channel_info, frame.id, error)
+            _last_warning = now
 
 
 def receive(bus: can.BusABC) -> list[Frame]:
