@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATH = ROOT / "config.toml"
 LOCAL_PATH = ROOT / "config.local.toml"  # optional, not in git: overrides for this machine
+BACKEND_ERROR_FILE = ROOT / "var" / "backend-error.txt"  # why the backend stopped; shown by the frontend
 
 
 class _Section(BaseModel):

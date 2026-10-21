@@ -4,6 +4,8 @@
 # Installed by: ./handcart.py install-services, which fills in {{USER}}, {{ROOT}} and {{UV_DIR}}
 
 [Unit]
+# never give up restarting: by default systemd stops after 5 failures in 10 s, and the service stays down
+StartLimitIntervalSec=0
 Description=Handcart frontend
 After=handcart-backend.service
 

@@ -1,9 +1,11 @@
 """Run the backend: the handcart loop and the API, in one process. ./handcart.py backend"""
 
 import asyncio
-import contextlib
 import logging
+import os
 import signal
+import socket
+import time
 
 import uvicorn
 
@@ -15,10 +17,11 @@ from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.system import System
 from shared import config
-from shared.config import Config, hardware_is_simulated
+from shared.config import BACKEND_ERROR_FILE, Config, hardware_is_simulated
 from shared.scenario import SCENARIO_FILE
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
+WATCHDOG_PING = 1.0  # s between two "still ticking" to systemd (WatchdogSec in handcart-backend.service)
 
 log = logging.getLogger("backend")
 
@@ -51,14 +54,21 @@ async def run() -> None:
     async def loop() -> None:
         """Tick for ever. If a tick fails the whole backend stops: an API still answering without the loop
         would look alive while nothing watches the charge. The finally below leaves the hardware safe, and
-        systemd starts the backend again."""
+        systemd starts the backend again. If the ticks stop without failing, systemd's watchdog does it."""
         nonlocal failed
+        notify_systemd("READY=1")
+        BACKEND_ERROR_FILE.unlink(missing_ok=True)  # started fine: no reason to show any more
+        last_ping = 0.0
         try:
             while True:
                 handcart.tick()
+                if time.monotonic() - last_ping >= WATCHDOG_PING:
+                    notify_systemd("WATCHDOG=1")
+                    last_ping = time.monotonic()
                 await asyncio.sleep(TICK)
-        except Exception:
+        except Exception as error:
             log.exception("The control loop failed: stopping the backend")
+            report_failure(error)
             failed = True
             server.should_exit = True
 
@@ -77,10 +87,39 @@ async def run() -> None:
         raise SystemExit(1)  # systemd sees a failure, not a clean stop
 
 
+def notify_systemd(state: str) -> None:
+    """Tell systemd how the service is doing (sd_notify): READY=1 once started, WATCHDOG=1 while ticking.
+
+    Does nothing when systemd did not start the backend (no NOTIFY_SOCKET), e.g. on a computer.
+    """
+    address = os.environ.get("NOTIFY_SOCKET")
+    if not address:
+        return
+    if address.startswith("@"):
+        address = "\0" + address[1:]  # an abstract socket
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
+            sock.sendto(state.encode(), address)
+    except OSError as error:
+        log.warning("cannot notify systemd (%s): %s", state, error)
+
+
+def report_failure(error: BaseException) -> None:
+    """Leave the reason on disk: the frontend shows it while systemd starts the backend again."""
+    BACKEND_ERROR_FILE.parent.mkdir(exist_ok=True)
+    BACKEND_ERROR_FILE.write_text(f"{type(error).__name__}: {error}")
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     # systemd stops the service with SIGTERM: make it a Ctrl+C, so the finally above always runs
     # (by default SIGTERM ends the process on the spot, relays as they are)
     signal.signal(signal.SIGTERM, signal.default_int_handler)
-    with contextlib.suppress(KeyboardInterrupt):  # the way out, not an error
+    try:
         asyncio.run(run())
+    except KeyboardInterrupt:  # the way out, not an error
+        pass
+    except Exception as error:  # it could not start: no config, no CAN interface, no GPIO...
+        log.exception("The backend could not start")
+        report_failure(error)
+        raise

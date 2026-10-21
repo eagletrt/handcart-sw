@@ -8,6 +8,8 @@
 # Not yet tried on the handcart Pi.
 
 [Unit]
+# never give up restarting: by default systemd stops after 5 failures in 10 s, and the service stays down
+StartLimitIntervalSec=0
 Description=Handcart display
 Wants=handcart-frontend.service
 After=handcart-frontend.service systemd-user-sessions.service plymouth-start.service

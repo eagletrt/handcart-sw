@@ -29,7 +29,7 @@ from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
 from frontend.targets import Reachable, button, usable
-from shared.config import Config
+from shared.config import BACKEND_ERROR_FILE, Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
@@ -127,6 +127,7 @@ class Page:
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
+                self._backend_error = ui.label("").classes("why")  # why it stopped, if it said so
 
         self._screens: dict[str, Screen] = {
             "charge": self._charge,
@@ -148,6 +149,8 @@ class Page:
     def _refresh(self) -> None:
         status = self._backend.status
         self._offline.set_visibility(status is None)
+        if status is None:
+            self._backend_error.set_text(backend_error())
         self._clock.set_text(datetime.now().strftime("%H:%M"))
         self._toast.update()
         self._update_system()
@@ -454,3 +457,11 @@ class Page:
         if element is not None and "kframe" not in element.classes:
             element.classes(add="kframe")
         self._framed_element = element
+
+
+def backend_error() -> str:
+    """Why the backend stopped, as it left it on disk before it was started again; "" if it did not say."""
+    try:
+        return BACKEND_ERROR_FILE.read_text()
+    except OSError:  # no file: the backend is just starting, or it is on another machine
+        return ""

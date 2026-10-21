@@ -4,6 +4,8 @@
 # Installed by: ./handcart.py install-services, which fills in {{USER}}, {{ROOT}} and {{UV_DIR}}
 
 [Unit]
+# never give up restarting: by default systemd stops after 5 failures in 10 s, and the service stays down
+StartLimitIntervalSec=0
 Description=Handcart backend
 Wants=sys-subsystem-net-devices-can0.device
 After=sys-subsystem-net-devices-can0.device
@@ -15,6 +17,16 @@ Environment=PATH={{UV_DIR}}:/usr/local/bin:/usr/bin:/bin
 ExecStart={{ROOT}}/handcart.py backend
 Restart=always
 RestartSec=2
+# The backend says READY when it starts and pings every second from its control loop (backend/__main__.py).
+# No ping for 10 s means the loop is stuck: systemd kills the backend and starts it again.
+# NotifyAccess=all: the pings come from python, started by uv, started by handcart.py.
+Type=notify
+NotifyAccess=all
+WatchdogSec=10
+# no READY within 30 s (like health_timeout in config.toml): the start failed
+TimeoutStartSec=30
+# SIGTERM, not the default SIGABRT: the backend first tries to leave the relays safe (TimeoutStopSec)
+WatchdogSignal=SIGTERM
 # give the backend time to open the relays and stop the charger on shutdown
 TimeoutStopSec=5
 
