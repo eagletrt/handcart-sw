@@ -7,8 +7,11 @@ Register settings and channel wiring are those of the old repo.
 from shared.config import Adc
 from shared.models import ShutdownLoop
 
-# ADC channel -> point of the shutdown loop, in loop order (the old FB enum, channels 0-5)
-LOOP_CHANNELS = {0: "supply", 1: "mushroom", 2: "charger", 3: "BMS in", 4: "BMS out", 5: "loop end"}
+# ADC channel -> point of the shutdown loop, in loop order (the old FB enum, channels 0-5).
+# Each channel measures the loop just after a part, and is named after that part: no voltage there means
+# that part is open. On the PCB (handcart-hw): VSD -> SD relay -> SD_TO_MUSHROOM -> mushroom -> SD_TO_CHARGER
+# -> charger interlock -> SD_BMS_IN -> BMS -> SD_BMS_OUT -> TSMS key -> SD_END
+LOOP_CHANNELS = {0: "supply", 1: "SD relay", 2: "mushroom", 3: "charger", 4: "BMS", 5: "TSMS"}
 LAST_CHANNEL = 10  # channels 6-10 are other feedbacks: discharge coil, 12 V, PON, SD relay
 
 FULL_SCALE = 4096  # 12 bits

@@ -29,11 +29,12 @@ class FakeHal:
         self.discharge = discharge
 
     def shutdown_loop(self) -> ShutdownLoop:
-        """12 V at every point up to an open one, 0 V after it; all 0 V with the SD relay open."""
-        powered = self.sd_relay_closed
+        """12 V at every point up to an open one, 0 V from it on. The SD relay opens like any other part."""
+        open_at = self.open_at if self.sd_relay_closed else "SD relay"
+        powered = True
         loop = []
         for point in LOOP_POINTS:
-            powered = powered and point != self.open_at
+            powered = powered and point != open_at
             loop.append((point, LOOP_VOLTAGE if powered else 0.0))
         return tuple(loop)
 

@@ -158,8 +158,8 @@ class ChargeFsm:
             self._go(State.IDLE, inputs.now, "The BMS turned the TS off")
         elif command is Command.PAUSE_CHARGE:
             self._go(State.READY, inputs.now, "Charging paused")
-        elif self._charge_complete(inputs):
-            self._go(State.CHARGE_DONE, inputs.now, "Charge complete")
+        elif reason := self._charge_complete(inputs):
+            self._go(State.CHARGE_DONE, inputs.now, f"Charge complete: {reason}")
 
     def _charge_done(self, inputs: Inputs, command: Command | None) -> None:
         if inputs.bms.state is not TsacState.TS_ON:
@@ -217,7 +217,7 @@ class ChargeFsm:
         if self.state in TS_ON_STATES:
             if not inputs.charger.connected:
                 return "The charger stopped responding"
-            # only the ERROR state trips, as on master: HYC_Error flags can be set while the charger works fine
+            # only the ERROR state trips, as on master: HYC_Error flags can be set on a working charger
             if inputs.charger.state is ChargerState.ERROR:
                 return "Charger: " + (", ".join(sorted(inputs.charger.errors)) or "in error")
             if point := self._open_point(inputs):
@@ -246,16 +246,23 @@ class ChargeFsm:
     def _setpoint_problem(self, inputs: Inputs) -> str | None:
         return setpoint_problem(self._cfg.charge, inputs.target_voltage, inputs.max_current)
 
-    def _charge_complete(self, inputs: Inputs) -> bool:
+    def _charge_complete(self, inputs: Inputs) -> str | None:
+        """Why the charge is complete, or None."""
         b, c = inputs.bms, inputs.charger
-        if b.cell_max is not None and b.cell_max >= self._cfg.accumulator.max_cell_voltage:
-            return True
-        return (
-            c.voltage is not None
+        limit = self._cfg.accumulator.max_cell_voltage
+        if b.cell_max is not None and b.cell_max >= limit:
+            return f"a cell is at {b.cell_max:.3f} V (limit {limit:g} V)"
+        # Only while the charger delivers: before it starts (STANDBY) the current is 0 too.
+        if (
+            c.state is not None
+            and c.state.delivering
+            and c.voltage is not None
             and c.current is not None
             and c.voltage >= inputs.target_voltage - DONE_VOLTAGE_MARGIN
             and c.current < DONE_CURRENT
-        )
+        ):
+            return f"{c.voltage:.1f} V reached, current below {DONE_CURRENT:g} A"
+        return None
 
     # outputs
 

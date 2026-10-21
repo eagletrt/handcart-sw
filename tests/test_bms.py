@@ -54,8 +54,21 @@ def test_pack_readings(bms, bms_frame):
     bms.on_frame(bms_frame("TsacMainboardCurrentInfo", current=8.0, power=4.4))
     snap = bms.snapshot()
     assert snap.pack_voltage == 546.5
-    assert snap.cell_delta == pytest.approx(0.07, abs=0.01)
     assert snap.current == pytest.approx(8.0, abs=0.1)
+
+
+def test_cell_stats_come_from_the_cells_not_the_mainboard(bms, bms_frame):
+    bms.on_frame(
+        bms_frame(
+            "TsacMainboardVoltageInfo", ts=545.0, total=546.5, cellSum=546.0, average=4.5, min=4.5, max=4.5
+        )
+    )
+    cells = {"cell1": 3.75, "cell2": 3.80, "cell3": 3.85, "cell4": 3.80, "cell5": 3.80, "cell6": 3.80}
+    bms.on_frame(bms_frame("TsacCellboard1Voltage", group=0, **cells))
+    snap = bms.snapshot()
+    assert snap.cell_min == pytest.approx(3.75, abs=0.01)
+    assert snap.cell_max == pytest.approx(3.85, abs=0.01)
+    assert snap.cell_average == pytest.approx(3.80, abs=0.01)
 
 
 def test_cell_voltages_land_in_the_right_cellboard(bms, bms_frame, cfg):

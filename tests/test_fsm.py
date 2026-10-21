@@ -8,7 +8,7 @@ from backend.core.fsm import ChargeFsm, Inputs
 from backend.devices.charger import ChargerCommand
 from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, State, TsacState
 
-CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("bms in", 11.9), ("bms out", 11.9))
+CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("BMS", 11.9), ("TSMS", 11.9))
 
 BMS = BmsSnapshot(
     connected=True,
@@ -106,6 +106,13 @@ def test_normal_charge(bench):
     out = bench.step()
     assert out.state is State.CHARGE_DONE
     assert out.ts_on and out.charger is ChargerCommand.STOP
+
+
+def test_charge_is_not_complete_before_the_charger_starts(bench):
+    bench.go_to(State.CHARGE)
+    # TS at the target, but the charger still in STANDBY: 0 A only because it has not started yet
+    bench.charger = replace(CHARGER, state=ChargerState.STANDBY, voltage=bench.target, current=0.0)
+    assert bench.step().state is State.CHARGE
 
 
 def test_charge_stops_when_a_cell_reaches_the_limit(bench, cfg):

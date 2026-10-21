@@ -28,9 +28,6 @@ class Bms:
         self._state: TsacState | None = None
         self._ts_voltage: float | None = None
         self._pack_voltage: float | None = None
-        self._cell_min: float | None = None
-        self._cell_max: float | None = None
-        self._cell_average: float | None = None
         self._current: float | None = None
         self._power: float | None = None
         self._temp_min: float | None = None
@@ -74,14 +71,17 @@ class Bms:
         return self._last_seen is not None and self._clock() - self._last_seen < self._presence_timeout
 
     def snapshot(self) -> BmsSnapshot:
+        # min, max and average come from the cells: in TsacMainboardVoltageInfo the BMS sends a max stuck at
+        # 4.5 V, which made every charge "complete" at once
+        known = [v for v in self._cells if v is not None]
         return BmsSnapshot(
             connected=self.connected,
             state=self._state,
             ts_voltage=self._ts_voltage,
             pack_voltage=self._pack_voltage,
-            cell_min=self._cell_min,
-            cell_max=self._cell_max,
-            cell_average=self._cell_average,
+            cell_min=min(known, default=None),
+            cell_max=max(known, default=None),
+            cell_average=sum(known) / len(known) if known else None,
             current=self._current,
             power=self._power,
             temp_min=self._temp_min,
@@ -116,9 +116,6 @@ class Bms:
     def _on_voltages(self, s: Signals) -> None:
         self._ts_voltage = s["ts"]
         self._pack_voltage = s["total"]
-        self._cell_min = s["min"]
-        self._cell_max = s["max"]
-        self._cell_average = s["average"]
 
     def _on_current(self, s: Signals) -> None:
         self._current = s["current"]

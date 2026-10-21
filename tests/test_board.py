@@ -151,8 +151,8 @@ def test_board_reports_the_loop_in_order(board, cfg):
     board.hal.poll(0.0)
     loop = dict(board.hal.shutdown_loop())
     assert loop["supply"] == pytest.approx(12.0, abs=0.3)
-    assert loop["charger"] == 0.0
-    assert loop["BMS in"] is None  # no reading yet
+    assert loop["mushroom"] == 0.0
+    assert loop["charger"] is None  # no reading yet
 
 
 def test_the_adc_is_configured_once_at_start(board):

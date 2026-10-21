@@ -9,6 +9,11 @@
 [Match]
 Name=can0
 
+[Link]
+# CAN has no IP address, so it never counts as "online": without this, systemd-networkd-wait-online
+# waits for it until its timeout and holds back every service that needs network-online.target.
+RequiredForOnline=no
+
 [CAN]
 BitRate=250K
 RestartSec=100ms
