@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import shutil
 import signal
 import socket
 import time
@@ -15,6 +16,7 @@ from backend.hal import Hal, Sound
 from backend.hal.board import BoardHal
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
+from backend.network import FakeNetwork, Network
 from backend.system import System
 from shared import config
 from shared.config import BACKEND_ERROR_FILE, SETTINGS_FILE, Config, hardware_is_simulated
@@ -24,6 +26,14 @@ TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
 WATCHDOG_PING = 1.0  # s between two "still ticking" to systemd (WatchdogSec in handcart-backend.service)
 
 log = logging.getLogger("backend")
+
+
+def make_network() -> Network | FakeNetwork:
+    """NetworkManager on the handcart; made-up Wi-Fi networks where there is no nmcli (a computer)."""
+    if shutil.which("nmcli") is None:
+        log.warning("No nmcli: the Wi-Fi is simulated, its networks are made up")
+        return FakeNetwork()
+    return Network()
 
 
 def make_hal(cfg: Config) -> Hal:
@@ -47,8 +57,11 @@ async def run() -> None:
 
     system = System(cfg.update)
     asyncio.get_running_loop().run_in_executor(None, system.check)  # look for updates at every start
+    network = make_network()
+    # the Wi-Fi is on at every start: turned off from the screen, a restart brings SSH back
+    asyncio.get_running_loop().run_in_executor(None, network.set_wifi, True)
 
-    app = create_app(handcart, system)
+    app = create_app(handcart, system, network)
     server = uvicorn.Server(uvicorn.Config(app, host=cfg.network.backend_host, port=cfg.network.backend_port))
     failed = False
 

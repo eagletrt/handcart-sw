@@ -12,6 +12,7 @@ from shared.models import (
     ChargerSnapshot,
     Command,
     InputEvent,
+    NetworkInfo,
     Settings,
     Status,
     StreamMessage,
@@ -21,7 +22,8 @@ from shared.models import (
 log = logging.getLogger(__name__)
 
 RECONNECT_DELAY = 1.0  # s
-SYSTEM_PERIOD = 10.0  # s between two reads of /api/system (the backend looks for updates when it starts)
+SYSTEM_PERIOD = 10.0  # s between two reads of /api/system and /api/network (updates, IP address)
+WIFI_TIMEOUT = 40  # s: the backend waits up to 20 s for a scan or a connection, plus the reading after
 UNREACHABLE = "The backend is not reachable"
 
 # what the screen shows for a device that stopped talking: its last readings are no longer true
@@ -61,6 +63,7 @@ class Backend:
         self._address = address  # host:port
         self.status: Status | None = None  # as the screen shows it; None while the backend is not reachable
         self.system: SystemInfo | None = None  # version and updates; None until read
+        self.network: NetworkInfo | None = None  # addresses and Wi-Fi networks; None until read
         self._listeners: list[Callable[[InputEvent], None]] = []
 
     async def run(self) -> None:
@@ -79,9 +82,10 @@ class Backend:
             await asyncio.sleep(RECONNECT_DELAY)
 
     async def follow_system(self) -> None:
-        """Read /api/system for ever, so the UI knows about updates without asking."""
+        """Read /api/system and /api/network for ever, so the UI knows about updates and addresses."""
         while True:
             await self.read_system()
+            await self.read_network()
             await asyncio.sleep(SYSTEM_PERIOD)
 
     async def read_system(self) -> None:
@@ -92,6 +96,15 @@ class Backend:
             return  # keep the last one: the backend is restarting, or not there
         if response.status_code == 200:
             self.system = SystemInfo.model_validate_json(response.text)
+
+    async def read_network(self) -> None:
+        try:
+            async with httpx.AsyncClient(timeout=WIFI_TIMEOUT) as client:
+                response = await client.get(f"http://{self._address}/api/network")
+        except httpx.HTTPError:
+            return  # keep the last one: the backend is restarting, or not there
+        if response.status_code == 200:
+            self.network = NetworkInfo.model_validate_json(response.text)
 
     def on_input(self, listener: Callable[[InputEvent], None]) -> Callable[[], None]:
         """Call listener for every press of the physical controls. Returns a function that stops it."""
@@ -110,6 +123,30 @@ class Backend:
         """Look for updates now. Returns why it could not, or None; the result is in self.system."""
         problem = await self._request("POST", "/api/system/check", timeout=30)
         await self.read_system()
+        return problem
+
+    async def scan_wifi(self) -> str | None:
+        """Look for Wi-Fi networks again. Returns why it could not, or None; the result is in self.network."""
+        problem = await self._request("POST", "/api/network/scan", timeout=WIFI_TIMEOUT)
+        await self.read_network()
+        return problem
+
+    async def connect_wifi(self, ssid: str, password: str | None) -> str | None:
+        """Join a Wi-Fi network; password None for a saved or open one. Returns why it could not, or None."""
+        body = {"ssid": ssid, "password": password}
+        problem = await self._request("POST", "/api/network/connect", body, timeout=WIFI_TIMEOUT)
+        await self.read_network()
+        return problem
+
+    async def disconnect_wifi(self) -> str | None:
+        problem = await self._request("POST", "/api/network/disconnect", timeout=WIFI_TIMEOUT)
+        await self.read_network()
+        return problem
+
+    async def set_wifi(self, on: bool) -> str | None:
+        """Turn the Wi-Fi radio on or off. Returns why it could not, or None."""
+        problem = await self._request("POST", "/api/network/wifi", {"on": on}, timeout=WIFI_TIMEOUT)
+        await self.read_network()
         return problem
 
     async def update(self) -> str | None:

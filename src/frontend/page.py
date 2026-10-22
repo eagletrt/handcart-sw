@@ -26,6 +26,7 @@ from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
 from frontend.targets import Reachable, button, usable
 from frontend.updating import Updating
+from frontend.wifi_window import WifiWindow
 from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
@@ -80,6 +81,8 @@ class Page:
                 self._info_button = ui.button(icon="info_outline", on_click=self._open_info)
                 self._info_button.props("flat round dense text-color=white").classes("info")
                 ui.element("div").classes("spacer")
+                self._wifi_button = ui.button(icon="wifi_off", on_click=self._open_wifi)
+                self._wifi_button.props("flat round dense text-color=white").classes("info wifi-off")
                 with (
                     ui.button(icon="settings", on_click=self._open_system)
                     .props("flat round dense text-color=white")
@@ -119,10 +122,13 @@ class Page:
             self._info = overlays.InfoWindow()
             self._toast = overlays.Toast()
             self._confirm = overlays.ConfirmWindow()
+            self._wifi = WifiWindow(backend, self._toast, self._confirm)
             self._system = SystemWindow(
                 backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
             )
             self._updating = Updating(self._toast)
+            # the windows that cover the screens, the topmost first
+            self._windows = (self._confirm, self._wifi, self._system, self._settings, self._info)
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
@@ -164,6 +170,7 @@ class Page:
             self._state = s
             self._entered = time.monotonic()
             if s in TAKEOVER_STATES:
+                self._close_windows()  # nothing may hide an error, or the precharge
                 self._select("charge")
 
         self._cells.record(status)
@@ -197,6 +204,25 @@ class Page:
             self._toast.show("Update available: open the gear", ok=True)
         if self._system.root.visible:
             self._system.update()
+        self._update_wifi_button()
+        if self._wifi.root.visible:
+            self._wifi.update()
+
+    def _update_wifi_button(self) -> None:
+        """Next to the gear: the Wi-Fi icon. White when on a network, grey when on but not on a network,
+        crossed out when the Wi-Fi is off."""
+        network = self._backend.network
+        wifi_on = network is not None and network.wifi_on
+        connected = network is not None and any(n.connected for n in network.networks)
+        if connected:
+            self._wifi_button.props("icon=wifi")
+            self._wifi_button.classes(remove="wifi-off")
+        elif wifi_on:
+            self._wifi_button.props("icon=wifi")
+            self._wifi_button.classes(add="wifi-off")
+        else:
+            self._wifi_button.props("icon=wifi_off")
+            self._wifi_button.classes(add="wifi-off")
 
     def _update_top(self, status: Status) -> None:
         s, bms = status.state, status.bms
@@ -250,6 +276,10 @@ class Page:
         else:
             cells_badge.classes(add="y")  # white: balancing
 
+    def _close_windows(self) -> None:
+        for window in self._windows:
+            window.root.set_visibility(False)
+
     def _error_kind(self, status: Status) -> str:
         return error_kind(status.fault, status.bms, self._cfg.accumulator)
 
@@ -293,6 +323,9 @@ class Page:
         if self._backend.status is not None:
             settings = self._backend.status.settings
             self._settings.open(settings, "Balancing settings", ("balancing_threshold",))
+
+    async def _open_wifi(self) -> None:
+        await self._wifi.open()
 
     def _open_system(self) -> None:
         self._system.open()
@@ -379,7 +412,7 @@ class Page:
         """What the controls can reach now (in reading order), and where they are."""
         if self._updating.root.visible:
             return [], Context(window_open=True)  # updating: nothing to press until it is over
-        for window in (self._confirm, self._system, self._settings, self._info):  # the topmost first
+        for window in self._windows:  # the topmost first
             if window.root.visible:
                 reachable = window.reachable()
                 return reachable, Context(targets=[item.target for item in reachable], window_open=True)
@@ -396,7 +429,9 @@ class Page:
             if self._tab == "cells" and self._backend.status is not None:
                 map_name, map_size = self._cells.map_name(), self._cells.map_size()
                 map_start = self._cells.map_start(self._backend.status.bms)
-        top = usable(button("info", self._info_button), button("system", self._gear))
+        top = usable(
+            button("info", self._info_button), button("wifi", self._wifi_button), button("system", self._gear)
+        )
         tabs = [Reachable(Target(key), tab, partial(self._show, key)) for key, (tab, _) in self._tabs.items()]
         stop = usable(button("stop", self._stop, priority=2))  # while something runs, the frame starts here
         reachable = [*top, *content, *tabs, *stop]

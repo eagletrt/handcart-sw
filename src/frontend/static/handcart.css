@@ -1,6 +1,6 @@
-/* Layout: the handcart's 6.5" touch screen, 800 x 480 at 143.5 px/in (1 px = 0.177 mm), drawn 1:1.
+/* Layout: drawn 480 px tall and as wide as the display's aspect ratio, then zoomed to fill it (handcart.js).
    Top bar 48 / content / nav 68. Black 60, white 30, yellow 10 (energy and the next action).
-   Everything the operator touches is at least 56 px (10 mm). */
+   Everything the operator touches is at least 56 px tall. */
 :root {
   --bg: #000000;
   --panel-2: #141411;
@@ -283,6 +283,48 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .ubtns .q-btn { height: 56px; border-radius: 4px; font-weight: 700; font-size: 16px; }
 .ubtns .q-btn.cancel { border: 1px solid var(--line-2); }
 .sheet-actions.power { grid-template-columns: 1fr 1fr 1fr; margin-top: 14px; }
+/* Wi-Fi: the icon next to the gear (faint when not connected), and its window with the screen keyboard */
+.info.wifi-off.q-btn { color: var(--faint); }
+.wifi { width: calc(100% - 16px); padding: 12px; }  /* as wide as the display: wider keys */
+.wifi .sheet-actions { margin-top: 6px; }
+.wifi .sheet-actions .q-btn { height: 56px; }
+.wrows { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.wrow.q-btn { height: 56px; border: 1px solid var(--line-2); border-radius: 4px; }
+.wrow .q-btn__content { width: 100%; justify-content: space-between; flex-wrap: nowrap; gap: 16px; padding: 0 6px; }
+.wleft, .wright { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.bars span { width: 6px; border-radius: 1px; background: var(--line-2); }
+.bars span:nth-child(1) { height: 25%; }
+.bars span:nth-child(2) { height: 50%; }
+.bars span:nth-child(3) { height: 75%; }
+.bars span:nth-child(4) { height: 100%; }
+/* lit bars: b1 lights the first, b4 all of them */
+.bars.b1 span:nth-child(-n+1), .bars.b2 span:nth-child(-n+2),
+.bars.b3 span:nth-child(-n+3), .bars.b4 span:nth-child(-n+4) { background: #fff; }
+.wrow.on .bars.b1 span:nth-child(-n+1), .wrow.on .bars.b2 span:nth-child(-n+2),
+.wrow.on .bars.b3 span:nth-child(-n+3), .wrow.on .bars.b4 span:nth-child(-n+4) { background: var(--y); }
+.wrow .wname { font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wrow .wdet { font-size: 15px; color: var(--mute); white-space: nowrap; }
+.wrow .wcheck { display: none; font-size: 24px; color: var(--y); }
+.wrow.on.q-btn { border: 2px solid var(--y); background: rgba(243,255,20,.08); }
+.wrow.on .wcheck { display: block; }
+.wrow.on .wname, .wrow.on .wdet { color: var(--y); }
+.wtitle { display: flex; align-items: center; gap: 14px; }
+.wswitch .q-toggle__inner { font-size: 56px; }  /* a finger-sized switch */
+.whead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.wip { text-align: right; }
+.wip .num { font-size: 30px; font-weight: 700; color: #fff; white-space: nowrap; }
+.kb { display: flex; flex-direction: column; gap: 6px; }
+.kbfield { height: 56px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-2); border-radius: 4px; padding-left: 14px; }
+.kblabel { font-size: 15px; color: var(--mute); white-space: nowrap; }
+.kbtext { flex: 1; min-width: 0; font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kbrow { display: flex; gap: 6px; }
+.kbrow.r1 { padding: 0 36px; }  /* the middle row of letters is shorter, as on a real keyboard */
+.kbkey.q-btn { flex: 1 1 0; min-width: 0; height: 56px; padding: 0; border-radius: 4px; background: rgba(255,255,255,.08); font-size: 22px; }
+.kbkey.q-btn.wide { flex-grow: 1.6; font-size: 17px; }
+.kbkey.q-btn.space { flex-grow: 6; font-size: 17px; color: var(--mute); }
+.kbkey.q-btn.on { background: var(--y); color: #000 !important; }
+.kbfield .kbkey.q-btn { flex: none; width: 56px; background: none; }
 .gear { position: relative; }
 .gear .badge { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--y); }
 

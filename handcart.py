@@ -82,10 +82,10 @@ def run(cmd: list[str], input: str | None = None, **kwargs) -> int:
 def install_services(splash: bool = True) -> int:
     """Set up the Pi to boot straight into the handcart UI.
 
-    Copies the services and the CAN network (filling in user, paths and port), installs the sudo rule
-    of the System page and the boot splash, enables the services that start at boot and boots to
-    console, so the display service owns the screen. splash=False skips the splash: rebuilding it
-    takes minutes, and the update does it only when the splash changed.
+    Copies the services, the CAN network and the Wi-Fi permission (filling in user, paths and port),
+    installs the sudo rule of the System page and the boot splash, enables the services that start at
+    boot and boots to console, so the display service owns the screen. splash=False skips the splash:
+    rebuilding it takes minutes, and the update does it only when the splash changed.
     """
     uv = shutil.which("uv")
     config = tomllib.loads((ROOT / "config.toml").read_text())
@@ -97,6 +97,7 @@ def install_services(splash: bool = True) -> int:
     }
     files = [(f, "/etc/systemd/system") for f in (ROOT / "system/services").glob("*.service")]
     files += [(f, "/etc/systemd/network") for f in (ROOT / "system/can").glob("*.network")]
+    files += [(f, "/etc/polkit-1/rules.d") for f in (ROOT / "system/polkit").glob("*.rules")]
     for src, dest in files:
         print(f"{src.relative_to(ROOT)} -> {dest}/{src.name}")
         if rc := run(

@@ -169,6 +169,34 @@ class SystemInfo(BaseModel):
     on_handcart: bool  # False on a computer: update, reboot and shut down are only for the handcart
 
 
+class WifiNetwork(BaseModel):
+    """One Wi-Fi network in range."""
+
+    ssid: str  # its name
+    signal: int  # %, 0-100
+    secured: bool  # needs a password
+    connected: bool  # the handcart is on it now
+    saved: bool  # joined before: its password is saved, no need to type it again
+
+
+class NetworkInfo(BaseModel):
+    """The System page's network part: the handcart's addresses and the Wi-Fi networks around."""
+
+    wifi_on: bool  # the Wi-Fi radio is on
+    addresses: list[str]  # IPv4 addresses, "192.168.1.23": to reach it over SSH; empty if it has none
+    networks: list[WifiNetwork]  # the connected one first, then the strongest
+    problem: str | None  # why the Wi-Fi cannot be read (not on the handcart, ...), or None
+
+
+class WifiRadioRequest(BaseModel):
+    on: bool
+
+
+class WifiConnectRequest(BaseModel):
+    ssid: str
+    password: str | None = None  # None: the saved one, or an open network
+
+
 class StreamMessage(BaseModel):
     """One message on /api/ws: either the status, or a press of the physical controls."""
 

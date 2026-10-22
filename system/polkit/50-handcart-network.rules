@@ -1,0 +1,10 @@
+// Lets the handcart user change the network without a password: the Wi-Fi of the System page.
+// The backend runs nmcli as that user, outside any login session, and NetworkManager asks polkit.
+//
+// Goes to: /etc/polkit-1/rules.d/50-handcart-network.rules
+// Installed by: ./handcart.py install-services, which fills in {{USER}}
+polkit.addRule(function (action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 && subject.user === "{{USER}}") {
+        return polkit.Result.YES;
+    }
+});

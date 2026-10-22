@@ -105,6 +105,7 @@ No desktop, no boot text, no login prompt. Use Raspberry Pi OS Lite.
 | `services/handcart-frontend.service` | Starts the frontend after the backend |
 | `services/handcart-display.service` | Shows the frontend full screen (Chromium kiosk in `cage`) once it answers |
 | `can/can0.network` | Brings `can0` up at 1 Mbit/s at boot |
+| `polkit/50-handcart-network.rules` | Lets the backend change the Wi-Fi (System page) through NetworkManager |
 | `splash/` | Boot splash: the eagle on black, from power-on until the UI appears |
 | `raspberry/boot-config.txt` | Lines for `/boot/firmware/config.txt`: SPI, CAN controller, UART, no rainbow square |
 | `raspberry/cmdline.txt` | Kernel parameters for a silent boot |

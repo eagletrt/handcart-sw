@@ -7,8 +7,9 @@ from fastapi.testclient import TestClient
 from backend.api import create_app
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
+from backend.network import FakeNetwork
 from backend.system import System
-from shared.models import InputEvent, Status, StreamMessage
+from shared.models import InputEvent, NetworkInfo, Status, StreamMessage
 
 
 @pytest.fixture
@@ -16,7 +17,7 @@ def client(cfg):
     bus = can.Bus(interface="virtual", channel="api", receive_own_messages=False)
     hal = FakeHal()
     handcart = Handcart(cfg, hal, bus, bus)
-    with TestClient(create_app(handcart, System(cfg.update))) as client:
+    with TestClient(create_app(handcart, System(cfg.update), FakeNetwork())) as client:
         client.handcart = handcart  # type: ignore[attr-defined]
         client.hal = hal  # type: ignore[attr-defined]
         yield client
@@ -79,3 +80,15 @@ def test_reboot_is_refused_off_the_handcart(client):
     response = client.post("/api/system/reboot")
     assert response.status_code == 422
     assert "Only on the handcart" in response.json()["detail"]
+
+
+def test_network(client):
+    response = client.get("/api/network")
+    assert response.status_code == 200
+    assert NetworkInfo.model_validate(response.json()).networks  # the made-up ones
+
+
+def test_a_refused_wifi_connection_answers_with_the_reason(client):
+    response = client.post("/api/network/connect", json={"ssid": "Eagle", "password": "short"})
+    assert response.status_code == 422
+    assert "8 to 63" in response.json()["detail"]
