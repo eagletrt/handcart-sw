@@ -10,12 +10,14 @@ Melody = list[tuple[float | None, float]]  # (frequency or REST, seconds)
 
 MELODIES: dict[Sound, Melody] = {
     Sound.STARTUP: [
-        (RE7, 0.35),
-        (REST, 0.05),
-        (RE7, 0.35),
-        (REST, 0.05),
-        (RE7, 0.35),
-        (REST, 0.05),
+        (SI6, 0.15),
+        (LA6, 0.15),
+        (RE7, 0.30),
+        (DO7, 0.30),
+        (LA6, 0.30),
+        (SI6, 0.30),
+        (LA6, 0.15),
+        (RE7, 0.15),
     ],
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
     Sound.CHARGE_DONE: [(LA6, 0.15), (REST, 0.05), (DO7, 0.15), (REST, 0.05), (RE7, 0.40)],
