@@ -1,10 +1,13 @@
 """The Wi-Fi window's backend: the handcart's addresses, joining and leaving Wi-Fi networks, the radio.
 
-Raspberry Pi OS manages the network with NetworkManager: this module asks it over D-Bus, with
-python-networkmanager, as the handcart user. The rule that lets that user change the network is
+Raspberry Pi OS manages the network with NetworkManager: this module asks it over the system D-Bus, with
+dbus-python, as the handcart user. The rule that lets that user change the network is
 system/polkit/50-handcart-network.rules. A scan or a connection can take seconds: the API runs these calls
 in a thread, so the ticks go on.
 Where there is no NetworkManager (a computer), FakeNetwork stands in, with made-up networks.
+
+The names below (interfaces, properties, numbers) are NetworkManager's D-Bus API:
+https://networkmanager.dev/docs/api/latest/spec.html
 """
 
 import logging
@@ -23,26 +26,44 @@ FAKE_DELAY = (
     1.5  # s a FakeNetwork scan or connection takes: enough to see "Connecting…"
 )
 
+# NetworkManager on D-Bus
+NM = "org.freedesktop.NetworkManager"  # its name on the bus, and its main interface
+NM_PATH = "/org/freedesktop/NetworkManager"
+SETTINGS_PATH = "/org/freedesktop/NetworkManager/Settings"
+DEVICE = NM + ".Device"
+WIRELESS = NM + ".Device.Wireless"
+ACCESS_POINT = NM + ".AccessPoint"
+ACTIVE_CONNECTION = NM + ".Connection.Active"
+IP4_CONFIG = NM + ".IP4Config"
+SETTINGS = NM + ".Settings"
+CONNECTION = NM + ".Settings.Connection"
+PROPERTIES = "org.freedesktop.DBus.Properties"
+NO_OBJECT = "/"  # what NetworkManager gives for "none" (no access point, no IP configuration...)
+
+DEVICE_TYPE_WIFI = 2
+AP_FLAGS_PRIVACY = 1
+ACTIVE_CONNECTION_ACTIVATED = 2
+ACTIVE_CONNECTION_DEACTIVATED = 4
+REASON_NO_SECRETS = 7
+REASON_SUPPLICANT_DISCONNECT = 8
+REASON_SSID_NOT_FOUND = 53
+
 
 class Network:
     def __init__(self) -> None:
-        # Imported here, not at the top: importing NetworkManager connects to the system D-Bus at once,
-        # and fails where there is none (a computer). make_network() then uses FakeNetwork.
+        # Imported here, not at the top: there is no dbus-python on a computer, and make_network() then
+        # uses FakeNetwork. Same if there is no NetworkManager to answer: reading its version fails.
         import dbus
-        import NetworkManager
-        from dbus.mainloop.glib import DBusGMainLoop
 
-        # python-networkmanager asks D-Bus to follow NetworkManager restarts, and dbus-python refuses that
-        # without a main loop. It only has to be set, not run: the calls here stay plain and blocking.
-        DBusGMainLoop(set_as_default=True)
-        self._nm = NetworkManager
-        # what a call to NetworkManager can raise: an error, or an access point/connection that went away
-        self._errors = (dbus.exceptions.DBusException, NetworkManager.ObjectVanished)
+        self._dbus = dbus
+        self._bus = dbus.SystemBus()
+        self._errors = dbus.exceptions.DBusException  # what a call to NetworkManager can raise
+        log.info("NetworkManager %s", self._property(NM_PATH, NM, "Version"))
 
     def info(self) -> NetworkInfo:
         try:
             addresses = self._addresses()
-            wifi_on = bool(self._nm.NetworkManager.WirelessEnabled)
+            wifi_on = bool(self._property(NM_PATH, NM, "WirelessEnabled"))
             device = self._wifi_device()
             networks = []
             if device is not None:
@@ -72,11 +93,11 @@ class Network:
             device = self._wifi_device()
             if device is None:
                 return "The handcart has no Wi-Fi"
-            last_scan = device.LastScan
-            device.RequestScan({})
+            last_scan = self._property(device, WIRELESS, "LastScan")
+            self._object(device).RequestScan({}, dbus_interface=WIRELESS)
             # RequestScan only starts the scan: LastScan changes when it is over
             deadline = time.monotonic() + SCAN_TIMEOUT
-            while device.LastScan == last_scan:
+            while self._property(device, WIRELESS, "LastScan") == last_scan:
                 if time.monotonic() > deadline:
                     return "The Wi-Fi search took too long"
                 time.sleep(POLL)
@@ -98,10 +119,9 @@ class Network:
             if device is None:
                 return "The handcart has no Wi-Fi"
             saved = self._saved(ssid)
+            nm = self._object(NM_PATH)
             if password is None and saved:
-                active = self._nm.NetworkManager.ActivateConnection(
-                    saved[0], device, "/"
-                )
+                active = nm.ActivateConnection(saved[0], device, NO_OBJECT, dbus_interface=NM)
             else:
                 access_point = self._access_point(device, ssid)
                 if access_point is None:
@@ -110,15 +130,18 @@ class Network:
                 self._forget(ssid)
                 settings = {
                     "connection": {"id": ssid, "type": "802-11-wireless"},
-                    "802-11-wireless": {"ssid": ssid, "mode": "infrastructure"},
+                    "802-11-wireless": {
+                        "ssid": self._dbus.ByteArray(ssid.encode()),
+                        "mode": "infrastructure",
+                    },
                 }
                 if password is not None:
                     settings["802-11-wireless-security"] = {
                         "key-mgmt": "wpa-psk",
                         "psk": password,
                     }
-                _, active = self._nm.NetworkManager.AddAndActivateConnection(
-                    settings, device, access_point
+                _, active = nm.AddAndActivateConnection(
+                    settings, device, access_point, dbus_interface=NM
                 )
         except self._errors as error:
             # the settings (password included) are not in the error, only NetworkManager's answer
@@ -144,7 +167,7 @@ class Network:
             device = self._wifi_device()
             if device is None:
                 return "The handcart has no Wi-Fi"
-            device.Disconnect()
+            self._object(device).Disconnect(dbus_interface=DEVICE)
         except self._errors as error:
             log.warning("could not disconnect: %s", error)
             return "Could not disconnect from the Wi-Fi"
@@ -157,125 +180,149 @@ class Network:
         if on:
             state = "on"
         try:
-            self._nm.NetworkManager.WirelessEnabled = on
+            self._object(NM_PATH).Set(
+                NM, "WirelessEnabled", self._dbus.Boolean(on), dbus_interface=PROPERTIES
+            )
         except self._errors as error:
             log.warning("could not turn the Wi-Fi %s: %s", state, error)
             return f"Could not turn the Wi-Fi {state}"
         log.info("Wi-Fi turned %s", state)
         return None
 
-    def _wifi_device(self):
-        """The Wi-Fi interface, or None if there is none.
+    def _object(self, path: str):
+        """A NetworkManager object (the manager, a device, an access point...), from its D-Bus path."""
+        return self._bus.get_object(NM, path)
 
-        The handcart can have two (the Pi's wlan0 and a USB dongle): the one on a network wins, else the first.
+    def _property(self, path: str, interface: str, name: str):
+        return self._object(path).Get(interface, name, dbus_interface=PROPERTIES)
+
+    def _properties(self, path: str, interface: str) -> dict:
+        """All the properties of an object at once: one call instead of one per property."""
+        return self._object(path).GetAll(interface, dbus_interface=PROPERTIES)
+
+    def _devices(self) -> list[str]:
+        return list(self._object(NM_PATH).GetDevices(dbus_interface=NM))
+
+    def _wifi_device(self) -> str | None:
+        """The path of the Wi-Fi interface, or None if there is none.
+
+        The handcart can have two (the Pi's wlan0 and a USB dongle): the one on a network wins,
+        else the first.
         """
         first = None
-        for device in self._nm.NetworkManager.GetDevices():
-            if device.DeviceType != self._nm.NM_DEVICE_TYPE_WIFI:
+        for device in self._devices():
+            if self._property(device, DEVICE, "DeviceType") != DEVICE_TYPE_WIFI:
                 continue
-            if device.ActiveAccessPoint is not None:
+            if self._property(device, WIRELESS, "ActiveAccessPoint") != NO_OBJECT:
                 return device
             if first is None:
                 first = device
         return first
 
-    def _networks(self, device) -> list[WifiNetwork]:
+    def _networks(self, device: str) -> list[WifiNetwork]:
         """The networks the Wi-Fi interface sees, as found by its last scan."""
-        active = device.ActiveAccessPoint  # None when not connected
+        active = self._property(device, WIRELESS, "ActiveAccessPoint")
         saved = self._saved_ssids()
         rows = []
-        for access_point in device.GetAccessPoints():
+        for access_point in self._access_points(device):
             try:
-                ssid = access_point.Ssid
-                secured = (
-                    access_point.Flags & self._nm.NM_802_11_AP_FLAGS_PRIVACY
-                    or access_point.WpaFlags
-                    or access_point.RsnFlags
-                )
-                row = WifiNetwork(
+                ap = self._properties(access_point, ACCESS_POINT)
+            except self._errors:
+                continue  # out of range since the list was read
+            ssid = ssid_text(ap["Ssid"])
+            secured = ap["Flags"] & AP_FLAGS_PRIVACY or ap["WpaFlags"] or ap["RsnFlags"]
+            rows.append(
+                WifiNetwork(
                     ssid=ssid,
-                    signal=access_point.Strength,
+                    signal=int(ap["Strength"]),
                     secured=bool(secured),
                     connected=access_point == active,
                     saved=ssid in saved,
                 )
-            except self._nm.ObjectVanished:
-                continue  # out of range since the list was read
-            rows.append(row)
+            )
         return one_per_name(rows)
 
-    def _access_point(self, device, ssid: str):
+    def _access_points(self, device: str) -> list[str]:
+        return list(self._object(device).GetAccessPoints(dbus_interface=WIRELESS))
+
+    def _access_point(self, device: str, ssid: str) -> str | None:
         """The access point of the network named ssid with the strongest signal, or None if not in range."""
         best = None
-        for access_point in device.GetAccessPoints():
+        best_strength = -1
+        for access_point in self._access_points(device):
             try:
-                if access_point.Ssid == ssid and (
-                    best is None or access_point.Strength > best.Strength
-                ):
-                    best = access_point
-            except self._nm.ObjectVanished:
-                continue
+                ap = self._properties(access_point, ACCESS_POINT)
+            except self._errors:
+                continue  # out of range since the list was read
+            if ssid_text(ap["Ssid"]) == ssid and ap["Strength"] > best_strength:
+                best = access_point
+                best_strength = ap["Strength"]
         return best
 
-    def _saved(self, ssid: str) -> list:
+    def _wifi_settings(self) -> list[tuple[str, str]]:
+        """The saved Wi-Fi networks: (path of the saved connection, network name)."""
+        connections = []
+        for connection in self._object(SETTINGS_PATH).ListConnections(dbus_interface=SETTINGS):
+            settings = self._object(connection).GetSettings(dbus_interface=CONNECTION)
+            wireless = settings.get("802-11-wireless", {})
+            if "ssid" in wireless:
+                connections.append((connection, ssid_text(wireless["ssid"])))
+        return connections
+
+    def _saved(self, ssid: str) -> list[str]:
         """The saved connections of the network named ssid: usually one, none if never joined."""
         connections = []
-        for connection in self._nm.Settings.ListConnections():
-            settings = connection.GetSettings()
-            if settings.get("802-11-wireless", {}).get("ssid") == ssid:
+        for connection, name in self._wifi_settings():
+            if name == ssid:
                 connections.append(connection)
         return connections
 
     def _saved_ssids(self) -> set[str]:
         """The names of the saved Wi-Fi networks."""
         names = set()
-        for connection in self._nm.Settings.ListConnections():
-            settings = connection.GetSettings()
-            if "ssid" in settings.get("802-11-wireless", {}):
-                names.add(settings["802-11-wireless"]["ssid"])
+        for _, name in self._wifi_settings():
+            names.add(name)
         return names
 
     def _forget(self, ssid: str) -> None:
         """Delete the saved network named ssid, if there is one."""
         try:
             for connection in self._saved(ssid):
-                connection.Delete()
+                self._object(connection).Delete(dbus_interface=CONNECTION)
                 log.info("forgot the saved network %s", ssid)
         except self._errors as error:
             log.warning("could not forget %s: %s", ssid, error)
 
-    def _wait_for(self, active, device) -> str | None:
+    def _wait_for(self, active: str, device: str) -> str | None:
         """Wait for a connection to come up. Returns why it did not, or None."""
         deadline = time.monotonic() + CONNECT_WAIT
         while time.monotonic() < deadline:
             try:
-                state = active.State
+                state = self._property(active, ACTIVE_CONNECTION, "State")
             except self._errors:
-                state = (
-                    self._nm.NM_ACTIVE_CONNECTION_STATE_DEACTIVATED
-                )  # gone: it failed
-            if state == self._nm.NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
+                state = ACTIVE_CONNECTION_DEACTIVATED  # gone: it failed
+            if state == ACTIVE_CONNECTION_ACTIVATED:
                 return None
-            if state == self._nm.NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
+            if state == ACTIVE_CONNECTION_DEACTIVATED:
                 try:
-                    _, reason = device.StateReason
+                    _, reason = self._property(device, DEVICE, "StateReason")
                 except self._errors:
                     reason = None
-                return connect_problem(self._nm, reason)
+                return connect_problem(reason)
             time.sleep(POLL)
         return "did not answer"
 
     def _addresses(self) -> list[str]:
         """The handcart's IPv4 addresses, on every interface but loopback."""
         addresses = []
-        for device in self._nm.NetworkManager.GetDevices():
-            if device.Interface == "lo":
+        for device in self._devices():
+            if self._property(device, DEVICE, "Interface") == "lo":
                 continue  # only the Pi itself
-            config = device.Ip4Config  # None when the interface has no address
-            if config is None:
-                continue
-            for entry in config.AddressData:
-                addresses.append(entry["address"])
+            config = self._property(device, DEVICE, "Ip4Config")
+            if config == NO_OBJECT:
+                continue  # the interface has no address
+            for entry in self._property(config, IP4_CONFIG, "AddressData"):
+                addresses.append(str(entry["address"]))
         return addresses
 
 
@@ -404,13 +451,15 @@ def in_order(networks: list[WifiNetwork]) -> list[WifiNetwork]:
     return connected + others
 
 
-def connect_problem(nm, reason: int | None) -> str:
+def connect_problem(reason: int | None) -> str:
     """Why a connection failed, from the reason NetworkManager gives for the Wi-Fi's state."""
-    if reason in (
-        nm.NM_DEVICE_STATE_REASON_NO_SECRETS,
-        nm.NM_DEVICE_STATE_REASON_SUPPLICANT_DISCONNECT,
-    ):
+    if reason in (REASON_NO_SECRETS, REASON_SUPPLICANT_DISCONNECT):
         return "wrong password"
-    if reason == nm.NM_DEVICE_STATE_REASON_SSID_NOT_FOUND:
+    if reason == REASON_SSID_NOT_FOUND:
         return "network not found"
     return "the network refused it"
+
+
+def ssid_text(ssid) -> str:
+    """A network name as D-Bus gives it (bytes) as text."""
+    return bytes(ssid).decode("utf-8", errors="replace")

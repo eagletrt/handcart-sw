@@ -113,7 +113,7 @@ No desktop, no boot text, no login prompt. Use Raspberry Pi OS Lite.
 Setup, once:
 
 ```bash
-sudo apt install cage chromium-browser plymouth curl fonts-urw-base35
+sudo apt install cage chromium-browser plymouth curl fonts-urw-base35 libdbus-1-dev libglib2.0-dev pkg-config
 ./handcart.py setup
 ./handcart.py install-services
 ```

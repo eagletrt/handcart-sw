@@ -1,9 +1,14 @@
 """The network part of the System page: the Wi-Fi networks, and what the Wi-Fi window says."""
 
-from types import SimpleNamespace
-
 from backend import network as network_module
-from backend.network import FAKE_PASSWORD, FakeNetwork, connect_problem, one_per_name, password_problem
+from backend.network import (
+    FAKE_PASSWORD,
+    FakeNetwork,
+    connect_problem,
+    one_per_name,
+    password_problem,
+    ssid_text,
+)
 from frontend.wifi_window import ip_text, network_details, signal_bars, wifi_status
 from shared.models import WifiNetwork
 
@@ -25,15 +30,15 @@ def test_networks_one_row_per_name_connected_first():
 
 
 def test_connect_problems_in_plain_words():
-    nm = SimpleNamespace(
-        NM_DEVICE_STATE_REASON_NO_SECRETS=7,
-        NM_DEVICE_STATE_REASON_SUPPLICANT_DISCONNECT=8,
-        NM_DEVICE_STATE_REASON_SSID_NOT_FOUND=53,
-    )
-    assert connect_problem(nm, 7) == "wrong password"
-    assert connect_problem(nm, 8) == "wrong password"
-    assert connect_problem(nm, 53) == "network not found"
-    assert connect_problem(nm, None) == "the network refused it"
+    assert connect_problem(7) == "wrong password"
+    assert connect_problem(8) == "wrong password"
+    assert connect_problem(53) == "network not found"
+    assert connect_problem(None) == "the network refused it"
+
+
+def test_network_names_from_dbus_bytes():
+    assert ssid_text([101, 97, 103, 108, 101, 116, 114, 116]) == "eagletrt"
+    assert ssid_text("Café".encode()) == "Café"
 
 
 def test_a_password_too_short_is_refused():

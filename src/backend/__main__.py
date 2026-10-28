@@ -31,7 +31,7 @@ def make_network() -> Network | FakeNetwork:
     """NetworkManager on the handcart; made-up Wi-Fi networks where there is none (a computer)."""
     try:
         return Network()
-    except Exception as error:  # no python-networkmanager, or no system D-Bus to reach NetworkManager on
+    except Exception as error:  # no dbus-python, or no system D-Bus to reach NetworkManager on
         log.warning("No NetworkManager (%s): the Wi-Fi is simulated, its networks are made up", error)
         return FakeNetwork()
 
