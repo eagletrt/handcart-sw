@@ -30,7 +30,11 @@ class Network:
         # and fails where there is none (a computer). make_network() then uses FakeNetwork.
         import dbus
         import NetworkManager
+        from dbus.mainloop.glib import DBusGMainLoop
 
+        # python-networkmanager asks D-Bus to follow NetworkManager restarts, and dbus-python refuses that
+        # without a main loop. It only has to be set, not run: the calls here stay plain and blocking.
+        DBusGMainLoop(set_as_default=True)
         self._nm = NetworkManager
         # what a call to NetworkManager can raise: an error, or an access point/connection that went away
         self._errors = (dbus.exceptions.DBusException, NetworkManager.ObjectVanished)
