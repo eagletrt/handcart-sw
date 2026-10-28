@@ -4,6 +4,7 @@ from backend.hal import Sound
 
 BEAT = 60 / 96
 
+# notes the PCB buzzer plays well: 1000-3000 Hz
 LA6, SI6, DO7, DO7_SHARP, RE7, DO6, RE6, SOL6 = (
     1760.0,
     1976.0,
@@ -14,34 +15,136 @@ LA6, SI6, DO7, DO7_SHARP, RE7, DO6, RE6, SOL6 = (
     1175.0,
     1568.0,
 )
-MIb6, LAb6, SIb6, MIb7 = (
+MIb6, MI6, FA6, LAb6, SIb6, MIb7 = (
     1244.51,
+    1318.51,
+    1396.91,
     1661.22,
     1864.66,
     2489.02,
 )
 REST = None
+GAP = 0.03  # silence after each note, so repeated notes are heard as separate
 
 Melody = list[tuple[float | None, float]]  # (frequency or REST, seconds)
 
+
+def _phrase(bpm: float, notes: list[tuple[float | None, float]]) -> Melody:
+    """(frequency or REST, length in quarter notes) -> Melody, with a short gap after each note."""
+    beat = 60 / bpm
+    out: Melody = []
+    for freq, beats in notes:
+        d = beats * beat
+        if freq is REST:
+            out.append((REST, d))
+        else:
+            out += [(freq, d - GAP), (REST, GAP)]
+    return out
+
+
+# Schubert, "Die Forelle" (first stanza): the Samsung washing-machine tune
+FORELLE = _phrase(
+    84,
+    [
+        # In einem Bächlein helle, da schoss in froher Eil'
+        (FA6, 0.5),
+        (SIb6, 0.5),
+        (SIb6, 0.5),
+        (RE7, 0.5),
+        (RE7, 0.5),
+        (SIb6, 1),
+        (FA6, 0.5),
+        (FA6, 0.5),
+        (FA6, 0.75),
+        (FA6, 0.25),
+        (DO7, 0.25),
+        (SIb6, 0.25),
+        (LA6, 0.25),
+        (SIb6, 0.25),
+        (FA6, 1),
+        (REST, 0.5),
+        # die launische Forelle vorüber wie ein Pfeil
+        (FA6, 0.5),
+        (SIb6, 0.5),
+        (SIb6, 0.5),
+        (RE7, 0.5),
+        (RE7, 0.5),
+        (SIb6, 1),
+        (FA6, 0.5),
+        (SIb6, 0.5),
+        (LA6, 0.5),
+        (SOL6, 0.25),
+        (LA6, 0.25),
+        (SIb6, 0.5),
+        (MI6, 0.5),
+        (FA6, 1),
+        (REST, 0.5),
+        # Ich stand an dem Gestade und sah in süßer Ruh
+        (FA6, 0.5),
+        (LA6, 0.5),
+        (LA6, 0.5),
+        (SIb6, 0.25),
+        (LA6, 0.25),
+        (SIb6, 0.25),
+        (LA6, 0.25),
+        (SIb6, 1),
+        (FA6, 0.5),
+        (SIb6, 0.5),
+        (LA6, 0.5),
+        (LA6, 0.5),
+        (LA6, 0.25),
+        (DO7, 0.25),
+        (DO7, 0.25),
+        (LA6, 0.25),
+        (SIb6, 1.5),
+        # des muntern Fischleins Bade im klaren Bächlein zu
+        (SIb6, 0.5),
+        (SOL6, 0.5),
+        (SOL6, 0.5),
+        (SOL6, 0.5),
+        (SOL6, 0.5),
+        (SIb6, 1),
+        (FA6, 0.5),
+        (FA6, 0.5),
+        (FA6, 0.75),
+        (FA6, 0.25),
+        (DO7, 0.5),
+        (LA6, 0.5),
+        (SIb6, 1.5),
+        # (repeat) des muntern Fischleins Bade im klaren Bächlein zu
+        (SIb6, 0.5),
+        (SIb6, 0.25),
+        (LA6, 0.25),
+        (SOL6, 0.5),
+        (SOL6, 0.25),
+        (SIb6, 0.25),
+        (LA6, 0.25),
+        (DO7, 0.25),
+        (SIb6, 1),
+        (FA6, 0.5),
+        (FA6, 0.5),
+        (FA6, 0.75),
+        (FA6, 0.25),
+        (DO7, 0.5),
+        (LA6, 0.5),
+        (SIb6, 2),
+    ],
+)
+
 MELODIES: dict[Sound, Melody] = {
-    Sound.STARTUP: [
-        (MIb7, BEAT * 0.75),
-        (MIb6, BEAT * 0.25),
-        (SIb6, BEAT * 0.5),
-        (LAb6, BEAT * 0.5),
-        (MIb6, BEAT * 0.5),
-        (MIb7, BEAT * 0.5),
-        (SIb6, BEAT * 0.75),
-    ],
+    # Sound.STARTUP: [
+    #    (MIb7, BEAT * 0.75),
+    #    (MIb6, BEAT * 0.25),
+    #    (SIb6, BEAT * 0.5),
+    #    (LAb6, BEAT * 0.5),
+    #    (MIb6, BEAT * 0.5),
+    #    (MIb7, BEAT * 0.5),
+    #    (SIb6, BEAT * 0.75),
+    # ],
+    Sound.STARTUP: FORELLE,
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
-    Sound.CHARGE_DONE: [
-        (LA6, 0.15),
-        (REST, 0.05),
-        (DO7, 0.15),
-        (REST, 0.05),
-        (RE7, 0.40),
-    ],
+    # old jingle: [(LA6, 0.15), (REST, 0.05), (DO7, 0.15), (REST, 0.05), (RE7, 0.40)]
+    Sound.CHARGE_DONE: FORELLE,
     Sound.ERROR: [(RE7, 0.20), (LA6, 0.20)] * 3,
     Sound.TICK: [(RE7, 0.008)],
 }
