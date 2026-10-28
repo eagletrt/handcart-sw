@@ -1,10 +1,12 @@
-"""The charge state machine, rule by rule. Each test reads as one line of the spec."""
+"""The charge state machine: its tables, then rule by rule. Each test reads as one line of the spec."""
 
 from dataclasses import replace
 
 import pytest
 
-from backend.core.fsm import CHARGER_START_TIME, NOT_DELIVERING, ChargeFsm, Inputs
+from backend.core import ChargeFsm, Event, Inputs
+from backend.core.events import CHARGE_DONE_TIMEOUT, CHARGER_START_TIME, NOT_DELIVERING
+from backend.core.rules import GUARDS, MODES, OVERRIDE_EVENTS, TRANSITIONS, TS_ON_STATES
 from backend.devices.charger import ChargerCommand
 from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, Fault, State, TsacState
 
@@ -72,13 +74,61 @@ class Bench:
         if state is State.READY:
             return out
         out = self.step(Command.START_CHARGE)
-        assert out.state is state is State.CHARGE
+        if state is State.CHARGE:
+            return out
+        self.bms = replace(self.bms, cell_max=self.cfg.accumulator.max_cell_voltage)
+        out = self.step()
+        assert out.state is state is State.CHARGE_DONE
+        self.bms = replace(self.bms, cell_max=BMS.cell_max)
         return out
 
 
 @pytest.fixture
 def bench(cfg) -> Bench:
     return Bench(cfg)
+
+
+# tables
+
+
+def test_every_state_has_a_mode():
+    assert set(MODES) == set(State)
+
+
+def test_every_guard_has_a_transition():
+    assert set(GUARDS) <= set(TRANSITIONS)
+
+
+def test_every_state_can_get_back_to_idle():
+    """No trap states: from anywhere there is a path to IDLE (a FAULT leads to ERROR from any other state)."""
+    for start in State:
+        seen, todo = {start}, [start]
+        while todo:
+            current = todo.pop()
+            nexts = {target for (source, _), target in TRANSITIONS.items() if source is current}
+            if current is not State.ERROR:
+                nexts.add(State.ERROR)
+            for target in nexts - seen:
+                seen.add(target)
+                todo.append(target)
+        assert State.IDLE in seen, f"{start} cannot get back to IDLE"
+
+
+def test_ts_on_states_leave_when_the_bms_turns_the_ts_off():
+    # PRECHARGE waits for TS_ON, with its own timeouts
+    for state in TS_ON_STATES - {State.PRECHARGE}:
+        assert (state, Event.TS_OFF) in TRANSITIONS, state
+
+
+def test_stop_from_every_active_state():
+    for state in TS_ON_STATES | {State.BALANCING}:
+        assert TRANSITIONS.get((state, Command.STOP)) is State.IDLE, state
+
+
+def test_overriding_events_never_lead_to_a_ts_on_state():
+    for (source, trigger), target in TRANSITIONS.items():
+        if trigger in OVERRIDE_EVENTS:
+            assert target not in TS_ON_STATES, (source, trigger, target)
 
 
 # sequence
@@ -172,6 +222,23 @@ def test_precharge_is_refused_with_the_loop_open(bench):
     out = bench.step(Command.PRECHARGE)
     assert out.state is State.IDLE
     assert "open at mushroom" in out.refusal
+
+
+def test_precharge_is_refused_with_a_cell_at_the_limit(bench, cfg):
+    bench.go_to(State.IDLE)
+    bench.bms = replace(bench.bms, cell_max=cfg.accumulator.max_cell_voltage)
+    out = bench.step(Command.PRECHARGE)
+    assert out.state is State.IDLE and not out.ts_on
+    assert "a cell is at" in out.refusal
+
+
+def test_charging_again_is_refused_with_a_cell_at_the_limit(bench, cfg):
+    bench.go_to(State.CHARGE_DONE)
+    bench.bms = replace(bench.bms, cell_max=cfg.accumulator.max_cell_voltage)
+    out = bench.step(Command.START_CHARGE)
+    assert out.state is State.CHARGE_DONE
+    assert out.charger is ChargerCommand.STOP
+    assert "a cell is at" in out.refusal
 
 
 def test_charging_is_refused_with_a_target_above_the_limit(bench, cfg):
@@ -356,3 +423,55 @@ def test_a_charger_that_does_not_start_is_reported_not_a_fault(bench):
     bench.charger = replace(bench.charger, state=ChargerState.RUNNING, voltage=550.0, current=6.0)
     out = bench.step()
     assert out.message.startswith("Charging to")  # it started after all
+
+
+# charge done
+
+
+def test_charge_done_turns_the_ts_off_after_the_timeout(bench):
+    bench.go_to(State.CHARGE_DONE)
+    assert bench.step(after=CHARGE_DONE_TIMEOUT - 1).ts_on
+    out = bench.step(after=2)
+    assert out.state is State.IDLE and not out.ts_on
+    assert bench.fsm.history[-1].trigger is Event.CHARGE_DONE_TIMEOUT
+
+
+def test_top_off_from_charge_done(bench):
+    bench.go_to(State.CHARGE_DONE)
+    out = bench.step(Command.START_CHARGE)
+    assert out.state is State.CHARGE and out.charger is ChargerCommand.CHARGE
+
+
+# priorities
+
+
+def test_the_ts_going_off_wins_over_a_command(bench):
+    bench.go_to(State.READY)
+    bench.bms = replace(bench.bms, state=TsacState.IDLE)
+    out = bench.step(Command.START_CHARGE)
+    assert out.state is State.IDLE and not out.ts_on
+
+
+def test_pause_wins_over_charge_complete(bench, cfg):
+    bench.go_to(State.CHARGE)
+    bench.bms = replace(bench.bms, cell_max=cfg.accumulator.max_cell_voltage)
+    assert bench.step(Command.PAUSE_CHARGE).state is State.READY
+
+
+# history
+
+
+def test_history_tells_the_story(bench):
+    bench.go_to(State.CHARGE_DONE)
+    assert [(t.source, t.target) for t in bench.fsm.history] == [
+        (State.CHECK, State.IDLE),
+        (State.IDLE, State.PRECHARGE),
+        (State.PRECHARGE, State.READY),
+        (State.READY, State.CHARGE),
+        (State.CHARGE, State.CHARGE_DONE),
+    ]
+
+
+def test_a_broken_listener_does_not_stop_the_machine(bench):
+    bench.fsm.on_transition(lambda transition: 1 / 0)
+    bench.go_to(State.CHARGE_DONE)  # would raise if the exception escaped
