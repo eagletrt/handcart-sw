@@ -1,9 +1,10 @@
-"""The real peripherals on the Raspberry Pi: GPIO and PWM through RPi.GPIO (rpi-lgpio), SPI through spidev.
+"""The real peripherals on the Raspberry Pi: GPIO through RPi.GPIO (rpi-lgpio), SPI through spidev.
 
 Only translation to the libraries here, no logic: that lives in the other hal/ modules and is tested.
 Not yet tried on the handcart Pi.
 """
 
+import pigpio
 import spidev
 from RPi import GPIO
 
@@ -34,25 +35,37 @@ class RpiGpio:
         return GPIO.input(pin) == GPIO.HIGH
 
 
-class RpiPwm:
-    DUTY_CYCLE = 50  # %, a square wave
+class PigpioPwm:
+    """Square wave timed by DMA through pigpiod: clean on any GPIO, unlike RPi.GPIO's software PWM."""
 
     def __init__(self, pin: int) -> None:
-        GPIO.setup(pin, GPIO.OUT)
-        self._pwm = GPIO.PWM(pin, 1000)
+        self._pi = pigpio.pi()
+        if not self._pi.connected:
+            raise RuntimeError("pigpiod is not running")
+        self._pin = pin
+        self._pi.set_mode(pin, pigpio.OUTPUT)
+        self._pi.write(pin, 0)
+        self._wave: int | None = None
         self._frequency: float | None = None
 
     def tone(self, frequency: float | None) -> None:
         if frequency == self._frequency:
             return
-        if frequency is None:
-            self._pwm.stop()
-        elif self._frequency is None:
-            self._pwm.ChangeFrequency(frequency)
-            self._pwm.start(self.DUTY_CYCLE)
-        else:
-            self._pwm.ChangeFrequency(frequency)
         self._frequency = frequency
+        self._pi.wave_tx_stop()
+        if self._wave is not None:
+            self._pi.wave_delete(self._wave)
+            self._wave = None
+        if frequency is None:
+            self._pi.write(self._pin, 0)
+            return
+        half = round(500_000 / frequency)  # µs, half a period
+        mask = 1 << self._pin
+        self._pi.wave_add_generic(
+            [pigpio.pulse(mask, 0, half), pigpio.pulse(0, mask, half)]
+        )
+        self._wave = self._pi.wave_create()
+        self._pi.wave_send_repeat(self._wave)
 
 
 class RpiSpi:

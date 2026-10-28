@@ -18,7 +18,12 @@ from backend.handcart import Handcart
 from backend.network import FakeNetwork, Network
 from backend.system import System
 from shared import config
-from shared.config import BACKEND_ERROR_FILE, SETTINGS_FILE, Config, hardware_is_simulated
+from shared.config import (
+    BACKEND_ERROR_FILE,
+    SETTINGS_FILE,
+    Config,
+    hardware_is_simulated,
+)
 from shared.scenario import SCENARIO_FILE
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
@@ -31,47 +36,67 @@ def make_network() -> Network | FakeNetwork:
     """NetworkManager on the handcart; made-up Wi-Fi networks where there is none (a computer)."""
     try:
         return Network()
-    except Exception as error:  # no dbus-python, or no system D-Bus to reach NetworkManager on
-        log.warning("No NetworkManager (%s): the Wi-Fi is simulated, its networks are made up", error)
+    except (
+        Exception
+    ) as error:  # no dbus-python, or no system D-Bus to reach NetworkManager on
+        log.warning(
+            "No NetworkManager (%s): the Wi-Fi is simulated, its networks are made up",
+            error,
+        )
         return FakeNetwork()
 
 
 def make_hal(cfg: Config) -> Hal:
     """The real board on the Pi, unless the config asks for simulated hardware; a fake one elsewhere."""
     if hardware_is_simulated(cfg):
-        log.warning("Hardware is simulated: relays, controls and shutdown feedbacks are not real")
+        log.warning(
+            "Hardware is simulated: relays, controls and shutdown feedbacks are not real"
+        )
         return FakeHal(scenario_file=SCENARIO_FILE)
     from backend.hal import rpi  # needs RPi.GPIO and spidev, which exist only on the Pi
 
-    return BoardHal(cfg, rpi.RpiGpio(cfg), rpi.RpiPwm(cfg.gpio.buzzer), rpi.RpiSpi(cfg))
+    return BoardHal(
+        cfg, rpi.RpiGpio(cfg), rpi.PigpioPwm(cfg.gpio.buzzer), rpi.RpiSpi(cfg)
+    )
 
 
 async def run() -> None:
     cfg = config.load()
     check_port_free(cfg.network.backend_host, cfg.network.backend_port)
     bms_bus = open_bus(cfg.can, cfg.can.bms_channel)
-    charger_bus = bms_bus if cfg.can.shared_bus else open_bus(cfg.can, cfg.can.charger_channel)
+    charger_bus = (
+        bms_bus if cfg.can.shared_bus else open_bus(cfg.can, cfg.can.charger_channel)
+    )
     hal = make_hal(cfg)
     handcart = Handcart(cfg, hal, bms_bus, charger_bus, settings_file=SETTINGS_FILE)
     hal.play(Sound.STARTUP)
 
     system = System(cfg.update)
-    asyncio.get_running_loop().run_in_executor(None, system.check)  # look for updates at every start
+    asyncio.get_running_loop().run_in_executor(
+        None, system.check
+    )  # look for updates at every start
     network = make_network()
     # the Wi-Fi is on at every start: turned off from the screen, a restart brings SSH back
     asyncio.get_running_loop().run_in_executor(None, network.set_wifi, True)
 
     app = create_app(handcart, system, network)
-    server = uvicorn.Server(uvicorn.Config(app, host=cfg.network.backend_host, port=cfg.network.backend_port))
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app, host=cfg.network.backend_host, port=cfg.network.backend_port
+        )
+    )
     failed = False
 
     async def loop() -> None:
         """Tick for ever. If a tick fails the whole backend stops: an API still answering without the loop
         would look alive while nothing watches the charge. The finally below leaves the hardware safe, and
-        systemd starts the backend again. If the ticks stop without failing, systemd's watchdog does it."""
+        systemd starts the backend again. If the ticks stop without failing, systemd's watchdog does it.
+        """
         nonlocal failed
         notify_systemd("READY=1")
-        BACKEND_ERROR_FILE.unlink(missing_ok=True)  # started fine: no reason to show any more
+        BACKEND_ERROR_FILE.unlink(
+            missing_ok=True
+        )  # started fine: no reason to show any more
         last_ping = 0.0
         try:
             while True:
@@ -111,7 +136,9 @@ def check_port_free(host: str, port: int) -> None:
         try:
             probe.bind((host, port))
         except OSError as error:
-            raise OSError(f"port {port} is already in use: is another backend running?") from error
+            raise OSError(
+                f"port {port} is already in use: is another backend running?"
+            ) from error
 
 
 def notify_systemd(state: str) -> None:
@@ -138,7 +165,9 @@ def report_failure(error: BaseException) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+    )
     # systemd stops the service with SIGTERM: make it a Ctrl+C, so the finally above always runs
     # (by default SIGTERM ends the process on the spot, relays as they are)
     signal.signal(signal.SIGTERM, signal.default_int_handler)
@@ -146,7 +175,9 @@ if __name__ == "__main__":
         asyncio.run(run())
     except KeyboardInterrupt:  # the way out, not an error
         pass
-    except Exception as error:  # it could not start: no config, no CAN interface, no GPIO...
+    except (
+        Exception
+    ) as error:  # it could not start: no config, no CAN interface, no GPIO...
         log.exception("The backend could not start")
         report_failure(error)
         raise

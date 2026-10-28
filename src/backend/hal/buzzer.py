@@ -20,7 +20,13 @@ MELODIES: dict[Sound, Melody] = {
         (RE7, 0.15),
     ],
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
-    Sound.CHARGE_DONE: [(LA6, 0.15), (REST, 0.05), (DO7, 0.15), (REST, 0.05), (RE7, 0.40)],
+    Sound.CHARGE_DONE: [
+        (LA6, 0.15),
+        (REST, 0.05),
+        (DO7, 0.15),
+        (REST, 0.05),
+        (RE7, 0.40),
+    ],
     Sound.ERROR: [(RE7, 0.20), (LA6, 0.20)] * 3,
     Sound.TICK: [(RE7, 0.008)],
 }
