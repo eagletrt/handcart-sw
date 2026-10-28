@@ -19,6 +19,7 @@ dependencies = [
     "spidev>=3.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
     # Linux only: the Wi-Fi through NetworkManager. Elsewhere FakeNetwork is used instead.
     "dbus-python>=1.3; sys_platform == 'linux'",  # builds on the Pi: needs libdbus-1-dev libglib2.0-dev pkg-config
+    "pigpio>=1.78",
 ]
 
 [dependency-groups]
