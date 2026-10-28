@@ -10,6 +10,7 @@ import getpass
 import json
 import os
 import shutil
+import signal
 import struct
 import subprocess
 import sys
@@ -237,10 +238,18 @@ def command(args: list[str]) -> int:
 
 def update(args: list[str]) -> int:
     """Run the update, telling the display each step; the step file goes away however it ends."""
+    # systemd stops it with SIGTERM (a reboot, a shutdown): by default that ends Python on the spot, the
+    # finally does not run and the display stays on "Updating" for good. Not a Ctrl+C: run() waits on
+    # those, and the update would go on to the next step while the Pi switches off.
+    signal.signal(signal.SIGTERM, update_stopped)
     try:
         return update_steps()
     finally:
         UPDATE_STEP.unlink(missing_ok=True)
+
+
+def update_stopped(signum: int, frame: Any) -> None:
+    raise SystemExit(finish(1, "Update stopped before the end (switched off?): check the version by SSH"))
 
 
 def step(text: str) -> None:

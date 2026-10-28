@@ -16,3 +16,5 @@ Environment=GIT_SSH_COMMAND=ssh -o BatchMode=yes
 # print each line at once, so the journal keeps them in order with the output of git, uv and pytest
 Environment=PYTHONUNBUFFERED=1
 ExecStart={{ROOT}}/handcart.py update
+# however it ended (killed too): the display shows "Updating" while this file is there
+ExecStopPost=/bin/rm -f {{ROOT}}/var/update-step.txt
