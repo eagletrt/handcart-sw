@@ -78,7 +78,7 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
     async def shut_down() -> None:
         refuse_if(handcart.maintenance_problem() or system.shut_down())
 
-    # nmcli in a thread: it can take seconds, and the ticks go on meanwhile
+    # NetworkManager in a thread: it can take seconds, and the ticks go on meanwhile
 
     @app.get("/api/network")
     async def network_info() -> NetworkInfo:

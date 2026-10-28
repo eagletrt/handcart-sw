@@ -428,6 +428,12 @@ wheels = [
 ]
 
 [[package]]
+name = "dbus-python"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/cc/23f24bc7cbfec3a0ab508b7e11bc98837d77a91445d5f666a8545353a147/dbus_python-1.5.1.tar.gz", hash = "sha256:57423cf87d09b7d084f420b55b737fe654c33339b06df77945620d97795c6ac4", size = 205464, upload-time = "2026-10-23T13:47:13.997Z" }
+
+[[package]]
 name = "docutils"
 version = "0.23"
 source = { registry = "https://pypi.org/simple" }
@@ -563,6 +569,7 @@ dependencies = [
     { name = "nicegui" },
     { name = "pydantic" },
     { name = "python-can" },
+    { name = "python-networkmanager", marker = "sys_platform == 'linux'" },
     { name = "rpi-lgpio", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'armv7l' and sys_platform == 'linux')" },
     { name = "spidev", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'armv7l' and sys_platform == 'linux')" },
     { name = "uvicorn" },
@@ -587,6 +594,7 @@ requires-dist = [
     { name = "nicegui", specifier = ">=2.10,<3" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "python-can", specifier = ">=4.4" },
+    { name = "python-networkmanager", marker = "sys_platform == 'linux'", specifier = ">=2.2" },
     { name = "rpi-lgpio", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'armv7l' and sys_platform == 'linux')", specifier = ">=0.6" },
     { name = "spidev", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'armv7l' and sys_platform == 'linux')", specifier = ">=3.6" },
     { name = "uvicorn", specifier = ">=0.32" },
@@ -1757,6 +1765,19 @@ wheels = [
 ]
 
 [[package]]
+name = "python-networkmanager"
+version = "2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dbus-python" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/3d/0924d03117636b80a88af783f857fb101e4c47953a8bb0f733b964d50af4/python-networkmanager-2.2.tar.gz", hash = "sha256:de6eb921d94aba7549f428ed2b3aa482a5d543ecb6965cbaa0fbb555ab31b9d5", size = 28710, upload-time = "2021-01-16T13:59:53.02Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/7d/7ef5e3e1e8d994d76321238289ece3dcb7096bcad635d8f23e4d0c99f9f2/python_networkmanager-2.2-py3-none-any.whl", hash = "sha256:0c5e9c3f872426637ba68609272e71a42992a4fc7c1cf4893590786e29e0c881", size = 12404, upload-time = "2021-01-16T13:59:52.213Z" },
+]
+
+[[package]]
 name = "python-socketio"
 version = "5.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1867,6 +1888,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b0/d4/bfa032f961103eba93de583b161f0e6a5b63cebb8f2c7d0c6e6efe1e3d2e/simple_websocket-1.1.0.tar.gz", hash = "sha256:7939234e7aa067c534abdab3a9ed933ec9ce4691b0713c78acb195560aa52ae4", size = 17300, upload-time = "2024-10-10T22:39:31.412Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/59/0782e51887ac6b07ffd1570e0364cf901ebc36345fea669969d2084baebb/simple_websocket-1.1.0-py3-none-any.whl", hash = "sha256:4af6069630a38ed6c561010f0e11a5bc0d4ca569b36306eb257cd9a192497c8c", size = 13842, upload-time = "2024-10-10T22:39:29.645Z" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]

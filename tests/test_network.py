@@ -1,41 +1,22 @@
-"""The network part of the System page: reading nmcli and ip, and what the Wi-Fi window says."""
+"""The network part of the System page: the Wi-Fi networks, and what the Wi-Fi window says."""
+
+from types import SimpleNamespace
 
 from backend import network as network_module
-from backend.network import (
-    FAKE_PASSWORD,
-    FakeNetwork,
-    Network,
-    connect_problem,
-    parse_addresses,
-    parse_networks,
-    parse_saved,
-    split_terse,
-)
+from backend.network import FAKE_PASSWORD, FakeNetwork, connect_problem, one_per_name, password_problem
 from frontend.wifi_window import ip_text, network_details, signal_bars, wifi_status
 from shared.models import WifiNetwork
 
 
-def test_terse_fields_keep_escaped_colons():
-    assert split_terse(r"*:Eagle\:Box:82:WPA2") == ["*", "Eagle:Box", "82", "WPA2"]
-    assert split_terse(r":back\\slash:40:") == ["", "back\\slash", "40", ""]
-
-
-def test_saved_networks_are_only_the_wifi_ones():
-    text = "Eagle:802-11-wireless\nWired connection 1:802-3-ethernet\nlo:loopback\n"
-    assert parse_saved(text) == {"Eagle"}
-
-
 def test_networks_one_row_per_name_connected_first():
-    text = "\n".join(
-        [
-            ":Lab:90:WPA2",
-            ":Eagle:40:WPA2",
-            "*:Eagle:60:WPA2",  # the same network on another access point: the one the handcart is on
-            ":Guest:70:",  # no password
-            "::80:WPA2",  # hidden: no name
-        ]
-    )
-    networks = parse_networks(text, saved={"Eagle"})
+    rows = [
+        network("Lab", signal=90),
+        network("Eagle", signal=40, saved=True),
+        network("Eagle", signal=60, connected=True, saved=True),  # another access point: the one it is on
+        network("Guest", signal=70, secured=False),
+        network("", signal=80),  # hidden: no name
+    ]
+    networks = one_per_name(rows)
     assert [n.ssid for n in networks] == ["Eagle", "Lab", "Guest"]
     eagle = networks[0]
     assert eagle.connected and eagle.saved and eagle.secured
@@ -43,24 +24,21 @@ def test_networks_one_row_per_name_connected_first():
     assert not networks[2].secured
 
 
-def test_addresses_without_loopback():
-    text = (
-        "lo               UNKNOWN        127.0.0.1/8\n"
-        "eth0             DOWN\n"
-        "wlan0            UP             192.168.1.23/24\n"
-    )
-    assert parse_addresses(text) == ["192.168.1.23"]
-
-
 def test_connect_problems_in_plain_words():
-    wrong_password = "Error: Connection activation failed: Secrets were required, but not provided.\n"
-    assert connect_problem(wrong_password) == "wrong password"
-    assert connect_problem("Error: No network with SSID 'Lab' found.\n") == "network not found"
-    assert connect_problem("Error: something else\n") == "something else"
+    nm = SimpleNamespace(
+        NM_DEVICE_STATE_REASON_NO_SECRETS=7,
+        NM_DEVICE_STATE_REASON_SUPPLICANT_DISCONNECT=8,
+        NM_DEVICE_STATE_REASON_SSID_NOT_FOUND=53,
+    )
+    assert connect_problem(nm, 7) == "wrong password"
+    assert connect_problem(nm, 8) == "wrong password"
+    assert connect_problem(nm, 53) == "network not found"
+    assert connect_problem(nm, None) == "the network refused it"
 
 
-def test_a_password_too_short_is_refused_before_nmcli():
-    assert Network().connect("Eagle", "short") == "A Wi-Fi password has 8 to 63 characters"
+def test_a_password_too_short_is_refused():
+    assert password_problem("short") == "A Wi-Fi password has 8 to 63 characters"
+    assert password_problem(None) is None
 
 
 def network(ssid="Eagle", signal=60, secured=True, connected=False, saved=False):

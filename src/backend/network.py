@@ -1,54 +1,83 @@
 """The Wi-Fi window's backend: the handcart's addresses, joining and leaving Wi-Fi networks, the radio.
 
-Raspberry Pi OS manages the network with NetworkManager: this module asks it through nmcli, as the
-handcart user. The rule that lets that user change the network is system/polkit/50-handcart-network.rules.
-nmcli can take seconds (a scan, a connection): the API runs these calls in a thread, so the ticks go on.
-Where there is no nmcli (a computer), FakeNetwork stands in, with made-up networks.
+Raspberry Pi OS manages the network with NetworkManager: this module asks it over D-Bus, with
+python-networkmanager, as the handcart user. The rule that lets that user change the network is
+system/polkit/50-handcart-network.rules. A scan or a connection can take seconds: the API runs these calls
+in a thread, so the ticks go on.
+Where there is no NetworkManager (a computer), FakeNetwork stands in, with made-up networks.
 """
 
 import logging
-import subprocess
 import time
 
 from shared.models import NetworkInfo, WifiNetwork
 
 log = logging.getLogger(__name__)
 
-NMCLI_TIMEOUT = 10  # s, for reading what NetworkManager already knows
 SCAN_TIMEOUT = 20  # s
-CONNECT_WAIT = 20  # s for the network to come up; nmcli gives up after this
-WIFI_PROFILE = "802-11-wireless"  # the type of a saved Wi-Fi network, in nmcli
-WIFI_DEVICE = "wifi"  # the type of a Wi-Fi interface (wlan0), in nmcli
+CONNECT_WAIT = 20  # s for the network to come up
+POLL = 0.25  # s between two looks at a scan or a connection under way
 PASSWORD_MIN, PASSWORD_MAX = 8, 63  # characters of a WPA password
 FAKE_PASSWORD = "eagletrt"  # of every FakeNetwork network
-FAKE_DELAY = 1.5  # s a FakeNetwork scan or connection takes: enough to see "Connecting…"
+FAKE_DELAY = (
+    1.5  # s a FakeNetwork scan or connection takes: enough to see "Connecting…"
+)
 
 
 class Network:
+    def __init__(self) -> None:
+        # Imported here, not at the top: importing NetworkManager connects to the system D-Bus at once,
+        # and fails where there is none (a computer). make_network() then uses FakeNetwork.
+        import dbus
+        import NetworkManager
+
+        self._nm = NetworkManager
+        # what a call to NetworkManager can raise: an error, or an access point/connection that went away
+        self._errors = (dbus.exceptions.DBusException, NetworkManager.ObjectVanished)
+
     def info(self) -> NetworkInfo:
-        addresses = self._addresses()
         try:
-            wifi_on = self._nmcli("radio", "wifi").strip() == "enabled"
-            saved = parse_saved(self._nmcli("-t", "-f", "NAME,TYPE", "connection", "show"))
-            listing = self._nmcli(
-                "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-            log.warning("nmcli failed: %s", error)
+            addresses = self._addresses()
+            wifi_on = bool(self._nm.NetworkManager.WirelessEnabled)
+            device = self._wifi_device()
+            networks = []
+            if device is not None:
+                networks = self._networks(device)
+        except self._errors as error:
+            log.warning("NetworkManager failed: %s", error)
             return NetworkInfo(
-                wifi_on=False, addresses=addresses, networks=[], problem="NetworkManager is not answering"
+                wifi_on=False,
+                addresses=[],
+                networks=[],
+                problem="NetworkManager is not answering",
             )
-        networks = parse_networks(listing, saved)
-        return NetworkInfo(wifi_on=wifi_on, addresses=addresses, networks=networks, problem=None)
+        if device is None:
+            return NetworkInfo(
+                wifi_on=False,
+                addresses=addresses,
+                networks=[],
+                problem="The handcart has no Wi-Fi",
+            )
+        return NetworkInfo(
+            wifi_on=wifi_on, addresses=addresses, networks=networks, problem=None
+        )
 
     def scan(self) -> str | None:
         """Look for Wi-Fi networks again. Returns why it could not, or None; the result is in info()."""
         try:
-            self._nmcli("device", "wifi", "list", "--rescan", "yes", timeout=SCAN_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            return "The Wi-Fi search took too long"
-        except subprocess.CalledProcessError as error:
-            log.warning("Wi-Fi scan failed: %s", error.stderr.strip())
+            device = self._wifi_device()
+            if device is None:
+                return "The handcart has no Wi-Fi"
+            last_scan = device.LastScan
+            device.RequestScan({})
+            # RequestScan only starts the scan: LastScan changes when it is over
+            deadline = time.monotonic() + SCAN_TIMEOUT
+            while device.LastScan == last_scan:
+                if time.monotonic() > deadline:
+                    return "The Wi-Fi search took too long"
+                time.sleep(POLL)
+        except self._errors as error:
+            log.warning("Wi-Fi scan failed: %s", error)
             return "Could not search for Wi-Fi networks"
         return None
 
@@ -60,34 +89,61 @@ class Network:
         if problem := password_problem(password):
             return problem
 
-        command = ["--wait", str(CONNECT_WAIT), "device", "wifi", "connect", ssid]
-        if password is not None:
-            # a new password replaces the saved one: else nmcli would make a second profile for it
-            self._forget(ssid)
-            command += ["password", password]
         try:
-            self._nmcli(*command, timeout=CONNECT_WAIT + 5)
-        except subprocess.TimeoutExpired:
+            device = self._wifi_device()
+            if device is None:
+                return "The handcart has no Wi-Fi"
+            saved = self._saved(ssid)
+            if password is None and saved:
+                active = self._nm.NetworkManager.ActivateConnection(
+                    saved[0], device, "/"
+                )
+            else:
+                access_point = self._access_point(device, ssid)
+                if access_point is None:
+                    return f"Could not connect to {ssid}: network not found"
+                # a new password replaces the saved one: else NetworkManager would keep both
+                self._forget(ssid)
+                settings = {
+                    "connection": {"id": ssid, "type": "802-11-wireless"},
+                    "802-11-wireless": {"ssid": ssid, "mode": "infrastructure"},
+                }
+                if password is not None:
+                    settings["802-11-wireless-security"] = {
+                        "key-mgmt": "wpa-psk",
+                        "psk": password,
+                    }
+                _, active = self._nm.NetworkManager.AddAndActivateConnection(
+                    settings, device, access_point
+                )
+        except self._errors as error:
+            # the settings (password included) are not in the error, only NetworkManager's answer
+            log.warning("could not connect to %s: %s", ssid, error)
+            return f"Could not connect to {ssid}"
+
+        problem = self._wait_for(active, device)
+        if problem is None:
+            log.info("connected to %s", ssid)
+            return None
+        log.warning("could not connect to %s: %s", ssid, problem)
+        if problem == "did not answer":
             return f"{ssid} did not answer"
-        except subprocess.CalledProcessError as error:
-            # stderr only: error itself holds the command, password included
-            log.warning("could not connect to %s: %s", ssid, error.stderr.strip())
-            if password is not None:
-                self._forget(ssid)  # else the wrong password stays saved, and is tried again next time
-            return f"Could not connect to {ssid}: {connect_problem(error.stderr)}"
-        log.info("connected to %s", ssid)
-        return None
+        if password is not None:
+            self._forget(
+                ssid
+            )  # else the wrong password stays saved, and is tried again next time
+        return f"Could not connect to {ssid}: {problem}"
 
     def disconnect(self) -> str | None:
         """Leave the Wi-Fi network the handcart is on; it stays saved. Returns why it could not, or None."""
         try:
             device = self._wifi_device()
-            self._nmcli("device", "disconnect", device)
-        except subprocess.CalledProcessError as error:
-            log.warning("could not disconnect: %s", error.stderr.strip())
+            if device is None:
+                return "The handcart has no Wi-Fi"
+            device.Disconnect()
+        except self._errors as error:
+            log.warning("could not disconnect: %s", error)
             return "Could not disconnect from the Wi-Fi"
-        except subprocess.TimeoutExpired:
-            return "NetworkManager is not answering"
         log.info("disconnected from the Wi-Fi")
         return None
 
@@ -97,52 +153,118 @@ class Network:
         if on:
             state = "on"
         try:
-            self._nmcli("radio", "wifi", state)
-        except subprocess.CalledProcessError as error:
-            log.warning("could not turn the Wi-Fi %s: %s", state, error.stderr.strip())
+            self._nm.NetworkManager.WirelessEnabled = on
+        except self._errors as error:
+            log.warning("could not turn the Wi-Fi %s: %s", state, error)
             return f"Could not turn the Wi-Fi {state}"
-        except subprocess.TimeoutExpired:
-            return "NetworkManager is not answering"
         log.info("Wi-Fi turned %s", state)
         return None
 
-    def _wifi_device(self) -> str:
-        """The name of the Wi-Fi interface: wlan0 on the Pi."""
-        for line in self._nmcli("-t", "-f", "DEVICE,TYPE", "device").splitlines():
-            device, kind = split_terse(line)
-            if kind == WIFI_DEVICE:
+    def _wifi_device(self):
+        """The Wi-Fi interface (wlan0 on the Pi), or None if there is none."""
+        for device in self._nm.NetworkManager.GetDevices():
+            if device.DeviceType == self._nm.NM_DEVICE_TYPE_WIFI:
                 return device
-        return "wlan0"
+        return None
+
+    def _networks(self, device) -> list[WifiNetwork]:
+        """The networks the Wi-Fi interface sees, as found by its last scan."""
+        active = device.ActiveAccessPoint  # None when not connected
+        saved = self._saved_ssids()
+        rows = []
+        for access_point in device.GetAccessPoints():
+            try:
+                ssid = access_point.Ssid
+                secured = (
+                    access_point.Flags & self._nm.NM_802_11_AP_FLAGS_PRIVACY
+                    or access_point.WpaFlags
+                    or access_point.RsnFlags
+                )
+                row = WifiNetwork(
+                    ssid=ssid,
+                    signal=access_point.Strength,
+                    secured=bool(secured),
+                    connected=access_point == active,
+                    saved=ssid in saved,
+                )
+            except self._nm.ObjectVanished:
+                continue  # out of range since the list was read
+            rows.append(row)
+        return one_per_name(rows)
+
+    def _access_point(self, device, ssid: str):
+        """The access point of the network named ssid with the strongest signal, or None if not in range."""
+        best = None
+        for access_point in device.GetAccessPoints():
+            try:
+                if access_point.Ssid == ssid and (
+                    best is None or access_point.Strength > best.Strength
+                ):
+                    best = access_point
+            except self._nm.ObjectVanished:
+                continue
+        return best
+
+    def _saved(self, ssid: str) -> list:
+        """The saved connections of the network named ssid: usually one, none if never joined."""
+        connections = []
+        for connection in self._nm.Settings.ListConnections():
+            settings = connection.GetSettings()
+            if settings.get("802-11-wireless", {}).get("ssid") == ssid:
+                connections.append(connection)
+        return connections
+
+    def _saved_ssids(self) -> set[str]:
+        """The names of the saved Wi-Fi networks."""
+        names = set()
+        for connection in self._nm.Settings.ListConnections():
+            settings = connection.GetSettings()
+            if "ssid" in settings.get("802-11-wireless", {}):
+                names.add(settings["802-11-wireless"]["ssid"])
+        return names
 
     def _forget(self, ssid: str) -> None:
         """Delete the saved network named ssid, if there is one."""
-        result = subprocess.run(
-            ["nmcli", "connection", "delete", "id", ssid],
-            capture_output=True,
-            text=True,
-            timeout=NMCLI_TIMEOUT,
-        )
-        if result.returncode == 0:
-            log.info("forgot the saved network %s", ssid)
+        try:
+            for connection in self._saved(ssid):
+                connection.Delete()
+                log.info("forgot the saved network %s", ssid)
+        except self._errors as error:
+            log.warning("could not forget %s: %s", ssid, error)
+
+    def _wait_for(self, active, device) -> str | None:
+        """Wait for a connection to come up. Returns why it did not, or None."""
+        deadline = time.monotonic() + CONNECT_WAIT
+        while time.monotonic() < deadline:
+            try:
+                state = active.State
+            except self._errors:
+                state = (
+                    self._nm.NM_ACTIVE_CONNECTION_STATE_DEACTIVATED
+                )  # gone: it failed
+            if state == self._nm.NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
+                return None
+            if state == self._nm.NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
+                try:
+                    _, reason = device.StateReason
+                except self._errors:
+                    reason = None
+                return connect_problem(self._nm, reason)
+            time.sleep(POLL)
+        return "did not answer"
 
     def _addresses(self) -> list[str]:
-        """The handcart's IPv4 addresses, from ip; none where ip is missing (on a Mac)."""
-        try:
-            result = subprocess.run(
-                ["ip", "-brief", "-4", "address", "show"],
-                capture_output=True,
-                text=True,
-                timeout=NMCLI_TIMEOUT,
-                check=True,
-            )
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            return []
-        return parse_addresses(result.stdout)
-
-    def _nmcli(self, *args: str, timeout: float = NMCLI_TIMEOUT) -> str:
-        """Run nmcli and return what it printed."""
-        result = subprocess.run(["nmcli", *args], capture_output=True, text=True, timeout=timeout, check=True)
-        return result.stdout
+        """The handcart's IPv4 addresses, on every interface but loopback."""
+        addresses = []
+        for device in self._nm.NetworkManager.GetDevices():
+            if device.Interface == "lo":
+                continue  # only the Pi itself
+            config = device.Ip4Config  # None when the interface has no address
+            if config is None:
+                continue
+            for entry in config.AddressData:
+                addresses.append(entry["address"])
+        return addresses
 
 
 class FakeNetwork:
@@ -153,13 +275,29 @@ class FakeNetwork:
 
     def __init__(self) -> None:
         self._wifi_on = True
-        self._last_ssid: str | None = None  # the network it was on when the Wi-Fi went off
+        self._last_ssid: str | None = (
+            None  # the network it was on when the Wi-Fi went off
+        )
         self._networks = [
-            WifiNetwork(ssid="E-Agle TRT", signal=74, secured=True, connected=True, saved=True),
-            WifiNetwork(ssid="Lab Box: 5G", signal=88, secured=True, connected=False, saved=False),
-            WifiNetwork(ssid="Guest", signal=51, secured=False, connected=False, saved=False),
-            WifiNetwork(ssid="eduroam", signal=33, secured=True, connected=False, saved=False),
-            WifiNetwork(ssid="Far away", signal=12, secured=True, connected=False, saved=False),
+            WifiNetwork(
+                ssid="E-Agle TRT", signal=74, secured=True, connected=True, saved=True
+            ),
+            WifiNetwork(
+                ssid="Lab Box: 5G",
+                signal=88,
+                secured=True,
+                connected=False,
+                saved=False,
+            ),
+            WifiNetwork(
+                ssid="Guest", signal=51, secured=False, connected=False, saved=False
+            ),
+            WifiNetwork(
+                ssid="eduroam", signal=33, secured=True, connected=False, saved=False
+            ),
+            WifiNetwork(
+                ssid="Far away", signal=12, secured=True, connected=False, saved=False
+            ),
         ]
 
     def info(self) -> NetworkInfo:
@@ -169,7 +307,12 @@ class FakeNetwork:
         for network in self._networks:
             if network.connected:
                 addresses.append("192.168.1.23")
-        return NetworkInfo(wifi_on=True, addresses=addresses, networks=in_order(self._networks), problem=None)
+        return NetworkInfo(
+            wifi_on=True,
+            addresses=addresses,
+            networks=in_order(self._networks),
+            problem=None,
+        )
 
     def scan(self) -> str | None:
         time.sleep(FAKE_DELAY)
@@ -183,7 +326,11 @@ class FakeNetwork:
             if network.ssid != ssid:
                 continue
             uses_saved_password = password is None and network.saved
-            if network.secured and not uses_saved_password and password != FAKE_PASSWORD:
+            if (
+                network.secured
+                and not uses_saved_password
+                and password != FAKE_PASSWORD
+            ):
                 return f"Could not connect to {ssid}: wrong password"
             for other in self._networks:
                 other.connected = False
@@ -219,63 +366,21 @@ def password_problem(password: str | None) -> str | None:
     return None
 
 
-# reading what nmcli and ip print
-
-
-def split_terse(line: str) -> list[str]:
-    """The fields of a line of nmcli -t: split at ':', where '\\:' is a colon inside a field."""
-    fields = []
-    field = ""
-    escaped = False
-    for char in line:
-        if escaped:
-            field += char
-            escaped = False
-        elif char == "\\":
-            escaped = True
-        elif char == ":":
-            fields.append(field)
-            field = ""
-        else:
-            field += char
-    fields.append(field)
-    return fields
-
-
-def parse_saved(text: str) -> set[str]:
-    """The names of the saved Wi-Fi networks, from nmcli -t -f NAME,TYPE connection show."""
-    names = set()
-    for line in text.splitlines():
-        name, kind = split_terse(line)
-        if kind == WIFI_PROFILE:
-            names.add(name)
-    return names
-
-
-def parse_networks(text: str, saved: set[str]) -> list[WifiNetwork]:
-    """The networks in nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list: one per name.
+def one_per_name(rows: list[WifiNetwork]) -> list[WifiNetwork]:
+    """One row per network name, from one row per access point.
 
     A network with several access points (or radios) shows up once per access point: its row keeps the
     strongest signal, and it is connected if the handcart is on any of them. Hidden networks are left out.
     """
     networks: dict[str, WifiNetwork] = {}
-    for line in text.splitlines():
-        in_use, ssid, signal, security = split_terse(line)
-        if not ssid:
+    for network in rows:
+        if not network.ssid:
             continue  # a hidden network: it has no name to show
-        network = WifiNetwork(
-            ssid=ssid,
-            signal=int(signal),
-            secured=security not in ("", "--"),
-            connected=in_use == "*",
-            saved=ssid in saved,
-        )
-        if ssid in networks:
-            seen = networks[ssid]
+        if network.ssid in networks:
+            seen = networks[network.ssid]
             network.signal = max(network.signal, seen.signal)
             network.connected = network.connected or seen.connected
-        networks[ssid] = network
-
+        networks[network.ssid] = network
     return in_order(list(networks.values()))
 
 
@@ -287,22 +392,13 @@ def in_order(networks: list[WifiNetwork]) -> list[WifiNetwork]:
     return connected + others
 
 
-def parse_addresses(text: str) -> list[str]:
-    """ "wlan0  UP  192.168.1.23/24" (ip -brief -4 address) -> "192.168.1.23". Not loopback."""
-    addresses = []
-    for line in text.splitlines():
-        fields = line.split()
-        if len(fields) < 3 or fields[0] == "lo":
-            continue  # no address, or only the Pi itself
-        for address in fields[2:]:
-            addresses.append(address.split("/")[0])  # without the /24
-    return addresses
-
-
-def connect_problem(stderr: str) -> str:
-    """Why nmcli could not connect, in the operator's words when we know them."""
-    if "Secrets were required" in stderr:
+def connect_problem(nm, reason: int | None) -> str:
+    """Why a connection failed, from the reason NetworkManager gives for the Wi-Fi's state."""
+    if reason in (
+        nm.NM_DEVICE_STATE_REASON_NO_SECRETS,
+        nm.NM_DEVICE_STATE_REASON_SUPPLICANT_DISCONNECT,
+    ):
         return "wrong password"
-    if "No network with SSID" in stderr:
+    if reason == nm.NM_DEVICE_STATE_REASON_SSID_NOT_FOUND:
         return "network not found"
-    return stderr.strip().removeprefix("Error: ")
+    return "the network refused it"

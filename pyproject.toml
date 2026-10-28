@@ -17,6 +17,8 @@ dependencies = [
     # Raspberry Pi only: GPIO and SPI. Elsewhere the fake HAL is used instead.
     "rpi-lgpio>=0.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
     "spidev>=3.6; sys_platform == 'linux' and (platform_machine == 'aarch64' or platform_machine == 'armv7l')",
+    # Linux only: the Wi-Fi through NetworkManager. Elsewhere FakeNetwork is used instead.
+    "python-networkmanager>=2.2; sys_platform == 'linux'",
 ]
 
 [dependency-groups]
