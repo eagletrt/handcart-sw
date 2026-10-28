@@ -5,9 +5,8 @@ from backend.hal.tones import (
     CONFIRM_SOUND,
     ERROR_SOUND,
     FORELLE,
-    STARTUP_SOUND,
-    TICK_SOUND,
     SHUTDOWN_SOUND,
+    TICK_SOUND,
     Melody,
 )
 

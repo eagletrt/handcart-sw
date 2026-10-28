@@ -6,9 +6,10 @@ import pytest
 
 from backend.hal import Sound
 from backend.hal.board import BoardHal
-from backend.hal.buzzer import RE7, Player
+from backend.hal.buzzer import Player
 from backend.hal.fake import FakeHal
 from backend.hal.feedback import configuration_word, parse_result, scan_word
+from backend.hal.tones import RE7
 from frontend.readings import first_open
 from shared import scenario
 from shared.models import InputEvent

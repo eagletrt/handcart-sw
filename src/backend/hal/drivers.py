@@ -12,16 +12,13 @@ class Gpio(Protocol):
 
     def read(self, pin: int) -> bool:
         """True if the pin is high."""
-        ...
 
 
 class Pwm(Protocol):
     def tone(self, frequency: float | None) -> None:
         """Play a square wave at this frequency, or be silent with None."""
-        ...
 
 
 class Spi(Protocol):
     def transfer(self, data: bytes) -> bytes:
         """Send data and return what came back, byte for byte."""
-        ...
