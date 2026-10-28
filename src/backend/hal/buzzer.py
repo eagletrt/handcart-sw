@@ -13,13 +13,14 @@ LA6, SI6, DO7, DO7_SHARP, RE7, DO6, RE6, SOL6 = (
     1175.0,
     1568.0,
 )
-MIb5, FA5, SOL5, LAb5, SIb5, MIb6 = (
+MIb5, FA5, SOL5, LAb5, SIb5, MIb6, SOLb5 = (
     659.25,
     698.46,
     783.99,
     830.61,
     932.33,
     1318.51,
+    739.99,
 )
 REST = None
 
@@ -27,11 +28,11 @@ Melody = list[tuple[float | None, float]]  # (frequency or REST, seconds)
 
 MELODIES: dict[Sound, Melody] = {
     Sound.STARTUP: [
-        (MIb5, 0.15),
-        (FA5, 0.15),
-        (SOL5, 0.15),
-        (LAb5, 0.15),
-        (SIb5, 0.15),
+        (MIb6, 0.375),
+        (MIb5, 0.125),
+        (SIb5, 0.25),
+        (LAb5, 0.25),
+        (MIb5, 0.25),
         (MIb6, 0.25),
     ],
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
