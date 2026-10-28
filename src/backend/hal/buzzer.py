@@ -34,6 +34,7 @@ MELODIES: dict[Sound, Melody] = {
         (LAb5, 0.25),
         (MIb5, 0.25),
         (MIb6, 0.25),
+        (SIb5, 0.375),
     ],
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
     Sound.CHARGE_DONE: [
