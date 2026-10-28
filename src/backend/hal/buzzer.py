@@ -3,21 +3,25 @@
 from backend.hal import Sound
 
 # notes the PCB buzzer plays well: 1000-3000 Hz (from the old repo)
-LA6, SI6, DO7, DO7_SHARP, RE7 = 1760.0, 1976.0, 2093.0, 2217.0, 2349.0
+LA6, SI6, DO7, DO7_SHARP, RE7, DO6, RE6, SOL6 = (
+    1760.0,
+    1976.0,
+    2093.0,
+    2217.0,
+    2349.0,
+    1046.0,
+    1175.0,
+    1568.0,
+)
 REST = None
 
 Melody = list[tuple[float | None, float]]  # (frequency or REST, seconds)
 
 MELODIES: dict[Sound, Melody] = {
     Sound.STARTUP: [
-        (SI6, 0.15),
-        (LA6, 0.15),
-        (RE7, 0.30),
-        (DO7, 0.30),
-        (LA6, 0.30),
-        (SI6, 0.30),
-        (LA6, 0.15),
-        (RE7, 0.15),
+        (DO6, 0.5),
+        (RE6, 0.5),
+        (SOL6, 0.6),
     ],
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
     Sound.CHARGE_DONE: [
