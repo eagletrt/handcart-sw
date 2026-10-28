@@ -161,11 +161,19 @@ class Network:
         return None
 
     def _wifi_device(self):
-        """The Wi-Fi interface (wlan0 on the Pi), or None if there is none."""
+        """The Wi-Fi interface, or None if there is none.
+
+        The handcart can have two (the Pi's wlan0 and a USB dongle): the one on a network wins, else the first.
+        """
+        first = None
         for device in self._nm.NetworkManager.GetDevices():
-            if device.DeviceType == self._nm.NM_DEVICE_TYPE_WIFI:
+            if device.DeviceType != self._nm.NM_DEVICE_TYPE_WIFI:
+                continue
+            if device.ActiveAccessPoint is not None:
                 return device
-        return None
+            if first is None:
+                first = device
+        return first
 
     def _networks(self, device) -> list[WifiNetwork]:
         """The networks the Wi-Fi interface sees, as found by its last scan."""
