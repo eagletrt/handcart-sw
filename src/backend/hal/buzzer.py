@@ -2,8 +2,6 @@
 
 from backend.hal import Sound
 
-BEAT = 60 / 96
-
 # notes the PCB buzzer plays well: 1000-3000 Hz
 LA6, SI6, DO7, DO7_SHARP, RE7, DO6, RE6, SOL6 = (
     1760.0,
@@ -131,19 +129,22 @@ FORELLE = _phrase(
     ],
 )
 
+STARTUP_SOUND = _phrase(
+    96,
+    [
+        (MIb7, 0.75),
+        (MIb6, 0.25),
+        (SIb6, 0.5),
+        (LAb6, 0.5),
+        (MIb6, 0.5),
+        (MIb7, 0.5),
+        (SIb6, 0.75),
+    ],
+)
+
 MELODIES: dict[Sound, Melody] = {
-    # Sound.STARTUP: [
-    #    (MIb7, BEAT * 0.75),
-    #    (MIb6, BEAT * 0.25),
-    #    (SIb6, BEAT * 0.5),
-    #    (LAb6, BEAT * 0.5),
-    #    (MIb6, BEAT * 0.5),
-    #    (MIb7, BEAT * 0.5),
-    #    (SIb6, BEAT * 0.75),
-    # ],
-    Sound.STARTUP: FORELLE,
+    Sound.STARTUP: STARTUP_SOUND,
     Sound.CONFIRM: [(RE7, 0.05), (REST, 0.05), (RE7, 0.05)],
-    # old jingle: [(LA6, 0.15), (REST, 0.05), (DO7, 0.15), (REST, 0.05), (RE7, 0.40)]
     Sound.CHARGE_DONE: FORELLE,
     Sound.ERROR: [(RE7, 0.20), (LA6, 0.20)] * 3,
     Sound.TICK: [(RE7, 0.008)],
