@@ -22,6 +22,7 @@ from backend.system import System
 from shared import config
 from shared.config import (
     BACKEND_ERROR_FILE,
+    BUZZER_FILE,
     HOTSPOT_FILE,
     RECORD_FILE,
     SETTINGS_FILE,
@@ -79,7 +80,15 @@ async def run() -> None:
     hal = make_hal(cfg)
     recorder = Recorder(RECORD_FILE)
     recorder.start()
-    handcart = Handcart(cfg, hal, bms_bus, charger_bus, settings_file=SETTINGS_FILE, recorder=recorder)
+    handcart = Handcart(
+        cfg,
+        hal,
+        bms_bus,
+        charger_bus,
+        settings_file=SETTINGS_FILE,
+        recorder=recorder,
+        buzzer_file=BUZZER_FILE,
+    )
     handcart.record("system", Severity.NOTICE, "backend", "Backend started")
     handcart.play(Sound.STARTUP)
 

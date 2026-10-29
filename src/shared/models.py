@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # accumulator
 
@@ -154,6 +154,19 @@ class CommandRequest(BaseModel):
 
 class SoundRequest(BaseModel):
     sound: Sound
+
+
+LOWEST_TONE, HIGHEST_TONE = 500.0, 8000.0  # Hz: where a piezo buzzer's resonance can be
+
+
+class ToneRequest(BaseModel):
+    """A frequency for the buzzer: a tone to hear, or the resonance found."""
+
+    frequency: float = Field(ge=LOWEST_TONE, le=HIGHEST_TONE)  # Hz
+
+
+class BuzzerInfo(BaseModel):
+    resonance: float | None  # Hz where the buzzer is loudest; None until found (Debug window)
 
 
 class Fault(StrEnum):

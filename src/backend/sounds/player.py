@@ -17,6 +17,7 @@ from backend.sounds.tones import (
     TS_ON_SOUND,
     WARNING_SOUND,
     Melody,
+    near,
 )
 from shared.models import Sound
 
@@ -68,8 +69,10 @@ def length(sound: Sound) -> float:
 
 
 class Player:
-    def __init__(self) -> None:
-        self._sound: Sound | None = None
+    def __init__(self, resonance: float | None = None) -> None:
+        self.resonance = resonance  # Hz where the buzzer is loudest: the melodies move there (tones.near)
+        self._sound: Sound | None = None  # None while silent, or playing a tone
+        self._melody: Melody = []  # what plays now
         self._started = 0.0
 
     def play(self, sound: Sound, now: float) -> bool:
@@ -77,20 +80,22 @@ class Player:
         playing = self._sound if self.frequency(now) is not None else None
         if playing is not None and PRIORITY[sound] < PRIORITY[playing]:
             return False
-        self._sound, self._started = sound, now
+        self._sound, self._melody, self._started = sound, near(MELODIES[sound], self.resonance), now
         return True
+
+    def tone(self, frequency: float, seconds: float, now: float) -> None:
+        """A plain tone, to find the resonance by ear: it cuts what plays, and any sound cuts it."""
+        self._sound, self._melody, self._started = None, [(frequency, seconds)], now
 
     def hush(self) -> None:
         """Stop the tune playing, if it is one the operator may stop (never an alarm or a warning)."""
         if self._sound in HUSHED_BY_THE_OPERATOR:
-            self._sound = None
+            self._sound, self._melody = None, []
 
     def frequency(self, now: float) -> float | None:
         """What to output now; None when silent."""
-        if self._sound is None:
-            return None
         elapsed = now - self._started
-        for note, duration in MELODIES[self._sound]:
+        for note, duration in self._melody:
             if elapsed < duration:
                 return note
             elapsed -= duration

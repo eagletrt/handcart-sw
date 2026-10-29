@@ -1,7 +1,7 @@
 """The sounds of the buzzer: which melody, and which one cuts which."""
 
 from backend.sounds.player import MELODIES, PRIORITY, Player
-from backend.sounds.tones import RE7
+from backend.sounds.tones import RE7, near
 from shared.models import Sound
 
 
@@ -54,3 +54,26 @@ def test_the_operator_cannot_stop_an_alarm():
     player.play(Sound.ERROR, now=10.0)
     player.hush()
     assert player.frequency(10.01) == RE7
+
+
+def test_a_melody_moves_by_whole_octaves_to_the_resonance():
+    melody = [(1000.0, 0.1), (None, 0.05), (1200.0, 0.1)]
+    assert near(melody, 4000.0) == [(4000.0, 0.1), (None, 0.05), (4800.0, 0.1)]  # two octaves up
+    assert near(melody, 1100.0) == melody  # already there
+    assert near(melody, None) == melody  # no resonance known: as written
+
+
+def test_the_player_plays_the_melodies_around_the_resonance():
+    player = Player(resonance=RE7 * 2)
+    player.play(Sound.CONFIRM, now=10.0)  # written on RE7
+    assert player.frequency(10.01) == RE7 * 2
+
+
+def test_a_tone_plays_for_its_time_and_any_sound_cuts_it():
+    player = Player()
+    player.tone(2500.0, 0.4, now=10.0)
+    assert player.frequency(10.2) == 2500.0
+    assert player.frequency(10.5) is None
+    player.tone(2500.0, 0.4, now=20.0)
+    player.play(Sound.TICK, now=20.1)
+    assert player.frequency(20.101) == RE7

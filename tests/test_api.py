@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from backend import network as network_module
 from backend.api import create_app
 from backend.hal.fake import FakeHal
-from backend.handcart import Handcart
+from backend.handcart import FIRST_RESONANCE, Handcart
 from backend.network import FakeNetwork
 from backend.recorder import Recorder
 from backend.system import System
@@ -149,4 +149,26 @@ def test_events_and_samples_from_the_record(cfg, tmp_path):
         notices = client.get("/api/events", params={"at_least": "notice"}).json()
         assert [e["kind"] for e in notices] == ["refusal"]
         assert client.get("/api/samples", params={"since": 0}).json() == []
+    bus.shutdown()
+
+
+def test_a_tone_to_find_the_resonance(client):
+    assert client.post("/api/buzzer/tone", json={"frequency": 2500}).status_code == 204
+    client.handcart.tick()
+    assert client.hal.buzzer == 2500
+    assert client.post("/api/buzzer/tone", json={"frequency": 50}).status_code == 422  # not a buzzer's
+
+
+def test_the_resonance_found_is_kept_across_restarts(cfg, tmp_path):
+    bus = can.Bus(interface="virtual", channel="api-buzzer", receive_own_messages=False)
+    buzzer_file = tmp_path / "buzzer.json"
+
+    def start() -> Handcart:
+        return Handcart(cfg, FakeHal(), bus, bus, buzzer_file=buzzer_file)
+
+    handcart = start()
+    with TestClient(create_app(handcart, System(cfg.update), FakeNetwork(cfg.hotspot))) as client:
+        assert client.get("/api/buzzer").json() == {"resonance": FIRST_RESONANCE}  # none saved yet
+        assert client.put("/api/buzzer/resonance", json={"frequency": 2700}).status_code == 204
+    assert start().resonance == 2700
     bus.shutdown()

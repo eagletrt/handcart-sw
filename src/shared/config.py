@@ -13,6 +13,7 @@ LOCAL_PATH = ROOT / "config.local.toml"  # optional, not in git: overrides for t
 # files in var/ (not in git); the ones the display reads are explained in frontend/local_files.py
 BACKEND_ERROR_FILE = ROOT / "var" / "backend-error.txt"  # why the backend stopped; shown by the frontend
 SETTINGS_FILE = ROOT / "var" / "settings.json"  # the operator's setpoints, kept across restarts
+BUZZER_FILE = ROOT / "var" / "buzzer.json"  # the buzzer's resonance, found by ear in the Debug window
 RECORD_FILE = ROOT / "var" / "record.db"  # what happened and how the charges went (backend/recorder.py)
 HOTSPOT_FILE = ROOT / "var" / "hotspot.json"  # the hotspot's name and password, once changed on the screen
 # written by ./handcart.py update (handcart.py has the same paths): the step it is at, and how it ended

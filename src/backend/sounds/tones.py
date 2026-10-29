@@ -4,6 +4,8 @@ A Melody is what the buzzer plays: a list of (frequency in Hz or REST, seconds).
 beats, as on a score, and phrase() turns them into a Melody; the short beeps are written in seconds directly.
 """
 
+import math
+
 # Note frequencies in Hz (equal temperament, LA4 = 440 Hz).
 # Black keys use the flat name: REb = DO#, MIb = RE#, SOLb = FA#, LAb = SOL#, SIb = LA#.
 
@@ -53,6 +55,20 @@ REST = None
 GAP = 0.03  # s of silence after each note of a phrase, so that two equal notes are heard as two
 
 Melody = list[tuple[float | None, float]]
+
+
+def near(melody: Melody, resonance: float | None) -> Melody:
+    """The melody moved by whole octaves to where the buzzer is loudest: the same tune, higher or lower.
+
+    A piezo buzzer is loud only around its resonance, and an octave away it is barely heard. The melody
+    goes as many octaves up or down as put its notes, on average, closest to the resonance. None: as written.
+    """
+    notes = [frequency for frequency, _ in melody if frequency is not None]
+    if resonance is None or not notes:
+        return melody
+    middle = sum(math.log2(frequency) for frequency in notes) / len(notes)  # the average pitch, in octaves
+    factor = 2 ** round(math.log2(resonance) - middle)
+    return [(None if frequency is None else frequency * factor, seconds) for frequency, seconds in melody]
 
 
 def phrase(bpm: float, notes: list[tuple[float | None, float]]) -> Melody:
