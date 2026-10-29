@@ -8,7 +8,8 @@ from nicegui import background_tasks, ui
 
 from frontend import local_files, overlays
 from frontend.backend import Backend
-from frontend.controls import Adjust, Context, Controls, Press, SwitchScreen, Target
+from frontend.controls import Adjust, Context, Controls, Gesture, Press, SwitchScreen, Target
+from frontend.graphs_window import GraphsWindow
 from frontend.readings import (
     cell_overvoltage,
     details_screen,
@@ -83,6 +84,8 @@ class Page:
                 self._info_button = ui.button(icon="info_outline", on_click=self._open_info)
                 self._info_button.props("flat round dense text-color=white").classes("info")
                 ui.element("div").classes("spacer")
+                self._graphs_button = ui.button(icon="show_chart", on_click=self._open_graphs)
+                self._graphs_button.props("flat round dense text-color=white").classes("info")
                 self._wifi_button = ui.button(icon="wifi_off", on_click=self._open_wifi)
                 self._wifi_button.props("flat round dense text-color=white").classes("info wifi-off")
                 with (
@@ -128,6 +131,7 @@ class Page:
             self._confirm = overlays.ConfirmWindow()
             self._wifi = WifiWindow(backend, self._toast, self._confirm)
             self._terminal = TerminalWindow()
+            self._graphs = GraphsWindow(cfg, backend)
             request = ui.context.client.request
             on_the_pi = (
                 request is not None and request.client is not None and request.client.host in LOCAL_HOSTS
@@ -144,6 +148,7 @@ class Page:
                 self._confirm,
                 self._terminal,
                 self._wifi,
+                self._graphs,
                 self._system,
                 self._settings,
                 self._info,
@@ -361,6 +366,9 @@ class Page:
             settings = self._backend.status.settings
             self._settings.open(settings, "Balancing settings", ("balancing_threshold",))
 
+    async def _open_graphs(self) -> None:
+        await self._graphs.open()
+
     async def _open_wifi(self) -> None:
         await self._wifi.open()
 
@@ -408,6 +416,8 @@ class Page:
         elif isinstance(effect, SwitchScreen):
             keys = [key for key, _, _ in TABS]
             self._show(keys[(keys.index(self._tab) + effect.step) % len(keys)])
+        elif isinstance(effect, Gesture):
+            self._graphs.on_gesture(effect.event)
         elif isinstance(effect, Adjust) and effect.setting == SCROLL:
             self._terminal.scroll(effect.steps)
         elif isinstance(effect, Adjust):
@@ -463,7 +473,12 @@ class Page:
         for window in self._windows:  # the topmost first
             if window.root.visible:
                 reachable = window.reachable()
-                return reachable, Context(targets=[item.target for item in reachable], window_open=True)
+                context = Context(
+                    targets=[item.target for item in reachable],
+                    window_open=True,
+                    window_captures=window is self._graphs and self._graphs.looking,
+                )
+                return reachable, context
 
         map_name, map_size, map_start = None, (0, 0), 0
         if self._precharge.root.visible:
@@ -482,7 +497,10 @@ class Page:
                 map_name, map_size = self._cells.map_name(), self._cells.map_size()
                 map_start = self._cells.map_start(self._backend.status.bms)
         top = usable(
-            button("info", self._info_button), button("wifi", self._wifi_button), button("system", self._gear)
+            button("info", self._info_button),
+            button("graphs", self._graphs_button),
+            button("wifi", self._wifi_button),
+            button("system", self._gear),
         )
         tabs = [Reachable(Target(key), tab, partial(self._show, key)) for key, (tab, _) in self._tabs.items()]
         stop = usable(button("stop", self._stop, priority=2))  # while something runs, the frame starts here

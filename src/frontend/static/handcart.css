@@ -404,3 +404,18 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 #boot { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; align-items: center; justify-content: center; }
 #boot img { height: 33.3vh; animation: boot 3.1s ease-in-out infinite; }
 @keyframes boot { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+/* Graphs: the last charge, two charts one above the other on the same time axis */
+.graphs { width: calc(100% - 16px); height: calc(100% - 16px); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.ghead { display: flex; align-items: center; gap: 8px; }
+.gtitle { flex: 1; min-width: 0; }
+/* the same height with the charge or the readout in it: nothing below moves when it changes */
+.gtitle .sheet-sub { margin: 0; height: 28px; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gtab.q-btn, .gclose.q-btn { height: 56px; min-width: 96px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 17px; font-weight: 600; }
+.gtab.sel.q-btn { border-color: var(--y); box-shadow: inset 0 0 0 1px var(--y); color: var(--y) !important; }  /* 2 px, the same size */
+.gclose.q-btn { margin-left: 8px; }
+.gchart { flex: 1; min-height: 0; width: 100%; }
+.gempty { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 18px; color: var(--mute); padding: 0 40px; }
+.gchart { border: 2px solid transparent; border-radius: 4px; touch-action: none; }  /* a drag scrolls the chart, not the page */
+.gchart.look { border-color: var(--y); }  /* the line was put on it: the controls move the line */
+.gtitle .sheet-sub.readout { font-size: 20px; font-weight: 700; color: #fff; }
+.ghint { font-size: 15px; height: 24px; line-height: 24px; color: var(--mute); text-align: center; white-space: nowrap; overflow: hidden; }

@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 import httpx
 import websockets
+from pydantic import TypeAdapter
 
 from shared.models import (
     BmsSnapshot,
@@ -13,6 +14,7 @@ from shared.models import (
     Command,
     InputEvent,
     NetworkInfo,
+    Sample,
     Settings,
     Sound,
     Status,
@@ -26,6 +28,8 @@ RECONNECT_DELAY = 1.0  # s
 SYSTEM_PERIOD = 10.0  # s between two reads of /api/system and /api/network (updates, IP address)
 WIFI_TIMEOUT = 40  # s: the backend waits up to 20 s for a scan or a connection, plus the reading after
 UNREACHABLE = "The backend is not reachable"
+SAMPLES_TIMEOUT = 10  # s: hours of samples from the SD card
+SAMPLES = TypeAdapter(list[Sample])
 
 # what the screen shows for a device that stopped talking: its last readings are no longer true
 NO_BMS = BmsSnapshot(
@@ -107,6 +111,17 @@ class Backend:
             return  # keep the last one: the backend is restarting, or not there
         if response.status_code == 200:
             self.network = NetworkInfo.model_validate_json(response.text)
+
+    async def read_samples(self, since: float) -> list[Sample] | None:
+        """The record's samples from `since` (s since 1970), oldest first; None if no answer."""
+        try:
+            async with httpx.AsyncClient(timeout=SAMPLES_TIMEOUT) as client:
+                response = await client.get(f"http://{self._address}/api/samples", params={"since": since})
+        except httpx.HTTPError:
+            return None
+        if response.status_code != 200:
+            return None
+        return SAMPLES.validate_json(response.text)
 
     def on_input(self, listener: Callable[[InputEvent], None]) -> Callable[[], None]:
         """Call listener for every press of the physical controls. Returns a function that stops it."""

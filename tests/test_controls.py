@@ -1,6 +1,6 @@
 """The rules of the physical controls (frontend/controls.py), without any UI."""
 
-from frontend.controls import IDLE_TIME, Adjust, Context, Controls, Press, SwitchScreen, Target
+from frontend.controls import IDLE_TIME, Adjust, Context, Controls, Gesture, Press, SwitchScreen, Target
 from shared.models import InputEvent
 
 PRESS, CW, CCW = InputEvent.PRESS, InputEvent.TURN_CW, InputEvent.TURN_CCW
@@ -202,3 +202,14 @@ def test_nothing_reachable_nothing_framed():
     controls = Controls()
     assert controls.handle(PRESS, Context(), now=0) is None
     assert controls.framed is None
+
+
+def test_a_window_that_captures_gets_every_gesture_and_the_frame_stays():
+    graphs = [Target("close", priority=1), Target("chart top")]
+    looking = Context(targets=graphs, window_open=True, window_captures=True)
+    controls = Controls()
+    gestures(controls, Context(targets=graphs, window_open=True), PRESS, DOWN)
+    assert controls.framed == "chart top"
+    for event in (CW, LEFT, UP, PRESS):
+        assert controls.handle(event, looking, now=2.0) == Gesture(event)
+    assert controls.framed == "chart top"

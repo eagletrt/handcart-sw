@@ -68,3 +68,34 @@ document.addEventListener('pointerdown', (event) => {
   if (square) emitEvent('handcart_cell', Number(square.dataset.i));
   else emitEvent('handcart_touch');
 });
+
+// A finger on a chart of the Graphs window (graphs_window.py): a tap puts the line there, a drag scrolls
+// the chart with the finger (or, not zoomed, takes the line along). The drag goes to the server at most
+// every DRAG_PERIOD, as how far it moved in time: the server redraws the charts, once per finger move would
+// be too many for the Pi.
+const DRAG_START = 10; // px before a touch is a drag
+const DRAG_PERIOD = 100; // ms
+function chartFinger(id, event, emit) {
+  const element = event.currentTarget;
+  const chart = getElement(id).chart;
+  const timeAt = (x) => chart.convertFromPixel({ gridIndex: 0 }, [x, 0])[0]; // ms since 1970
+  if (event.type === 'pointerdown') {
+    element.setPointerCapture(event.pointerId);
+    element.finger = { x: event.offsetX, sentX: event.offsetX, dragging: false, sentAt: 0 };
+    return;
+  }
+  const finger = element.finger;
+  if (!finger) return;
+  const lifted = event.type === 'pointerup' || event.type === 'pointercancel';
+  if (lifted) element.finger = null;
+  if (!finger.dragging) {
+    if (event.type === 'pointerup') emit({ tap: timeAt(event.offsetX) });
+    if (lifted || Math.abs(event.offsetX - finger.x) < DRAG_START) return;
+    finger.dragging = true;
+  }
+  if (!lifted && performance.now() - finger.sentAt < DRAG_PERIOD) return;
+  const moved = (timeAt(finger.sentX) - timeAt(event.offsetX)) / 1000; // s: the chart goes with the finger
+  finger.sentX = event.offsetX;
+  finger.sentAt = performance.now();
+  if (moved) emit({ drag: moved, at: timeAt(event.offsetX) });
+}

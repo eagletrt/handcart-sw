@@ -11,6 +11,7 @@ Plain logic, no UI (tests/test_controls.py). At every gesture the page describes
 - Cells: a click, a touch on a cell, or pressing Volts or Temps with the controls puts the cursor on the map:
   the arrows move it across the grid, turning moves it cell after cell, a click takes it away;
 - in a window turning moves the frame, or changes the framed setting;
+- a window can take every gesture itself (window_captures: the line on the Graphs), until it gives them back;
 - the frame goes away after IDLE_TIME without gestures, or when the screen is touched;
   the cursor stays until a click, a switch of volts and temps, or another screen.
 """
@@ -63,7 +64,14 @@ class Adjust:
     steps: int  # knob steps, signed
 
 
-Effect = Press | SwitchScreen | Adjust | None
+@dataclass(frozen=True)
+class Gesture:
+    """For the open window, which takes the gestures itself (Context.window_captures)."""
+
+    event: InputEvent
+
+
+Effect = Press | SwitchScreen | Adjust | Gesture | None
 
 
 @dataclass(frozen=True)
@@ -72,6 +80,7 @@ class Context:
 
     targets: list[Target] = field(default_factory=list)  # in reading order
     window_open: bool = False
+    window_captures: bool = False  # the open window takes every gesture (Gesture), the frame stays still
     map_name: str | None = None  # the map shown, if any: "volts" or "temps"
     map_size: tuple[int, int] = (0, 0)  # its (rows, squares per row)
     map_start: int = 0  # where the cursor starts: the highest cell, the hottest probe
@@ -92,6 +101,8 @@ class Controls:
         if self._on_map(context):
             self._in_map(event, context.map_size)
             return None
+        if context.window_open and context.window_captures:
+            return Gesture(event)
         if context.window_open:
             return self._in_window(event, context.targets, steps)
         return self._on_screen(event, context, steps)
