@@ -1,7 +1,9 @@
 // Lets the handcart user change the network without a password: the Wi-Fi of the System page.
 // The backend talks to NetworkManager over D-Bus as that user, outside any login session, and NetworkManager asks polkit.
+// 10, not 50: polkit stops at the first rule that answers, and 49-polkit-pkla-compat answers NO first
+// (Debian's NetworkManager .pkla: no changes to the saved networks outside a login session).
 //
-// Goes to: /etc/polkit-1/rules.d/50-handcart-network.rules
+// Goes to: /etc/polkit-1/rules.d/10-handcart-network.rules
 // Installed by: ./handcart.py install-services, which fills in {{USER}}
 polkit.addRule(function (action, subject) {
     if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 && subject.user === "{{USER}}") {

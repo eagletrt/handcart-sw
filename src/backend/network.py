@@ -3,7 +3,7 @@ the hotspot.
 
 Raspberry Pi OS manages the network with NetworkManager: this module asks it over the system D-Bus, with
 dbus-python, as the handcart user. The rule that lets that user change the network is
-system/polkit/50-handcart-network.rules. A scan or a connection can take seconds: the API runs these calls
+system/polkit/10-handcart-network.rules. A scan or a connection can take seconds: the API runs these calls
 in a thread, so the ticks go on.
 Where there is no NetworkManager (a computer), FakeNetwork stands in, with made-up networks.
 
