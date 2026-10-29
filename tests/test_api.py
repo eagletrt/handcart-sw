@@ -130,6 +130,13 @@ def test_a_touch_stops_the_tune_of_a_job_done(client):
     assert client.hal.buzzer is None
 
 
+def test_the_debug_window_plays_a_sound_on_the_buzzer(client):
+    assert client.post("/api/buzzer/play", json={"sound": "CHARGE_DONE"}).status_code == 204
+    client.handcart.tick()
+    assert client.hal.buzzer is not None
+    assert client.post("/api/buzzer/play", json={"sound": "SIREN"}).status_code == 422
+
+
 def test_events_and_samples_from_the_record(cfg, tmp_path):
     bus = can.Bus(interface="virtual", channel="api-record", receive_own_messages=False)
     recorder = Recorder(tmp_path / "record.db")

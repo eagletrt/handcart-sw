@@ -9,6 +9,7 @@ from nicegui import background_tasks, ui
 from frontend import local_files, overlays
 from frontend.backend import Backend
 from frontend.controls import Adjust, Context, Controls, Gesture, Press, SwitchScreen, Target
+from frontend.debug_window import DebugWindow
 from frontend.graphs_window import GraphsWindow
 from frontend.readings import (
     cell_overvoltage,
@@ -19,6 +20,7 @@ from frontend.readings import (
     overvoltage_cells,
     ts_discharging,
 )
+from frontend.safe_window import DIAL, SafeWindow
 from frontend.screens import Actions, Screen
 from frontend.screens.cells import CellsScreen
 from frontend.screens.charge import ChargeScreen
@@ -34,6 +36,8 @@ from shared.models import ChargerState, Command, InputEvent, Settings, State, St
 
 REFRESH_PERIOD = 0.25  # s
 LOCAL_HOSTS = {"127.0.0.1", "::1"}  # the display's own browser: the only one offered the terminal
+EAGLE_TAPS = 5  # taps on the eagle that bring up the safe of the Debug window
+EAGLE_TAP_GAP = 1.0  # s: a longer pause between two taps starts the count again
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -69,6 +73,8 @@ class Page:
         self._told_updates = False  # the toast about updates shows once
         self._controls = Controls()
         self._framed_element: ui.element | None = None  # the element the frame is drawn on
+        self._eagle_taps = 0
+        self._eagle_tapped = 0.0  # when the eagle was last tapped
 
         actions = Actions(
             send=self._send,
@@ -79,7 +85,7 @@ class Page:
         with ui.element("div").classes("screen"):
             self._halo = ui.element("div").classes("halo")
             with ui.element("div").classes("top"):
-                ui.element("div").classes("eagle")
+                ui.element("div").classes("eagle").on("click", self._on_eagle)
                 self._pill = ui.label("").classes("pill").on("click", lambda: self._show("charge"))
                 self._info_button = ui.button(icon="info_outline", on_click=self._open_info)
                 self._info_button.props("flat round dense text-color=white").classes("info")
@@ -130,23 +136,29 @@ class Page:
             self._toast = overlays.Toast()
             self._confirm = overlays.ConfirmWindow()
             self._wifi = WifiWindow(backend, self._toast, self._confirm)
-            self._terminal = TerminalWindow()
             self._graphs = GraphsWindow(cfg, backend)
+            self._system = SystemWindow(
+                backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
+            )
             request = ui.context.client.request
             on_the_pi = (
                 request is not None and request.client is not None and request.client.host in LOCAL_HOSTS
             )
-            self._system = SystemWindow(
+            # the debug window before the terminal: the terminal opens above it, and closing goes back to it
+            self._debug = DebugWindow(
                 backend,
-                self._confirm,
                 lambda problem: self._toast.show(problem, ok=False),
-                open_terminal=self._terminal.open if on_the_pi else None,
+                open_terminal=self._open_terminal if on_the_pi else None,
             )
+            self._safe = SafeWindow(backend, on_open=self._debug.open)
+            self._terminal = TerminalWindow()
             self._updating = Updating(self._toast)
             # the windows that cover the screens, the topmost first
             self._windows = (
                 self._confirm,
                 self._terminal,
+                self._safe,
+                self._debug,
                 self._wifi,
                 self._graphs,
                 self._system,
@@ -244,6 +256,8 @@ class Page:
         self._update_wifi_button()
         if self._wifi.root.visible:
             self._wifi.update()
+        if self._debug.root.visible:
+            self._debug.update()
 
     def _update_wifi_button(self) -> None:
         """Next to the gear: the Wi-Fi icon. White when on a network, grey when on but not on a network,
@@ -375,6 +389,20 @@ class Page:
     def _open_system(self) -> None:
         self._system.open()
 
+    def _open_terminal(self) -> None:
+        self._terminal.open()
+
+    def _on_eagle(self) -> None:
+        """Five quick taps on the eagle: the safe in front of the Debug window."""
+        now = time.monotonic()
+        if now - self._eagle_tapped > EAGLE_TAP_GAP:
+            self._eagle_taps = 0
+        self._eagle_taps += 1
+        self._eagle_tapped = now
+        if self._eagle_taps == EAGLE_TAPS:
+            self._eagle_taps = 0
+            self._safe.open()
+
     def _open_info(self) -> None:
         if self._backend.status is not None:
             self._info.open(self._backend.status.state)
@@ -405,6 +433,8 @@ class Page:
 
         From the backend connection it arrives outside this page's context: elements still update.
         """
+        if self._debug.root.visible:
+            self._debug.on_input(event)
         reachable, context = self._context()
         effect = self._controls.handle(event, context, time.monotonic())
         if isinstance(effect, Press):
@@ -420,6 +450,8 @@ class Page:
             self._graphs.on_gesture(effect.event)
         elif isinstance(effect, Adjust) and effect.setting == SCROLL:
             self._terminal.scroll(effect.steps)
+        elif isinstance(effect, Adjust) and effect.setting == DIAL:
+            self._safe.turn(effect.steps)
         elif isinstance(effect, Adjust):
             self._settings.turn(effect.setting, effect.steps)
         self._follow_controls()

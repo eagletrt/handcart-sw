@@ -1,4 +1,4 @@
-"""The System window, behind the gear in the top bar: version, updates, terminal, reboot and shut down."""
+"""The System window, behind the gear in the top bar: version, updates, reboot and shut down."""
 
 import html
 from collections.abc import Awaitable, Callable
@@ -19,10 +19,8 @@ class SystemWindow:
         backend: Backend,
         confirm: ConfirmWindow,
         report: Callable[[str], None],
-        open_terminal: Callable[[], None] | None,  # None: no terminal (the page is not on the Pi itself)
     ) -> None:
         self._backend = backend
-        self._open_terminal = open_terminal
         self._confirm = confirm
         self._report = report  # shows why something was refused
 
@@ -46,9 +44,6 @@ class SystemWindow:
             with ui.element("div").classes("sheet-actions power"):
                 self._close = ui.button("Close", on_click=lambda: self.root.set_visibility(False))
                 self._close.props("flat no-caps text-color=white").classes("cancel")
-                self._terminal = ui.button("Terminal", icon="terminal", on_click=self._on_terminal)
-                self._terminal.props("flat no-caps text-color=white").classes("cancel")
-                self._terminal.set_visibility(open_terminal is not None)
                 self._reboot = ui.button("Reboot", icon="restart_alt", on_click=self._on_reboot)
                 self._reboot.props("flat no-caps text-color=white").classes("cancel")
                 self._shut_down = ui.button(
@@ -62,7 +57,6 @@ class SystemWindow:
             button("check", self._check),
             button("update", self._update_button),
             button("close", self._close, priority=1),
-            button("terminal", self._terminal),
             button("reboot", self._reboot),
             button("shut down", self._shut_down),
         )
@@ -120,11 +114,6 @@ class SystemWindow:
             "Update",
             lambda: self._run(self._backend.update),
         )
-
-    def _on_terminal(self) -> None:
-        if self._open_terminal is not None:
-            self.root.set_visibility(False)
-            self._open_terminal()
 
     def _on_reboot(self) -> None:
         self._confirm.ask(

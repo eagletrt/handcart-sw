@@ -188,6 +188,10 @@ class Backend:
         """The operator touched the screen: stop the tune of a job done."""
         await self._request("POST", "/api/buzzer/hush")
 
+    async def play(self, sound: Sound) -> str | None:
+        """Play a sound on the buzzer. Returns why it could not, or None."""
+        return await self._request("POST", "/api/buzzer/play", {"sound": sound.value})
+
     async def update(self) -> str | None:
         return await self._request("POST", "/api/system/update")
 

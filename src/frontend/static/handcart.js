@@ -99,3 +99,44 @@ function chartFinger(id, event, emit) {
   finger.sentAt = performance.now();
   if (moved) emit({ drag: moved, at: timeAt(event.offsetX) });
 }
+
+// A finger on the safe's dial (safe_window.py): the dial follows the finger around its center, and every
+// DIAL_STEP degrees is one number, sent to the server as +1 to the right (clockwise) or -1 to the left.
+const DIAL_STEP = 360 / 20; // safe.NUMBERS
+function dialFinger(event, emit) {
+  const element = event.currentTarget;
+  const box = element.getBoundingClientRect();
+  const dx = event.clientX - (box.left + box.width / 2);
+  const dy = event.clientY - (box.top + box.height / 2);
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI; // grows clockwise: y goes down on the screen
+  if (event.type === 'pointerdown') {
+    element.setPointerCapture(event.pointerId);
+    element.finger = { angle, turned: 0 };
+    return;
+  }
+  const finger = element.finger;
+  if (!finger) return;
+  if (event.type !== 'pointermove') {
+    element.finger = null;
+    return;
+  }
+  let moved = angle - finger.angle;
+  if (moved > 180) moved -= 360; // across the left side, where atan2 jumps from 180 to -180
+  if (moved < -180) moved += 360;
+  finger.angle = angle;
+  finger.turned += moved;
+  const steps = Math.trunc(finger.turned / DIAL_STEP);
+  if (steps !== 0) {
+    finger.turned -= steps * DIAL_STEP;
+    emit(steps);
+  }
+}
+
+// Play an element's CSS animation again from the start: the safe's door shaking at each wrong combination.
+function replay(id, animationClass) {
+  const element = document.getElementById('c' + id);
+  if (!element) return;
+  element.classList.remove(animationClass);
+  void element.offsetWidth; // the browser must draw it once without the class, or the animation does not restart
+  element.classList.add(animationClass);
+}

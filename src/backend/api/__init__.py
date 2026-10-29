@@ -7,6 +7,7 @@ WS   /api/ws        {"status": ...} every STATUS_PERIOD, {"input": "UP"} as soon
                     and {"sound": "CONFIRM"} as soon as the buzzer starts a sound
 
 POST /api/buzzer/hush  the operator touched the screen: the tune of a job done stops
+POST /api/buzzer/play  {"sound": "CONFIRM"}: the buzzer plays it (the Debug window, to try the sounds)
 
 GET  /api/system           version, updates on the branch, last update
 POST /api/system/check     look for updates now (a few seconds)
@@ -44,6 +45,7 @@ from shared.models import (
     Settings,
     Severity,
     Sound,
+    SoundRequest,
     Status,
     StreamMessage,
     SystemInfo,
@@ -80,6 +82,10 @@ def create_app(
     @app.post("/api/buzzer/hush", status_code=204)
     async def hush() -> None:
         handcart.hush()
+
+    @app.post("/api/buzzer/play", status_code=204)
+    async def play(body: SoundRequest) -> None:
+        handcart.play(body.sound)
 
     # the record: SQLite in a thread, the SD card can be slow
 

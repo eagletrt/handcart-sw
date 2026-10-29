@@ -1,4 +1,4 @@
-"""The Terminal window, from the System window: run a shell command on the Pi and read what it prints.
+"""The Terminal window, from the Debug window: run a shell command on the Pi and read what it prints.
 
 A command is typed on the screen keyboard (or a USB one), picked from the last ones, or run with one touch
 from the quick commands. It runs in its own shell, in the folder that `cd` last chose; what it prints

@@ -152,6 +152,10 @@ class CommandRequest(BaseModel):
     command: Command
 
 
+class SoundRequest(BaseModel):
+    sound: Sound
+
+
 class Fault(StrEnum):
     """Why the handcart went to ERROR, for the picture the UI shows; the message says it in words."""
 
