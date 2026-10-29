@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from backend.hal.board import BoardHal
+from backend.hal.controls import CLOCKWISE, Encoder
 from backend.hal.fake import FakeHal
 from backend.hal.feedback import configuration_word, parse_result, scan_word
 from frontend.readings import first_open
@@ -113,19 +114,89 @@ def test_two_presses_give_two_events(board, cfg):
     assert first + second == [InputEvent.LEFT, InputEvent.LEFT]
 
 
+def click(encoder: Encoder, clockwise: bool, start: tuple[bool, bool] = (True, True)) -> list[InputEvent]:
+    """One click of the knob from its rest: A and B once round the cycle, one change at a time."""
+    order = CLOCKWISE if clockwise else CLOCKWISE[::-1]
+    position = order.index(start)
+    events = []
+    for step in range(1, len(order) + 1):
+        before, after = order[(position + step - 1) % 4], order[(position + step) % 4]
+        is_a = before[0] != after[0]
+        events += encoder.change(is_a, after[0] if is_a else after[1])
+    return events
+
+
 def test_no_encoder_step_at_start(board):
-    board.hal.poll(0.0)  # B already high: not a turn
+    board.hal.poll(0.0)  # A and B at rest: not a turn
     assert board.hal.input_events() == []
 
 
-@pytest.mark.parametrize("a, event", [(True, InputEvent.TURN_CW), (False, InputEvent.TURN_CCW)])
-def test_encoder_direction(board, cfg, a, event):
-    board.gpio.levels[cfg.gpio.encoder_a] = a
-    board.gpio.levels[cfg.gpio.encoder_b] = False
-    board.hal.poll(0.0)
-    board.gpio.levels[cfg.gpio.encoder_b] = True  # rising edge of B
-    board.hal.poll(0.005)
-    assert board.hal.input_events() == [event]
+@pytest.mark.parametrize("clockwise, event", [(True, InputEvent.TURN_CW), (False, InputEvent.TURN_CCW)])
+def test_a_click_of_the_knob_is_one_step(clockwise, event):
+    encoder = Encoder(True, True)
+    assert click(encoder, clockwise) == [event]
+
+
+def test_a_fast_turn_loses_no_step():
+    encoder = Encoder(True, True)
+    events = []
+    for _ in range(50):
+        events += click(encoder, clockwise=True)
+    for _ in range(20):
+        events += click(encoder, clockwise=False)
+    assert events == [InputEvent.TURN_CW] * 50 + [InputEvent.TURN_CCW] * 20
+
+
+def test_a_bouncing_contact_counts_nothing():
+    encoder = Encoder(True, True)
+    events = []
+    for _ in range(5):  # A leaves the rest and comes back, a few times
+        events += encoder.change(True, False)
+        events += encoder.change(True, True)
+    assert events == []
+
+
+def test_the_same_level_twice_is_not_a_move():
+    encoder = Encoder(True, True)
+    assert encoder.change(True, True) == []
+    assert click(encoder, clockwise=True) == [InputEvent.TURN_CW]
+
+
+def test_the_rest_is_where_the_knob_was_at_the_start():
+    encoder = Encoder(False, False)  # an encoder that rests with both low
+    assert click(encoder, clockwise=True, start=(False, False)) == [InputEvent.TURN_CW]
+
+
+def test_without_pigpiod_the_board_reads_the_encoder_at_each_tick(board, cfg):
+    a, b = cfg.gpio.encoder_a, cfg.gpio.encoder_b
+    events = []
+    # clockwise from the rest: A goes down, B down, A up, B up (B rising with A high, as before pigpiod)
+    for level_a, level_b in [(False, True), (False, False), (True, False), (True, True)]:
+        board.gpio.levels[a], board.gpio.levels[b] = level_a, level_b
+        board.hal.poll(0.0)
+        events += board.hal.input_events()
+    assert events == [InputEvent.TURN_CW]
+
+
+class FakeEncoderPins:
+    def __init__(self) -> None:
+        self.waiting: list[tuple[bool, bool]] = []
+
+    def levels(self) -> tuple[bool, bool]:
+        return True, True
+
+    def changes(self) -> list[tuple[bool, bool]]:
+        changes, self.waiting = self.waiting, []
+        return changes
+
+
+def test_the_board_takes_every_change_since_the_last_tick(cfg):
+    pins = FakeEncoderPins()
+    hal = BoardHal(cfg, FakeGpio(), FakePwm(), FakeAdc(), pins, clock=lambda: 0.0)
+    # three clicks clockwise between two ticks, as pigpiod collects them
+    pins.waiting = [(True, False), (False, False), (True, True), (False, True)] * 3  # (it is A, high)
+    hal.poll(0.0)
+    assert hal.input_events() == [InputEvent.TURN_CW] * 3
 
 
 # shutdown feedbacks

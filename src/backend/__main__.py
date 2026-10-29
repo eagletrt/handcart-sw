@@ -13,7 +13,7 @@ from backend.api import create_app
 from backend.canbus.bus import open_bus
 from backend.hal import Hal
 from backend.hal.board import BoardHal
-from backend.hal.drivers import Pwm, SilentPwm
+from backend.hal.drivers import EncoderPins, Pwm, SilentPwm
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.network import FakeNetwork, Network
@@ -62,7 +62,13 @@ def make_hal(cfg: Config) -> Hal:
     except RuntimeError as error:  # a silent buzzer must not stop the handcart
         log.error("No buzzer: %s (sudo systemctl enable --now pigpiod)", error)
         buzzer = SilentPwm()
-    return BoardHal(cfg, rpi.RpiGpio(cfg), buzzer, rpi.RpiSpi(cfg))
+    encoder_pins: EncoderPins | None
+    try:
+        encoder_pins = rpi.PigpioEncoderPins(cfg.gpio.encoder_a, cfg.gpio.encoder_b)
+    except RuntimeError as error:  # read at each tick instead: a fast turn loses steps, but it works
+        log.error("Encoder read at each tick: %s (sudo systemctl enable --now pigpiod)", error)
+        encoder_pins = None
+    return BoardHal(cfg, rpi.RpiGpio(cfg), buzzer, rpi.RpiSpi(cfg), encoder_pins)
 
 
 async def run() -> None:

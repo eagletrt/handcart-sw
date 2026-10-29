@@ -71,6 +71,8 @@ class Backend:
         self.network: NetworkInfo | None = None  # addresses and Wi-Fi networks; None until read
         self._listeners: list[Callable[[InputEvent], None]] = []
         self._sound_listeners: list[Callable[[Sound], None]] = []
+        # one connection for the requests, kept open: opening one for each costs the Pi more than the request
+        self._client = httpx.AsyncClient()
 
     async def run(self) -> None:
         """Follow /api/ws for ever, reconnecting when the backend restarts."""
@@ -205,8 +207,8 @@ class Backend:
         self, method: str, path: str, body: dict | None = None, timeout: float = 5
     ) -> str | None:
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.request(method, f"http://{self._address}{path}", json=body)
+            url = f"http://{self._address}{path}"
+            response = await self._client.request(method, url, json=body, timeout=timeout)
         except httpx.HTTPError:
             return UNREACHABLE
         if response.status_code == 422:

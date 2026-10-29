@@ -1,9 +1,11 @@
-"""The real peripherals on the Raspberry Pi: GPIO through RPi.GPIO (rpi-lgpio), the buzzer through the
-pigpiod daemon, SPI through spidev.
+"""The real peripherals on the Raspberry Pi: GPIO through RPi.GPIO (rpi-lgpio), the buzzer and the encoder
+through the pigpiod daemon, SPI through spidev.
 
 Only translation to the libraries here, no logic: that lives in the other hal/ modules and is tested.
 Not yet tried on the handcart Pi.
 """
+
+import threading
 
 import pigpio
 import spidev
@@ -65,6 +67,42 @@ class PigpioPwm:
         self._pi.wave_add_generic([pigpio.pulse(mask, 0, half), pigpio.pulse(0, mask, half)])
         self._wave = self._pi.wave_create()
         self._pi.wave_send_repeat(self._wave)
+
+
+class PigpioEncoderPins:
+    """The encoder's A and B, each change timed by pigpiod as it happens: a fast turn loses no step.
+
+    pigpiod calls back from its own thread; the changes wait in a list until the next tick takes them.
+    """
+
+    GLITCH_FILTER = 1000  # µs a level must last to count: longer than a contact bounce, shorter than a click
+
+    def __init__(self, a: int, b: int) -> None:
+        self._pi = pigpio.pi()
+        if not self._pi.connected:
+            raise RuntimeError("pigpiod is not running")
+        self._a, self._b = a, b
+        self._lock = threading.Lock()
+        self._changes: list[tuple[bool, bool]] = []
+        self._callbacks = []  # kept: pigpio stops calling back a callback that is gone
+        for pin in (a, b):
+            self._pi.set_mode(pin, pigpio.INPUT)
+            self._pi.set_glitch_filter(pin, self.GLITCH_FILTER)
+            self._callbacks.append(self._pi.callback(pin, pigpio.EITHER_EDGE, self._on_edge))
+
+    def levels(self) -> tuple[bool, bool]:
+        return self._pi.read(self._a) == 1, self._pi.read(self._b) == 1
+
+    def changes(self) -> list[tuple[bool, bool]]:
+        with self._lock:
+            changes, self._changes = self._changes, []
+        return changes
+
+    def _on_edge(self, pin: int, level: int, tick: int) -> None:
+        if level == pigpio.TIMEOUT:  # a watchdog, not a change
+            return
+        with self._lock:
+            self._changes.append((pin == self._a, level == 1))
 
 
 class RpiSpi:

@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 
 from backend.hal.controls import Buttons, Encoder
-from backend.hal.drivers import Gpio, Pwm, Spi
+from backend.hal.drivers import EncoderPins, Gpio, PolledEncoderPins, Pwm, Spi
 from backend.hal.feedback import (
     LAST_CHANNEL,
     configuration_word,
@@ -27,6 +27,7 @@ class BoardHal:
         gpio: Gpio,
         buzzer: Pwm,
         adc: Spi,
+        encoder_pins: EncoderPins | None = None,  # None: A and B read through gpio at each tick
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._cfg = cfg
@@ -44,7 +45,10 @@ class BoardHal:
                 pins.encoder_press: InputEvent.PRESS,
             }
         )
-        self._encoder = Encoder()
+        if encoder_pins is None:
+            encoder_pins = PolledEncoderPins(gpio, pins.encoder_a, pins.encoder_b)
+        self._encoder_pins = encoder_pins
+        self._encoder = Encoder(*encoder_pins.levels())
         self._events: list[InputEvent] = []
         self._readings: dict[int, tuple[float, float]] = {}  # ADC channel -> (volts, when read)
         self._next_adc_read = 0.0
@@ -77,8 +81,8 @@ class BoardHal:
     def _read_controls(self, now: float) -> None:
         levels = {pin: self._gpio.read(pin) for pin in self._buttons.pins}
         self._events += self._buttons.update(now, levels)
-        pins = self._cfg.gpio
-        self._events += self._encoder.update(self._gpio.read(pins.encoder_a), self._gpio.read(pins.encoder_b))
+        for is_a, high in self._encoder_pins.changes():
+            self._events += self._encoder.change(is_a, high)
 
     def _read_feedbacks(self, now: float) -> None:
         """One scan: ask for all the channels, then read one result per channel, in order, from the FIFO.

@@ -343,8 +343,13 @@ class Page:
         self._refresh()
 
     def _hush(self) -> None:
-        """The operator is there: stop the tune of a job done (charge, balancing)."""
-        background_tasks.create(self._backend.hush())
+        """The operator is there: stop the tune of a job done (charge, balancing).
+
+        Only while one may be playing: a touch is not worth a request to the backend otherwise.
+        """
+        status = self._backend.status
+        if status is not None and (status.state is State.CHARGE_DONE or status.balancing_done):
+            background_tasks.create(self._backend.hush())
 
     def _select(self, key: str) -> None:
         """Make a screen the visible one and highlight its tab."""

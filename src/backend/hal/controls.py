@@ -1,6 +1,7 @@
 """The physical controls, from pin levels to InputEvents: four buttons and a rotary encoder.
 
-Both are polled every tick; the encoder knob is turned by hand, so a few milliseconds are fast enough.
+The buttons are polled every tick: a press lasts far longer. The encoder works on each change of its two
+outputs, timed by pigpiod as it happens (hal/rpi.py): a fast turn changes them faster than the ticks come.
 """
 
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from dataclasses import dataclass
 from shared.models import InputEvent
 
 DEBOUNCE = 0.02  # s a button must stay at a level before it counts
+# the levels of the encoder's (A, B) through one click of the knob clockwise: A goes up first
+CLOCKWISE = [(False, False), (True, False), (True, True), (False, True)]
 
 
 @dataclass
@@ -42,14 +45,33 @@ class Buttons:
 
 
 class Encoder:
-    """Rotary encoder with two outputs, A and B. One step per rising edge of B; A gives the direction."""
+    """Rotary encoder with two outputs, A and B: each click of the knob takes them once round CLOCKWISE.
 
-    def __init__(self) -> None:
-        self._last_b: bool | None = None  # unknown until the first reading
+    The step counts when the knob is back at rest (the levels it had at the start), after most of the cycle
+    in one direction: a bouncing contact goes forth and back and counts nothing.
+    """
 
-    def update(self, a: bool, b: bool) -> list[InputEvent]:
-        rising = b and self._last_b is False  # the first reading only sets the starting level
-        self._last_b = b
-        if not rising:
+    def __init__(self, a: bool, b: bool) -> None:
+        self._rest = (a, b)
+        self._levels = (a, b)
+        self._moved = 0  # quarters of a cycle since the rest, clockwise positive
+
+    def change(self, is_a: bool, high: bool) -> list[InputEvent]:
+        """A or B changed level: the step, if this ends one."""
+        a, b = self._levels
+        levels = (high, b) if is_a else (a, high)
+        if levels == self._levels:
+            return []  # the same level again: nothing moved
+        if CLOCKWISE.index(levels) == (CLOCKWISE.index(self._levels) + 1) % len(CLOCKWISE):
+            self._moved += 1
+        else:
+            self._moved -= 1  # one output changes at a time: if not forward, back
+        self._levels = levels
+        if levels != self._rest:
             return []
-        return [InputEvent.TURN_CW if a else InputEvent.TURN_CCW]
+        moved, self._moved = self._moved, 0
+        if moved >= 3:  # 4 in a clean click; 3 if an edge went missing
+            return [InputEvent.TURN_CW]
+        if moved <= -3:
+            return [InputEvent.TURN_CCW]
+        return []
