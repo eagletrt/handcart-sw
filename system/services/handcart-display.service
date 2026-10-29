@@ -27,7 +27,9 @@ Environment=XCURSOR_PATH=/usr/share/handcart-cursors XCURSOR_THEME=default XCURS
 ExecStartPre=-/usr/bin/timeout 60 /bin/sh -c 'until curl -sf http://localhost:{{FRONTEND_PORT}}/ >/dev/null; do sleep 0.5; done'
 ExecStartPre=+-/usr/bin/plymouth quit --retain-splash
 # --password-store=basic: no "Choose password for new keyring" window at every start
-ExecStart=/usr/bin/cage -- /usr/bin/chromium-browser --password-store=basic --kiosk --noerrdialogs --disable-infobars --incognito --no-first-run --disable-session-crashed-bubble --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 http://localhost:{{FRONTEND_PORT}}/?kiosk=true
+# --ignore-gpu-blocklist --enable-gpu-rasterization: the Pi's GPU draws the page; Chromium keeps it off the
+# Pi's by default, and drawing on the CPU took some 100 ms after each touch
+ExecStart=/usr/bin/cage -- /usr/bin/chromium-browser --password-store=basic --kiosk --noerrdialogs --disable-infobars --incognito --no-first-run --disable-session-crashed-bubble --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 --ignore-gpu-blocklist --enable-gpu-rasterization http://localhost:{{FRONTEND_PORT}}/?kiosk=true
 Restart=always
 RestartSec=3
 

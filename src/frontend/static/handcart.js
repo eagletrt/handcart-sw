@@ -183,3 +183,24 @@ function touchLatency() {
     total: median(touches.map((t) => t.click + t.server + t.draw)),
   };
 }
+
+// On the touch screen a button or a tab acts as soon as the finger is down, not when it lifts: a tap lasts
+// some 100 ms, and the screen felt late by as much. The click the browser makes on the lift is then
+// dropped wherever it lands: by then the press may have opened a window, and the lift would press what
+// came up under the finger (Save, Shut down...). The mouse keeps the usual click.
+let liftToDrop = false;
+document.addEventListener('pointerdown', (event) => {
+  liftToDrop = false;
+  if (event.pointerType !== 'touch') return;
+  const target = event.target.closest('.q-btn:not(.disabled):not([disabled]), .nt');
+  if (!target) return;
+  liftToDrop = true;
+  target.click();
+}, true);
+document.addEventListener('click', (event) => {
+  if (event.isTrusted && liftToDrop) {
+    event.stopPropagation();
+    event.preventDefault();
+    liftToDrop = false;
+  }
+}, true);
