@@ -447,7 +447,8 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .bolt.b3 { bottom: 58px; }
 .dialwrap { position: absolute; left: 28px; top: 50%; width: 214px; height: 214px; margin-top: -107px; border-radius: 50%;
   touch-action: none; box-shadow: 0 6px 18px rgba(0,0,0,.65); }
-.dial { width: 100%; height: 100%; transition: transform .15s ease-out; }
+.dial { width: 100%; height: 100%; transition: transform 50ms linear; }  /* short: the dial keeps up with a fast turn */
+.dial > div { width: 100%; height: 100%; }
 .dial-face { width: 100%; height: 100%; display: block; }
 .dial-face .rim { fill: #2b2b28; stroke: #8a8a83; stroke-width: 3; }
 .dial-face .disc { fill: #111110; }

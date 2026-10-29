@@ -65,7 +65,10 @@ class SafeWindow:
                     for row in ("b1", "b2", "b3"):
                         ui.element("div").classes(f"bolt {row}")
                     with ui.element("div").classes("dialwrap") as self._dial_area:
-                        self._face = ui.html(dial_face()).classes("dial")
+                        # the face is sent once; each step only turns the div around it (a few bytes, and
+                        # the Pi's browser does not rebuild the face)
+                        with ui.element("div").classes("dial") as self._face:
+                            ui.html(dial_face())
                         ui.element("div").classes("dmark")
                     with ui.element("div").classes("handle"):
                         ui.element("div").classes("hbar")
