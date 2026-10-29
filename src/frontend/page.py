@@ -1,5 +1,6 @@
 """The page on the display: top bar, the four screens, the nav with STOP, and what covers them."""
 
+import asyncio
 import time
 from datetime import datetime
 from functools import partial
@@ -35,6 +36,7 @@ from shared.config import Config
 from shared.models import ChargerState, Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
+INPUT_BATCH = 0.05  # s: controls closer than this are handled together, in one change for the screen
 LOCAL_HOSTS = {"127.0.0.1", "::1"}  # the display's own browser: the only one offered the terminal
 EAGLE_TAPS = 5  # taps on the eagle that bring up the safe of the Debug window
 EAGLE_TAP_GAP = 1.0  # s: a longer pause between two taps starts the count again
@@ -75,6 +77,8 @@ class Page:
         self._framed_element: ui.element | None = None  # the element the frame is drawn on
         self._eagle_taps = 0
         self._eagle_tapped = 0.0  # when the eagle was last tapped
+        self._inputs: list[InputEvent] = []  # controls waiting to be handled (_on_input)
+        self._inputs_handled = 0.0  # when the controls were last handled
 
         actions = Actions(
             send=self._send,
@@ -436,8 +440,28 @@ class Page:
     def _on_input(self, event: InputEvent) -> None:
         """A press of the handcart's controls, or of the computer's keys.
 
+        Handled at once, unless the controls were handled less than INPUT_BATCH ago: then together with
+        the ones that come meanwhile. A fast turn of the encoder sends dozens of steps a second, and the
+        display's browser takes tens of ms for each change of the screen: one change per step would queue
+        up, and the screen would fall further and further behind. No step is lost, only drawn together.
+
         From the backend connection it arrives outside this page's context: elements still update.
         """
+        self._inputs.append(event)
+        if len(self._inputs) > 1:
+            return  # the others are already waiting to be handled
+        wait = self._inputs_handled + INPUT_BATCH - time.monotonic()
+        asyncio.get_running_loop().call_later(max(0.0, wait), self._handle_inputs)
+
+    def _handle_inputs(self) -> None:
+        """The controls that came since the last time, in order; the frame and the cursor drawn once."""
+        events, self._inputs = self._inputs, []
+        self._inputs_handled = time.monotonic()
+        for event in events:
+            self._handle_input(event)
+        self._follow_controls()
+
+    def _handle_input(self, event: InputEvent) -> None:
         if self._debug.root.visible:
             self._debug.on_input(event)
         reachable, context = self._context()
@@ -459,7 +483,6 @@ class Page:
             self._terminal.scroll(effect.steps)
         elif isinstance(effect, Adjust):
             self._settings.turn(effect.setting, effect.steps)
-        self._follow_controls()
 
     def _cursor_on_map_start(self, pressed: str) -> None:
         """Volts or Temps pressed with the controls: the cursor goes on that map, on its highest square.

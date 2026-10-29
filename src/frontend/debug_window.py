@@ -132,6 +132,8 @@ class DebugWindow:
                 f"click → server {touches['server']}, drawing {touches['draw']} "
                 f"(last {touches['count']}) · {line}"
             )
+            if touches["split"]:  # the browser can tell what the drawing was
+                line += f" · drawing: scripts {touches['scripts']}, style and layout {touches['layout']}"
         self._speed.set_text(line)
 
     async def _play(self, sound: Sound) -> None:

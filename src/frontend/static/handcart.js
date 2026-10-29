@@ -163,12 +163,36 @@ function followServer() {
     if (answer - timed.click > ANSWER_WAIT) return;
     // two frames: the browser has drawn the change by the second one
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      touches.push({ click: timed.click - timed.down, server: answer - timed.click, draw: performance.now() - answer });
+      const drawn = performance.now();
+      touches.push({ click: timed.click - timed.down, server: answer - timed.click, draw: drawn - answer, answer, drawn });
       if (touches.length > TOUCHES) touches.shift();
     }));
   });
 }
 followServer();
+// The drawing, split by the browser itself: its frames longer than 50 ms, with the time in scripts (NiceGUI
+// and Vue applying the change) and in style and layout. Not every browser has them: then no split.
+const slowFrames = [];
+if (PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame')) {
+  new PerformanceObserver((list) => {
+    for (const frame of list.getEntries()) {
+      slowFrames.push(frame);
+      if (slowFrames.length > 200) slowFrames.shift();
+    }
+  }).observe({ type: 'long-animation-frame' });
+}
+function drawingSplit(touch) {
+  let scripts = 0;
+  let styleAndLayout = 0;
+  for (const frame of slowFrames) {
+    const end = frame.startTime + frame.duration;
+    if (end < touch.answer || frame.startTime > touch.drawn) continue;
+    scripts += frame.scripts.reduce((sum, script) => sum + script.duration, 0);
+    if (frame.styleAndLayoutStart) styleAndLayout += end - frame.styleAndLayoutStart;
+  }
+  return { scripts, styleAndLayout };
+}
+
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   return Math.round(sorted[Math.floor(sorted.length / 2)]);
@@ -181,6 +205,9 @@ function touchLatency() {
     server: median(touches.map((t) => t.server)),
     draw: median(touches.map((t) => t.draw)),
     total: median(touches.map((t) => t.click + t.server + t.draw)),
+    split: slowFrames.length > 0 || PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame'),
+    scripts: median(touches.map((t) => drawingSplit(t).scripts)),
+    layout: median(touches.map((t) => drawingSplit(t).styleAndLayout)),
   };
 }
 
