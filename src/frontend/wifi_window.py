@@ -160,6 +160,19 @@ class WifiWindow:
         else:
             self._ask_password(network)
 
+    def typing(self) -> bool:
+        """Whether the password keyboard is open: a USB keyboard types into it (on_key)."""
+        return self.root.visible and self._password_view.visible
+
+    async def on_key(self, key: str) -> None:
+        """A key of a USB keyboard while typing: Enter connects, Escape goes back, the rest types."""
+        if key == "Enter":
+            await self._on_connect()
+        elif key == "Escape":
+            self._show_list()
+        else:
+            self._keyboard.press_key(key)
+
     async def _on_connect(self) -> None:
         if self._asking is not None:
             await self._join(self._asking, self._keyboard.text)

@@ -25,12 +25,14 @@ from frontend.screens.charger import ChargerScreen
 from frontend.screens.shutdown import ShutdownScreen
 from frontend.system_window import SystemWindow
 from frontend.targets import Reachable, button, usable
+from frontend.terminal_window import SCROLL, TerminalWindow
 from frontend.updating import Updating
 from frontend.wifi_window import WifiWindow
 from shared.config import Config
 from shared.models import Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
+LOCAL_HOSTS = {"127.0.0.1", "::1"}  # the display's own browser: the only one offered the terminal
 TABS = [
     ("charge", "Charge", "bolt"),
     ("cells", "Cells", "grid_view"),
@@ -125,12 +127,27 @@ class Page:
             self._toast = overlays.Toast()
             self._confirm = overlays.ConfirmWindow()
             self._wifi = WifiWindow(backend, self._toast, self._confirm)
+            self._terminal = TerminalWindow()
+            request = ui.context.client.request
+            on_the_pi = (
+                request is not None and request.client is not None and request.client.host in LOCAL_HOSTS
+            )
             self._system = SystemWindow(
-                backend, self._confirm, lambda problem: self._toast.show(problem, ok=False)
+                backend,
+                self._confirm,
+                lambda problem: self._toast.show(problem, ok=False),
+                open_terminal=self._terminal.open if on_the_pi else None,
             )
             self._updating = Updating(self._toast)
             # the windows that cover the screens, the topmost first
-            self._windows = (self._confirm, self._wifi, self._system, self._settings, self._info)
+            self._windows = (
+                self._confirm,
+                self._terminal,
+                self._wifi,
+                self._system,
+                self._settings,
+                self._info,
+            )
             with ui.element("div").classes("offline") as self._offline:
                 ui.element("div").classes("eagle")
                 ui.label("Waiting for the backend")
@@ -148,6 +165,7 @@ class Page:
         # on a computer, handcart.js turns keys and the mouse wheel into the same controls
         ui.on("handcart_control", lambda event: self._on_input(InputEvent(event.args)))
         ui.on("handcart_touch", self._on_touch)
+        ui.on("handcart_type", lambda event: self._on_typed(str(event.args)))
         ui.on("handcart_cell", lambda event: self._on_cell_touched(int(event.args)))
         ui.timer(REFRESH_PERIOD, self._refresh)
         # size the screen to the display once the browser has drawn the page (handcart.js)
@@ -390,6 +408,8 @@ class Page:
         elif isinstance(effect, SwitchScreen):
             keys = [key for key, _, _ in TABS]
             self._show(keys[(keys.index(self._tab) + effect.step) % len(keys)])
+        elif isinstance(effect, Adjust) and effect.setting == SCROLL:
+            self._terminal.scroll(effect.steps)
         elif isinstance(effect, Adjust):
             self._settings.turn(effect.setting, effect.steps)
         self._follow_controls()
@@ -405,6 +425,13 @@ class Page:
             self._cells.show_volts()
         _, context = self._context()
         self._controls.touch_map(context.map_start, context)
+
+    async def _on_typed(self, key: str) -> None:
+        """A key of a USB keyboard while a screen keyboard is open (handcart.js): into that keyboard."""
+        if self._terminal.typing():
+            await self._terminal.on_key(key)
+        elif self._wifi.typing():
+            await self._wifi.on_key(key)
 
     def _on_touch(self) -> None:
         """The operator touched the screen outside the map: the frame goes."""

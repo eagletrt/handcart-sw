@@ -21,9 +21,23 @@ const KEYS = {
   Enter: 'PRESS', ' ': 'PRESS', q: 'TURN_CCW', e: 'TURN_CW',
 };
 
+// While a screen keyboard is open (the Wi-Fi password, the terminal) a USB keyboard types into it instead:
+// characters, Backspace, Enter to confirm and Escape to go back.
+const TYPING_KEYS = new Set(['Backspace', 'Enter', 'Escape']);
+function typing() {
+  return [...document.querySelectorAll('.kb')].some((kb) => kb.offsetParent !== null);
+}
+
 // In the capture phase, before the buttons see the key: a focused Quasar button would take Enter and
 // Space for itself and press itself again on key up.
 document.addEventListener('keydown', (event) => {
+  const typed = event.key.length === 1 || TYPING_KEYS.has(event.key);
+  if (typed && !event.ctrlKey && !event.metaKey && !event.altKey && typing()) {
+    event.preventDefault();
+    event.stopPropagation();
+    emitEvent('handcart_type', event.key);
+    return;
+  }
   const control = KEYS[event.key];
   if (control === undefined) return;
   event.preventDefault(); // no scrolling, no native press

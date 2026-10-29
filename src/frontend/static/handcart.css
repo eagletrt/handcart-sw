@@ -295,7 +295,31 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .ubtns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 .ubtns .q-btn { height: 56px; border-radius: 4px; font-weight: 700; font-size: 16px; }
 .ubtns .q-btn.cancel { border: 1px solid var(--line-2); }
-.sheet-actions.power { grid-template-columns: 1fr 1fr 1fr; margin-top: 14px; }
+.sheet-actions.power { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; margin-top: 14px; }
+/* Terminal: the output of the commands, and the screen keyboard to type them */
+.term { width: calc(100% - 16px); height: calc(100% - 16px); padding: 12px; }
+.term > div { height: 100%; display: flex; flex-direction: column; }
+.thead { display: flex; align-items: baseline; gap: 14px; }
+.thead .sheet-sub { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tout { flex: 1; min-height: 0; margin-top: 8px; overflow-y: auto; display: flex; flex-direction: column-reverse; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; background: #000; }
+.ttext { font-family: var(--mono); font-size: 14px; line-height: 1.35; white-space: pre-wrap; word-break: break-all; color: var(--fg); }
+.ttext .t-cmd { color: #fff; font-weight: 700; margin-top: 10px; }
+.ttext .t-cmd:first-child { margin-top: 0; }
+.ttext .t-cmd span { color: var(--y); }
+.ttext .t-out { color: rgba(255,255,255,.82); }
+.ttext .t-err { color: var(--red); }
+.ttext .t-fail { color: var(--red); font-weight: 700; }
+.ttext .t-stop, .ttext .t-hint { color: var(--faint); }
+.term .sheet-actions { margin-top: 8px; }
+.thead .sheet-sub.running { color: var(--y); }
+.tchips { display: flex; gap: 6px; margin-top: 8px; }
+.tchip.q-btn { flex: 1 1 0; min-width: 0; height: 40px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 15px; font-weight: 600; padding: 0 8px; }
+.tchip.q-btn .q-btn__content { flex-wrap: nowrap; overflow: hidden; }
+.tchip.q-btn .block { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.term > div > .tchips:first-child { margin: 0 0 6px; }  /* the last commands, above the keyboard */
+.term .kbfield, .term .kbkey.q-btn { height: 46px; min-height: 46px; }  /* smaller keys: the last commands fit above */
+.term .sheet-actions .q-btn { height: 56px; }
+.sheet-actions.tacts { grid-template-columns: 1fr 2fr; }
 /* Wi-Fi: the icon next to the gear (faint when not connected), and its window with the screen keyboard */
 .info.wifi-off.q-btn { color: var(--faint); }
 .wifi { width: calc(100% - 16px); padding: 12px; }  /* as wide as the display: wider keys */
@@ -329,7 +353,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .wip .num { font-size: 30px; font-weight: 700; color: #fff; white-space: nowrap; }
 .kb { display: flex; flex-direction: column; gap: 6px; }
 .kbfield { height: 56px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-2); border-radius: 4px; padding-left: 14px; }
-.kblabel { font-size: 15px; color: var(--mute); white-space: nowrap; }
+.kblabel { font-size: 15px; color: var(--mute); white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; flex: none; }
 .kbtext { flex: 1; min-width: 0; font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kbrow { display: flex; gap: 6px; }
 .kbrow.r1 { padding: 0 36px; }  /* the middle row of letters is shorter, as on a real keyboard */

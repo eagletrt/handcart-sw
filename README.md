@@ -126,8 +126,15 @@ Then by hand, because a mistake there stops the Pi from booting:
    `/boot/firmware/cmdline.txt`, and change `console=tty1` to `console=tty3` in that line.
 3. Reboot.
 
-To reach the Pi for maintenance, use SSH: the display only ever shows the UI.
-The backend only accepts connections from the Pi itself, so from an SSH session:
+To reach the Pi for maintenance, use SSH, or the **Terminal** in the System window (the gear): a command
+typed on the screen keyboard runs on the Pi and its output shows as it comes; Stop ends a long one. It is
+not a full terminal: a command that asks something while it runs (vim, top, a sudo password) gets no
+answer. It is offered only on the display, never to a browser on another machine.
+
+A USB keyboard plugged into the Pi drives the UI with the keys of the table above, as on the computer
+(touch the screen once if they do nothing: the page needs the focus).
+
+The backend only accepts connections from the Pi itself, so from an SSH session or the Terminal:
 
 ```bash
 ./handcart.py status

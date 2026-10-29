@@ -1,4 +1,4 @@
-"""A keyboard on the screen, for the Wi-Fi password: the handcart has none, and the Pi's own is unusable.
+"""A keyboard on the screen, for the Wi-Fi password and the terminal: the handcart has no keyboard.
 
 Touch the keys. With the physical controls the frame moves over them like over any other button, and the
 click types the framed key: slow, but it works without touching the screen.
@@ -13,11 +13,14 @@ LETTERS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
 SYMBOLS = ["@#$%&*-+=/", "!?.,:;_~'", '"()<>\\|']  # the same lengths as LETTERS: they use the same keys
 HIDDEN = "•"
 LAST_CHAR_TIME = 1.0  # s the last character typed stays readable, as on a phone
+VISIBLE_CHARS = 44  # of a text that is not secret: a longer one shows its end, where the typing is
 
 
 class Keyboard:
-    def __init__(self) -> None:
+    def __init__(self, secret: bool = True, extra: str = "") -> None:
+        """extra: symbols worth a key of their own, beside the space bar ("-/.|" for shell commands)."""
         self.text = ""
+        self._secret = secret  # a password: dots, with a button to show it
         self._caps = False  # capital letters, until shift is pressed again
         self._symbols = False  # the letter keys show symbols
         self._shown = False  # the text is shown, not dots
@@ -29,6 +32,7 @@ class Keyboard:
                 self._field = ui.label("").classes("kbtext num")
                 self._show = ui.button(icon="visibility", on_click=self._on_show)
                 self._show.props("flat text-color=white").classes("kbkey")
+                self._show.set_visibility(secret)
             self._digit_keys = self._row(DIGITS)
             self._letter_keys = []  # the keys of LETTERS (or SYMBOLS), row by row
             for row, letters in enumerate(LETTERS):
@@ -48,13 +52,18 @@ class Keyboard:
             with ui.element("div").classes("kbrow"):
                 self._mode = ui.button("#+=", on_click=self._on_mode)
                 self._mode.props("flat no-caps text-color=white").classes("kbkey wide")
+                self._extra_keys = []
+                for char in extra:
+                    key = ui.button(char, on_click=lambda char=char: self._type(char))
+                    key.props("flat no-caps text-color=white").classes("kbkey")
+                    self._extra_keys.append(key)
                 self._space = ui.button("space", on_click=lambda: self._type(" "))
                 self._space.props("flat no-caps text-color=white").classes("kbkey space")
         self._draw()
 
     def reachable(self) -> list[Reachable]:
         """Every key that can be used, in reading order."""
-        keys = [button("show", self._show)]
+        keys = [button("show", self._show)] if self._secret else []
         for i, key in enumerate(self._digit_keys):
             keys.append(button(f"digit {i}", key))
         for row, row_keys in enumerate(self._letter_keys):
@@ -65,17 +74,26 @@ class Keyboard:
             if row == 2:
                 keys.append(button("delete", self._delete))
         keys.append(button("mode", self._mode))
+        for i, key in enumerate(self._extra_keys):
+            keys.append(button(f"extra {i}", key))
         keys.append(button("space", self._space))
         return usable(*keys)
 
-    def clear(self, label: str) -> None:
-        """Start again, empty, with label next to the text."""
+    def clear(self, label: str, text: str = "") -> None:
+        """Start again with label next to the text, and this text already typed."""
         self._label.set_text(label)
-        self.text = ""
+        self.text = text
         self._caps = False
         self._symbols = False
         self._shown = False
         self._draw()
+
+    def press_key(self, key: str) -> None:
+        """A key of a USB keyboard (handcart.js): a character, or Backspace."""
+        if key == "Backspace":
+            self._on_delete()
+        elif len(key) == 1:
+            self._type(key)
 
     def _row(self, chars: str) -> list[ui.button]:
         """A row of keys that always type the same characters."""
@@ -138,7 +156,10 @@ class Keyboard:
         self._draw_field()
 
     def _draw_field(self) -> None:
-        if self._shown:
+        if not self._secret:
+            end = self.text[-VISIBLE_CHARS:]
+            self._field.set_text(end if end == self.text else "…" + end)
+        elif self._shown:
             self._field.set_text(self.text)
             self._show.props("icon=visibility_off")
         elif self._last_readable and self.text:
