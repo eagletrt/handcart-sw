@@ -1,7 +1,9 @@
 """The sounds of the buzzer: which melody, and which one cuts which."""
 
+import pytest
+
 from backend.sounds.player import MELODIES, PRIORITY, Player
-from backend.sounds.tones import RE7, near
+from backend.sounds.tones import LOUD_BAND, RE7, near, semitones
 from shared.models import Sound
 
 
@@ -56,17 +58,23 @@ def test_the_operator_cannot_stop_an_alarm():
     assert player.frequency(10.01) == RE7
 
 
-def test_a_melody_moves_by_whole_octaves_to_the_resonance():
+def test_a_melody_moves_to_the_resonance_as_the_same_tune():
     melody = [(1000.0, 0.1), (None, 0.05), (1200.0, 0.1)]
-    assert near(melody, 4000.0) == [(4000.0, 0.1), (None, 0.05), (4800.0, 0.1)]  # two octaves up
-    assert near(melody, 1100.0) == melody  # already there
+    moved = near(melody, 4000.0)
+    assert moved[1] == (None, 0.05)  # the rests stay
+    assert moved[2][0] / moved[0][0] == pytest.approx(1.2)  # the same interval: the same tune
+    assert all(abs(semitones(f) - semitones(4000.0)) <= LOUD_BAND for f, _ in moved if f is not None)
     assert near(melody, None) == melody  # no resonance known: as written
+
+
+def test_a_single_note_goes_on_the_resonance():
+    assert near([(1046.5, 0.1)], 2093.0) == [(pytest.approx(2093.0), 0.1)]
 
 
 def test_the_player_plays_the_melodies_around_the_resonance():
     player = Player(resonance=RE7 * 2)
     player.play(Sound.CONFIRM, now=10.0)  # written on RE7
-    assert player.frequency(10.01) == RE7 * 2
+    assert player.frequency(10.01) == pytest.approx(RE7 * 2)
 
 
 def test_a_tone_plays_for_its_time_and_any_sound_cuts_it():

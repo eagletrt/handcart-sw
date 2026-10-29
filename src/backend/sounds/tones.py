@@ -57,18 +57,37 @@ GAP = 0.03  # s of silence after each note of a phrase, so that two equal notes 
 Melody = list[tuple[float | None, float]]
 
 
-def near(melody: Melody, resonance: float | None) -> Melody:
-    """The melody moved by whole octaves to where the buzzer is loudest: the same tune, higher or lower.
+LOUD_BAND = 3  # semitones each side of the resonance where the buzzer is still loud
+FARTHEST_SHIFT = 24  # semitones a melody may move, up or down
 
-    A piezo buzzer is loud only around its resonance, and an octave away it is barely heard. The melody
-    goes as many octaves up or down as put its notes, on average, closest to the resonance. None: as written.
+
+def near(melody: Melody, resonance: float | None) -> Melody:
+    """The melody moved by whole semitones to where the buzzer is loudest: the same tune, in another key.
+
+    A piezo buzzer is loud only around its resonance, and much softer a few notes away. Of every shift, the
+    one that plays the melody longest within LOUD_BAND of the resonance; of equal ones, the one with its
+    notes closest to it; then the smallest. None: as written.
     """
-    notes = [frequency for frequency, _ in melody if frequency is not None]
-    if resonance is None or not notes:
+    if resonance is None:
         return melody
-    middle = sum(math.log2(frequency) for frequency in notes) / len(notes)  # the average pitch, in octaves
-    factor = 2 ** round(math.log2(resonance) - middle)
+    center = semitones(resonance)
+    notes = [(semitones(frequency), seconds) for frequency, seconds in melody if frequency is not None]
+
+    def loudness(shift: int) -> tuple[float, float]:
+        """Time within LOUD_BAND, then (as less is better) the time-weighted distance from the resonance."""
+        loud = sum(seconds for note, seconds in notes if abs(note + shift - center) <= LOUD_BAND)
+        far = sum(seconds * abs(note + shift - center) for note, seconds in notes)
+        return loud, -far
+
+    shifts = sorted(range(-FARTHEST_SHIFT, FARTHEST_SHIFT + 1), key=abs)  # 0, -1, 1, -2, 2...
+    best = max(shifts, key=loudness)  # of equal ones the first: the smallest shift
+    factor = 2 ** (best / 12)
     return [(None if frequency is None else frequency * factor, seconds) for frequency, seconds in melody]
+
+
+def semitones(frequency: float) -> float:
+    """How high a frequency is, in semitones above LA4 (440 Hz)."""
+    return 12 * math.log2(frequency / 440)
 
 
 def phrase(bpm: float, notes: list[tuple[float | None, float]]) -> Melody:

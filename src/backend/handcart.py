@@ -40,9 +40,8 @@ from shared.models import (
 
 log = logging.getLogger(__name__)
 
-# Hz where the buzzer is loudest until one is found and saved: DO7, the last note of the TS on sound, the
-# loudest one heard on the handcart
-FIRST_RESONANCE = 2093.0
+# Hz where the buzzer is loudest until another one is saved: found by ear on the handcart (a sweep of tones)
+FIRST_RESONANCE = 2100.0
 TONE_SECONDS = 0.4  # of a tone to find the resonance: one per encoder step, so it sounds on while turning
 
 CHARGER_FANS = (0, 100)  # % duty range the charger may use for its fans
