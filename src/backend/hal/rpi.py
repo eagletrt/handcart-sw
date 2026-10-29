@@ -46,8 +46,11 @@ class PigpioPwm:
         if not self._pi.connected:
             raise RuntimeError("pigpiod is not running")
         self._pin = pin
-        self._pi.set_mode(pin, pigpio.OUTPUT)
-        self._pi.write(pin, 0)
+        try:
+            self._pi.set_mode(pin, pigpio.OUTPUT)
+            self._pi.write(pin, 0)
+        except pigpio.error as error:  # as if it were not running: the handcart goes on with a silent buzzer
+            raise RuntimeError(f"pigpiod refused the buzzer pin: {error}") from error
         self._wave: int | None = None
         self._frequency: float | None = None
 
@@ -85,10 +88,13 @@ class PigpioEncoderPins:
         self._lock = threading.Lock()
         self._changes: list[tuple[bool, bool]] = []
         self._callbacks = []  # kept: pigpio stops calling back a callback that is gone
-        for pin in (a, b):
-            self._pi.set_mode(pin, pigpio.INPUT)
-            self._pi.set_glitch_filter(pin, self.GLITCH_FILTER)
-            self._callbacks.append(self._pi.callback(pin, pigpio.EITHER_EDGE, self._on_edge))
+        # only watched: RpiGpio already made them inputs, and pigpiod may refuse to change a pin
+        try:
+            for pin in (a, b):
+                self._pi.set_glitch_filter(pin, self.GLITCH_FILTER)
+                self._callbacks.append(self._pi.callback(pin, pigpio.EITHER_EDGE, self._on_edge))
+        except pigpio.error as error:
+            raise RuntimeError(f"pigpiod refused the encoder pins: {error}") from error
 
     def levels(self) -> tuple[bool, bool]:
         return self._pi.read(self._a) == 1, self._pi.read(self._b) == 1
