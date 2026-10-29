@@ -17,7 +17,6 @@ from backend.sounds.tones import (
     TS_ON_SOUND,
     WARNING_SOUND,
     Melody,
-    near,
 )
 from shared.models import Sound
 
@@ -69,8 +68,7 @@ def length(sound: Sound) -> float:
 
 
 class Player:
-    def __init__(self, resonance: float | None = None) -> None:
-        self.resonance = resonance  # Hz where the buzzer is loudest: the melodies move there (tones.near)
+    def __init__(self) -> None:
         self._sound: Sound | None = None  # None while silent, or playing a tone
         self._melody: Melody = []  # what plays now
         self._started = 0.0
@@ -80,11 +78,11 @@ class Player:
         playing = self._sound if self.frequency(now) is not None else None
         if playing is not None and PRIORITY[sound] < PRIORITY[playing]:
             return False
-        self._sound, self._melody, self._started = sound, near(MELODIES[sound], self.resonance), now
+        self._sound, self._melody, self._started = sound, MELODIES[sound], now
         return True
 
     def tone(self, frequency: float, seconds: float, now: float) -> None:
-        """A plain tone, to find the resonance by ear: it cuts what plays, and any sound cuts it."""
+        """A plain tone, to measure the buzzer: it cuts what plays, and any sound cuts it."""
         self._sound, self._melody, self._started = None, [(frequency, seconds)], now
 
     def hush(self) -> None:

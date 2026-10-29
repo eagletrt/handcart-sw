@@ -156,18 +156,11 @@ class SoundRequest(BaseModel):
     sound: Sound
 
 
-LOWEST_TONE, HIGHEST_TONE = 500.0, 8000.0  # Hz: where a piezo buzzer's resonance can be
-
-
 class ToneRequest(BaseModel):
-    """A frequency for the buzzer: a tone to hear, or the resonance found."""
+    """A plain tone for the buzzer, to measure how loud it is at each frequency."""
 
-    frequency: float = Field(ge=LOWEST_TONE, le=HIGHEST_TONE)  # Hz
-    seconds: float = Field(default=0.4, gt=0, le=3)  # of the tone; the resonance ignores it
-
-
-class BuzzerInfo(BaseModel):
-    resonance: float | None  # Hz where the buzzer is loudest; None until found (Debug window)
+    frequency: float = Field(ge=200, le=10000)  # Hz
+    seconds: float = Field(default=0.4, gt=0, le=3)
 
 
 class Fault(StrEnum):

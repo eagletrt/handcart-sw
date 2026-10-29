@@ -6,7 +6,7 @@ import pytest
 from backend.canbus.bus import receive, send
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
-from backend.sounds.tones import RE7
+from backend.sounds.tones import BUZZ
 from shared.models import Command, InputEvent, Sound, State, TsacState
 from sim.bms import SimBms
 from sim.charger import SimCharger
@@ -273,7 +273,7 @@ def test_a_lost_ts_off_is_sent_again_while_the_airs_stay_closed(cfg, primary):
 def test_the_ticks_play_the_sound_on_the_buzzer(rig):
     rig.handcart.play(Sound.CONFIRM)
     rig.handcart.tick()
-    assert rig.hal.buzzer == RE7
+    assert rig.hal.buzzer == BUZZ
     rig.run(1.0)
     assert rig.hal.buzzer is None  # over
 

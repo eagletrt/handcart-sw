@@ -26,7 +26,6 @@ from backend.sounds.announcer import Announcer
 from backend.sounds.player import Player
 from shared.config import Config
 from shared.models import (
-    BuzzerInfo,
     Command,
     InputEvent,
     Sample,
@@ -40,7 +39,7 @@ from shared.models import (
 
 log = logging.getLogger(__name__)
 
-TONE_SECONDS = 0.4  # of a tone to find the resonance: one per encoder step, so it sounds on while turning
+TONE_SECONDS = 0.4  # of a tone to measure the buzzer, unless asked otherwise
 
 CHARGER_FANS = (0, 100)  # % duty range the charger may use for its fans
 BMS_REQUEST_REPEATS = 5  # times each TS or balancing request is sent, in case a frame is lost
@@ -58,7 +57,6 @@ class Handcart:
         clock: Callable[[], float] = time.monotonic,
         settings_file: Path | None = None,
         recorder: Recorder | None = None,
-        buzzer_file: Path | None = None,
     ) -> None:
         self._cfg = cfg
         self._recorder = recorder  # None: nothing is recorded (tests)
@@ -70,8 +68,7 @@ class Handcart:
         self._bms_errors: frozenset[str] = frozenset()
         self._charger_errors: frozenset[str] = frozenset()
         self._hal = hal
-        self._buzzer_file = buzzer_file  # if given, the resonance is kept there across restarts
-        self._player = Player(self._load_resonance())
+        self._player = Player()
         self._announcer = Announcer(cfg.accumulator)
         self._bms_bus = bms_bus
         self._charger_bus = charger_bus
@@ -121,31 +118,9 @@ class Handcart:
         """The operator touched the screen or changed screen: the tune of a job done stops."""
         self._player.hush()
 
-    @property
-    def resonance(self) -> float | None:
-        """Hz where the buzzer is loudest, or None if not found yet."""
-        return self._player.resonance
-
-    def set_resonance(self, frequency: float) -> None:
-        """The resonance found by ear: from now on the melodies play around it, and it is kept."""
-        self._player.resonance = frequency
-        if self._buzzer_file is not None:
-            self._buzzer_file.parent.mkdir(exist_ok=True)
-            self._buzzer_file.write_text(BuzzerInfo(resonance=frequency).model_dump_json())
-
     def tone(self, frequency: float, seconds: float = TONE_SECONDS) -> None:
-        """A plain tone on the buzzer, to find its resonance."""
+        """A plain tone on the buzzer, to measure how loud it is at each frequency (tones.RESPONSE)."""
         self._player.tone(frequency, seconds, self._clock())
-
-    def _load_resonance(self) -> float | None:
-        """The resonance saved; None until one is: the melodies as written."""
-        if self._buzzer_file is None or not self._buzzer_file.exists():
-            return None
-        try:
-            return BuzzerInfo.model_validate_json(self._buzzer_file.read_text()).resonance
-        except ValueError as error:
-            log.warning("saved buzzer resonance not used: %s", error)
-            return None
 
     def play(self, sound: Sound) -> None:
         """Start a sound on the buzzer; the ticks play it."""

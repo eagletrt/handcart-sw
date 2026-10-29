@@ -152,23 +152,8 @@ def test_events_and_samples_from_the_record(cfg, tmp_path):
     bus.shutdown()
 
 
-def test_a_tone_to_find_the_resonance(client):
+def test_a_tone_to_measure_the_buzzer(client):
     assert client.post("/api/buzzer/tone", json={"frequency": 2500}).status_code == 204
     client.handcart.tick()
     assert client.hal.buzzer == 2500
-    assert client.post("/api/buzzer/tone", json={"frequency": 50}).status_code == 422  # not a buzzer's
-
-
-def test_the_resonance_found_is_kept_across_restarts(cfg, tmp_path):
-    bus = can.Bus(interface="virtual", channel="api-buzzer", receive_own_messages=False)
-    buzzer_file = tmp_path / "buzzer.json"
-
-    def start() -> Handcart:
-        return Handcart(cfg, FakeHal(), bus, bus, buzzer_file=buzzer_file)
-
-    handcart = start()
-    with TestClient(create_app(handcart, System(cfg.update), FakeNetwork(cfg.hotspot))) as client:
-        assert client.get("/api/buzzer").json() == {"resonance": None}  # none saved yet: as written
-        assert client.put("/api/buzzer/resonance", json={"frequency": 2700}).status_code == 204
-    assert start().resonance == 2700
-    bus.shutdown()
+    assert client.post("/api/buzzer/tone", json={"frequency": 50}).status_code == 422  # not for a buzzer

@@ -8,9 +8,7 @@ WS   /api/ws        {"status": ...} every STATUS_PERIOD, {"input": "UP"} as soon
 
 POST /api/buzzer/hush  the operator touched the screen: the tune of a job done stops
 POST /api/buzzer/play  {"sound": "CONFIRM"}: the buzzer plays it (the Debug window, to try the sounds)
-GET  /api/buzzer       {"resonance": 2093}: where the buzzer is loudest, null until found
-POST /api/buzzer/tone  {"frequency": 2093, "seconds": 0.4}: a plain tone, to find the resonance
-PUT  /api/buzzer/resonance  {"frequency": 2093}: the resonance found: the melodies move there, and it is kept
+POST /api/buzzer/tone  {"frequency": 2120, "seconds": 0.4}: a plain tone, to measure the buzzer
 
 GET  /api/system           version, updates on the branch, last update
 POST /api/system/check     look for updates now (a few seconds)
@@ -39,7 +37,6 @@ from backend.recorder import Recorder
 from backend.sounds.player import length
 from backend.system import System
 from shared.models import (
-    BuzzerInfo,
     CommandRequest,
     HotspotDetails,
     HotspotRequest,
@@ -92,17 +89,9 @@ def create_app(
     async def play(body: SoundRequest) -> None:
         handcart.play(body.sound)
 
-    @app.get("/api/buzzer")
-    async def buzzer() -> BuzzerInfo:
-        return BuzzerInfo(resonance=handcart.resonance)
-
     @app.post("/api/buzzer/tone", status_code=204)
     async def tone(body: ToneRequest) -> None:
         handcart.tone(body.frequency, body.seconds)
-
-    @app.put("/api/buzzer/resonance", status_code=204)
-    async def resonance(body: ToneRequest) -> None:
-        handcart.set_resonance(body.frequency)
 
     # the record: SQLite in a thread, the SD card can be slow
 
