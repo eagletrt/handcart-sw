@@ -9,7 +9,7 @@ from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.network import FakeNetwork
 from backend.system import System
-from shared.models import InputEvent, NetworkInfo, Status, StreamMessage
+from shared.models import InputEvent, NetworkInfo, Sound, Status, StreamMessage
 
 
 @pytest.fixture
@@ -92,3 +92,22 @@ def test_a_refused_wifi_connection_answers_with_the_reason(client):
     response = client.post("/api/network/connect", json={"ssid": "Eagle", "password": "short"})
     assert response.status_code == 422
     assert "8 to 63" in response.json()["detail"]
+
+
+def test_the_sounds_of_the_buzzer_reach_the_stream(client):
+    with client.websocket_connect("/api/ws") as socket:
+        client.handcart.play(Sound.CONFIRM)
+        for _ in range(20):  # status messages may come first
+            message = StreamMessage.model_validate_json(socket.receive_text())
+            if message.sound is not None:
+                break
+        assert message.sound is Sound.CONFIRM
+
+
+def test_a_touch_stops_the_tune_of_a_job_done(client):
+    client.handcart.play(Sound.BALANCING_DONE)
+    client.handcart.tick()
+    assert client.hal.buzzer is not None
+    assert client.post("/api/buzzer/hush").status_code == 204
+    client.handcart.tick()
+    assert client.hal.buzzer is None

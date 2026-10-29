@@ -3,8 +3,6 @@
 import time
 from collections.abc import Callable
 
-from backend.hal import Sound
-from backend.hal.buzzer import Player
 from backend.hal.controls import Buttons, Encoder
 from backend.hal.drivers import Gpio, Pwm, Spi
 from backend.hal.feedback import (
@@ -47,7 +45,6 @@ class BoardHal:
             }
         )
         self._encoder = Encoder()
-        self._player = Player()
         self._events: list[InputEvent] = []
         self._readings: dict[int, tuple[float, float]] = {}  # ADC channel -> (volts, when read)
         self._next_adc_read = 0.0
@@ -58,7 +55,6 @@ class BoardHal:
         if now >= self._next_adc_read:
             self._read_feedbacks(now)
             self._next_adc_read = now + ADC_READ_PERIOD
-        self._buzzer.tone(self._player.frequency(now))
 
     def set_relays(self, sd_relay_closed: bool, charger_power: bool, discharge: bool) -> None:
         for pin, high in relay_levels(self._cfg.gpio, sd_relay_closed, charger_power, discharge).items():
@@ -75,8 +71,8 @@ class BoardHal:
         events, self._events = self._events, []
         return events
 
-    def play(self, sound: Sound) -> None:
-        self._player.play(sound, self._clock())
+    def set_buzzer(self, frequency: float | None) -> None:
+        self._buzzer.tone(frequency)
 
     def _read_controls(self, now: float) -> None:
         levels = {pin: self._gpio.read(pin) for pin in self._buttons.pins}

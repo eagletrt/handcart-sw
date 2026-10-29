@@ -3,7 +3,10 @@
 GET  /api/status    everything the UI shows
 POST /api/command   {"command": "PRECHARGE"}: handled right away, refused with 422 and the reason
 PUT  /api/settings  {"target_voltage": 590, "max_current": 6}: refused with 422 outside the limits
-WS   /api/ws        {"status": ...} every STATUS_PERIOD, and {"input": "UP"} as soon as a control is used
+WS   /api/ws        {"status": ...} every STATUS_PERIOD, {"input": "UP"} as soon as a control is used,
+                    and {"sound": "CONFIRM"} as soon as the buzzer starts a sound
+
+POST /api/buzzer/hush  the operator touched the screen: the tune of a job done stops
 
 GET  /api/system           version, updates on the branch, last update
 POST /api/system/check     look for updates now (a few seconds)
@@ -24,11 +27,13 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
 from backend.handcart import Handcart
 from backend.network import FakeNetwork, Network
+from backend.sounds.player import length
 from backend.system import System
 from shared.models import (
     CommandRequest,
     NetworkInfo,
     Settings,
+    Sound,
     Status,
     StreamMessage,
     SystemInfo,
@@ -57,6 +62,10 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
         refuse_if(handcart.change_settings(body))
         return handcart.settings
 
+    @app.post("/api/buzzer/hush", status_code=204)
+    async def hush() -> None:
+        handcart.hush()
+
     @app.get("/api/system")
     async def system_info() -> SystemInfo:
         return system.info()
@@ -72,11 +81,20 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
 
     @app.post("/api/system/reboot", status_code=202)
     async def reboot() -> None:
-        refuse_if(handcart.maintenance_problem() or system.reboot())
+        refuse_if(handcart.maintenance_problem() or system.not_installed())
+        await say_goodbye()
+        refuse_if(system.reboot())
 
     @app.post("/api/system/shutdown", status_code=202)
     async def shut_down() -> None:
-        refuse_if(handcart.maintenance_problem() or system.shut_down())
+        refuse_if(handcart.maintenance_problem() or system.not_installed())
+        await say_goodbye()
+        refuse_if(system.shut_down())
+
+    async def say_goodbye() -> None:
+        """Play the power-off sound to the end: systemd stops the backend as soon as it is asked."""
+        handcart.play(Sound.POWER_OFF)
+        await asyncio.sleep(length(Sound.POWER_OFF))  # the ticks go on meanwhile, and play it
 
     # NetworkManager in a thread: it can take seconds, and the ticks go on meanwhile
 
@@ -105,12 +123,16 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
     async def stream(socket: WebSocket) -> None:
         await socket.accept()
         last_input, next_status = handcart.inputs_since(0)[0], 0.0
+        last_sound = handcart.sounds_since(0)[0]
         loop = asyncio.get_running_loop()
         try:
             while True:
                 last_input, events = handcart.inputs_since(last_input)
                 for event in events:
                     await socket.send_text(StreamMessage(input=event).model_dump_json())
+                last_sound, sounds = handcart.sounds_since(last_sound)
+                for sound in sounds:
+                    await socket.send_text(StreamMessage(sound=sound).model_dump_json())
                 if loop.time() >= next_status:
                     await socket.send_text(StreamMessage(status=handcart.status()).model_dump_json())
                     next_status = loop.time() + STATUS_PERIOD

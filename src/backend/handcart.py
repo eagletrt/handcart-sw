@@ -15,19 +15,20 @@ from cantools.database.errors import DecodeError
 from backend.canbus import load_dbc
 from backend.canbus.bus import receive, send
 from backend.canbus.periodic import Periodic
-from backend.core import ChargeFsm, Inputs, Outputs
+from backend.core import ChargeFsm, Event, Inputs, Outputs
 from backend.core.checks import BMS_HV_STATES, setpoint_problem
 from backend.devices.bms import Bms
 from backend.devices.charger import LittleSic
-from backend.hal import Hal, Sound
+from backend.hal import Hal
+from backend.sounds.announcer import Announcer
+from backend.sounds.player import Player
 from shared.config import Config
-from shared.models import Command, InputEvent, Settings, State, Status, TsacState
+from shared.models import Command, InputEvent, Settings, Sound, State, Status, TsacState
 
 log = logging.getLogger(__name__)
 
 CHARGER_FANS = (0, 100)  # % duty range the charger may use for its fans
 BMS_REQUEST_REPEATS = 5  # times each TS or balancing request is sent, in case a frame is lost
-SOUND_ON_ENTERING = {State.CHARGE_DONE: Sound.CHARGE_DONE, State.ERROR: Sound.ERROR}
 
 
 class Handcart:
@@ -42,6 +43,8 @@ class Handcart:
     ) -> None:
         self._cfg = cfg
         self._hal = hal
+        self._player = Player()
+        self._announcer = Announcer(cfg.accumulator)
         self._bms_bus = bms_bus
         self._charger_bus = charger_bus
         self._clock = clock
@@ -63,16 +66,33 @@ class Handcart:
         self._command: Command | None = None  # for the tick that request() runs
         self._inputs: deque[tuple[int, InputEvent]] = deque(maxlen=64)  # (number, event), for the frontend
         self._input_count = 0
+        self._sounds: deque[tuple[int, Sound]] = deque(maxlen=64)  # (number, sound), for the frontend
+        self._sound_count = 0
 
     # what the operator asks, through the API
 
     def request(self, command: Command) -> str | None:
         """Handle a command right away, with one extra tick. Returns why it was refused, or None."""
         self._command = command
+        sounds_before = self._sound_count
         refusal = self.tick().refusal
-        if refusal is None:
-            self._hal.play(Sound.CONFIRM)  # a refusal is shown on the screen: no beep for it
+        # A command is always heard: refused (the screen says why), or the sound of the state it led to
+        # (PRECHARGE, say), or else the confirm beep
+        if refusal is not None:
+            self.play(Sound.REFUSED)
+        elif self._sound_count == sounds_before:
+            self.play(Sound.CONFIRM)
         return refusal
+
+    def hush(self) -> None:
+        """The operator touched the screen or changed screen: the tune of a job done stops."""
+        self._player.hush()
+
+    def play(self, sound: Sound) -> None:
+        """Start a sound on the buzzer; the ticks play it."""
+        if self._player.play(sound, self._clock()):
+            self._sound_count += 1
+            self._sounds.append((self._sound_count, sound))
 
     def maintenance_problem(self) -> str | None:
         """Why the handcart cannot be updated, rebooted or shut down now (TS on, or running), or None."""
@@ -111,11 +131,17 @@ class Handcart:
         """The control presses after number `last`, and the number of the newest one."""
         return self._input_count, [event for number, event in self._inputs if number > last]
 
+    def sounds_since(self, last: int) -> tuple[int, list[Sound]]:
+        """The sounds the buzzer started after number `last`, and the number of the newest one."""
+        return self._sound_count, [sound for number, sound in self._sounds if number > last]
+
     def status(self) -> Status:
+        history = self._fsm.history
         return Status(
             state=self._fsm.state,
             message=self._fsm.message,
             fault=self._fsm.fault,
+            balancing_done=bool(history) and history[-1].trigger is Event.BALANCING_DONE,
             settings=self.settings,
             bms=self.bms.snapshot(),
             charger=self.charger.snapshot(),
@@ -138,25 +164,26 @@ class Handcart:
             command=self._command,
         )
         self._command = None
-        state_before = self._fsm.state
+        last_transition = self._fsm.history[-1] if self._fsm.history else None
         out = self._fsm.step(inputs)
         self._hal.set_relays(out.sd_relay_closed, out.charger_power, out.discharge)
-        self._play_sounds(state_before, out.state)
+        transition = self._fsm.history[-1] if self._fsm.history else None
+        new_transition = transition if transition is not last_transition else None
+        for sound in self._announcer.sounds(now, inputs, out.state, new_transition, out.message):
+            self.play(sound)
         self._collect_inputs()
+        self._hal.set_buzzer(self._player.frequency(now))
         self._send(now, out)
         return out
-
-    def _play_sounds(self, before: State, after: State) -> None:
-        if after is not before and after in SOUND_ON_ENTERING:
-            self._hal.play(SOUND_ON_ENTERING[after])
 
     def _collect_inputs(self) -> None:
         """Keep the control presses, numbered, until the frontend reads them."""
         for event in self._hal.input_events():
             self._input_count += 1
             self._inputs.append((self._input_count, event))
+            self.hush()  # a control used: the operator is there
             if event in (InputEvent.TURN_CW, InputEvent.TURN_CCW):
-                self._hal.play(Sound.TICK)  # heard without looking at the screen
+                self.play(Sound.TICK)  # heard without looking at the screen
 
     def _receive(self) -> None:
         frames = receive(self._bms_bus)

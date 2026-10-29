@@ -97,6 +97,19 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .ovl.pre { background: rgba(0,0,0,.94); }
 .ovl.pre .k { color: var(--y); }
 .ovl.dis { z-index: 31; }  /* above the error takeover: the high voltage first */
+.ovl .ovl-btn { align-self: flex-end; margin-top: 18px; height: 52px; padding: 0 22px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 17px; font-weight: 600; }
+.ovl .ovl-btn.ok { background: #fff !important; border-color: #fff; min-width: 140px; }
+.ovl.bal { background: var(--bg); }
+.ovl.bal .k { color: #fff; }
+.flow.w { background-color: #fff !important; }
+/* a job done: a white tick that draws itself, big enough to read from across the pit */
+.ovl.done { background: var(--bg); display: grid; grid-template-columns: 150px minmax(0, 1fr); column-gap: 28px; align-content: center; align-items: center; }
+.ovl.done .k { color: #fff; }
+.ovl.done .pnums, .ovl.done .ovl-btn { grid-column: 1 / -1; }
+.tick-mark { width: 150px; height: 150px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.tick-mark circle { stroke-dasharray: 151; stroke-dashoffset: 151; animation: draw .6s ease-out forwards; }
+.tick-mark path { stroke-width: 4; stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .35s .5s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
 .ovl.dis .dhide { align-self: flex-end; margin-top: 18px; height: 48px; padding: 0 22px; border: 1px solid var(--line-2); border-radius: 4px; }
 .pbar { height: 20px; background: rgba(255,255,255,.09); margin-top: 26px; position: relative; overflow: hidden; }
 .pbar i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .25s linear; }

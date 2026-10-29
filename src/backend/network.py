@@ -22,9 +22,7 @@ CONNECT_WAIT = 20  # s for the network to come up
 POLL = 0.25  # s between two looks at a scan or a connection under way
 PASSWORD_MIN, PASSWORD_MAX = 8, 63  # characters of a WPA password
 FAKE_PASSWORD = "eagletrt"  # of every FakeNetwork network
-FAKE_DELAY = (
-    1.5  # s a FakeNetwork scan or connection takes: enough to see "Connecting…"
-)
+FAKE_DELAY = 1.5  # s a FakeNetwork scan or connection takes: enough to see "Connecting…"
 
 # NetworkManager on D-Bus
 NM = "org.freedesktop.NetworkManager"  # its name on the bus, and its main interface
@@ -83,9 +81,7 @@ class Network:
                 networks=[],
                 problem="The handcart has no Wi-Fi",
             )
-        return NetworkInfo(
-            wifi_on=wifi_on, addresses=addresses, networks=networks, problem=None
-        )
+        return NetworkInfo(wifi_on=wifi_on, addresses=addresses, networks=networks, problem=None)
 
     def scan(self) -> str | None:
         """Look for Wi-Fi networks again. Returns why it could not, or None; the result is in info()."""
@@ -140,9 +136,7 @@ class Network:
                         "key-mgmt": "wpa-psk",
                         "psk": password,
                     }
-                _, active = nm.AddAndActivateConnection(
-                    settings, device, access_point, dbus_interface=NM
-                )
+                _, active = nm.AddAndActivateConnection(settings, device, access_point, dbus_interface=NM)
         except self._errors as error:
             # the settings (password included) are not in the error, only NetworkManager's answer
             log.warning("could not connect to %s: %s", ssid, error)
@@ -156,9 +150,7 @@ class Network:
         if problem == "did not answer":
             return f"{ssid} did not answer"
         if password is not None:
-            self._forget(
-                ssid
-            )  # else the wrong password stays saved, and is tried again next time
+            self._forget(ssid)  # else the wrong password stays saved, and is tried again next time
         return f"Could not connect to {ssid}: {problem}"
 
     def disconnect(self) -> str | None:
@@ -334,13 +326,9 @@ class FakeNetwork:
 
     def __init__(self) -> None:
         self._wifi_on = True
-        self._last_ssid: str | None = (
-            None  # the network it was on when the Wi-Fi went off
-        )
+        self._last_ssid: str | None = None  # the network it was on when the Wi-Fi went off
         self._networks = [
-            WifiNetwork(
-                ssid="E-Agle TRT", signal=74, secured=True, connected=True, saved=True
-            ),
+            WifiNetwork(ssid="E-Agle TRT", signal=74, secured=True, connected=True, saved=True),
             WifiNetwork(
                 ssid="Lab Box: 5G",
                 signal=88,
@@ -348,15 +336,9 @@ class FakeNetwork:
                 connected=False,
                 saved=False,
             ),
-            WifiNetwork(
-                ssid="Guest", signal=51, secured=False, connected=False, saved=False
-            ),
-            WifiNetwork(
-                ssid="eduroam", signal=33, secured=True, connected=False, saved=False
-            ),
-            WifiNetwork(
-                ssid="Far away", signal=12, secured=True, connected=False, saved=False
-            ),
+            WifiNetwork(ssid="Guest", signal=51, secured=False, connected=False, saved=False),
+            WifiNetwork(ssid="eduroam", signal=33, secured=True, connected=False, saved=False),
+            WifiNetwork(ssid="Far away", signal=12, secured=True, connected=False, saved=False),
         ]
 
     def info(self) -> NetworkInfo:
@@ -385,11 +367,7 @@ class FakeNetwork:
             if network.ssid != ssid:
                 continue
             uses_saved_password = password is None and network.saved
-            if (
-                network.secured
-                and not uses_saved_password
-                and password != FAKE_PASSWORD
-            ):
+            if network.secured and not uses_saved_password and password != FAKE_PASSWORD:
                 return f"Could not connect to {ssid}: wrong password"
             for other in self._networks:
                 other.connected = False

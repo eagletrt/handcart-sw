@@ -1,4 +1,5 @@
-"""The real peripherals on the Raspberry Pi: GPIO through RPi.GPIO (rpi-lgpio), SPI through spidev.
+"""The real peripherals on the Raspberry Pi: GPIO through RPi.GPIO (rpi-lgpio), the buzzer through the
+pigpiod daemon, SPI through spidev.
 
 Only translation to the libraries here, no logic: that lives in the other hal/ modules and is tested.
 Not yet tried on the handcart Pi.
@@ -61,9 +62,7 @@ class PigpioPwm:
             return
         half = round(500_000 / frequency)  # µs, half a period
         mask = 1 << self._pin
-        self._pi.wave_add_generic(
-            [pigpio.pulse(mask, 0, half), pigpio.pulse(0, mask, half)]
-        )
+        self._pi.wave_add_generic([pigpio.pulse(mask, 0, half), pigpio.pulse(0, mask, half)])
         self._wave = self._pi.wave_create()
         self._pi.wave_send_repeat(self._wave)
 

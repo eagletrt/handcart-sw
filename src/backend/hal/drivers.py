@@ -19,6 +19,13 @@ class Pwm(Protocol):
         """Play a square wave at this frequency, or be silent with None."""
 
 
+class SilentPwm:
+    """A buzzer that plays nothing: on the Pi when pigpiod is not running."""
+
+    def tone(self, frequency: float | None) -> None:
+        pass
+
+
 class Spi(Protocol):
     def transfer(self, data: bytes) -> bytes:
         """Send data and return what came back, byte for byte."""

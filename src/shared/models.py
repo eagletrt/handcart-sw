@@ -119,6 +119,26 @@ class InputEvent(StrEnum):
     TURN_CCW = "TURN_CCW"
 
 
+class Sound(StrEnum):
+    """What the buzzer can say. The melodies, and which one cuts which, are in backend/sounds."""
+
+    STARTUP = "STARTUP"  # the backend started
+    POWER_OFF = "POWER_OFF"  # reboot or shut down asked from the System page
+    CONFIRM = "CONFIRM"  # a command reached the backend
+    REFUSED = "REFUSED"  # a command was refused: why is on the screen
+    PRECHARGE = "PRECHARGE"  # the precharge started: the TS is going on
+    DISCHARGE = "DISCHARGE"  # the AIRs opened: the TS goes off, whatever the reason
+    TS_ON = "TS_ON"  # the precharge is over: the TS is on
+    CHARGE_DONE = "CHARGE_DONE"
+    BALANCING_DONE = "BALANCING_DONE"
+    FAILED = "FAILED"  # the precharge or the balancing did not happen: why is on the screen
+    WARNING = "WARNING"  # not an error, but worth a look: a warm cell, a charger that does not deliver
+    ERROR = "ERROR"  # entering ERROR, and again every so often while it lasts
+    TICK = "TICK"  # one step of the encoder
+    DEVICE_CONNECTED = "DEVICE_CONNECTED"  # the BMS or the charger started answering
+    DEVICE_DISCONNECTED = "DEVICE_DISCONNECTED"  # the BMS or the charger stopped answering
+
+
 # API
 
 
@@ -151,6 +171,7 @@ class Status(BaseModel):
     state: State
     message: str
     fault: Fault | None = None  # why it is in ERROR; None in every other state
+    balancing_done: bool = False  # back in IDLE because the BMS finished balancing, until the next change
     settings: Settings
     bms: BmsSnapshot
     charger: ChargerSnapshot
@@ -198,7 +219,8 @@ class WifiConnectRequest(BaseModel):
 
 
 class StreamMessage(BaseModel):
-    """One message on /api/ws: either the status, or a press of the physical controls."""
+    """One message on /api/ws: the status, a press of the physical controls, or a sound the buzzer plays."""
 
     status: Status | None = None
     input: InputEvent | None = None
+    sound: Sound | None = None

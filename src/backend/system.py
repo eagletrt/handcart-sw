@@ -96,9 +96,15 @@ class System:
         )
         return result.stdout.strip()
 
-    def _systemctl(self, *args: str) -> str | None:
+    def not_installed(self) -> str | None:
+        """Why update, reboot and shut down cannot work on this machine, or None."""
         if not UPDATE_SERVICE.exists():
             return "Only on the handcart: run ./handcart.py install-services there"
+        return None
+
+    def _systemctl(self, *args: str) -> str | None:
+        if problem := self.not_installed():
+            return problem
         result = subprocess.run([*SUDO_SYSTEMCTL, *args], capture_output=True, text=True)
         if result.returncode != 0:
             return f"systemctl {' '.join(args)} failed: {result.stderr.strip()}"

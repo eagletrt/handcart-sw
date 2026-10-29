@@ -4,10 +4,10 @@ import can
 import pytest
 
 from backend.canbus.bus import receive, send
-from backend.hal import Sound
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
-from shared.models import Command, InputEvent, State, TsacState
+from backend.sounds.tones import RE7
+from shared.models import Command, InputEvent, Sound, State, TsacState
 from sim.bms import SimBms
 from sim.charger import SimCharger
 
@@ -27,6 +27,7 @@ class Rig:
         )
         self.bms = SimBms(primary, cfg.accumulator, speed=speed)
         self.charger = SimCharger(charger_db)
+        self.charger_unplugged = False  # its frames stop reaching the bus
 
     def run(self, seconds: float, until: State | None = None) -> State:
         """Advance time; stop early once the handcart reaches `until`."""
@@ -38,12 +39,19 @@ class Rig:
                     self.charger.on_frame(frame)
             current = self.charger.tick(TICK, self.bms.ts_voltage)
             self.bms.tick(self.now, TICK, current)
-            for frame in self.bms.frames(self.now) + self.charger.frames(self.now):
+            frames = self.bms.frames(self.now)
+            if not self.charger_unplugged:
+                frames += self.charger.frames(self.now)
+            for frame in frames:
                 send(self._sim_bus, frame)
             state = self.handcart.tick().state
             if state is until:
                 break
         return self.handcart.status().state
+
+    def played(self) -> list[Sound]:
+        """The sounds the buzzer started, oldest first."""
+        return self.handcart.sounds_since(0)[1]
 
     def close(self) -> None:
         self._handcart_bus.shutdown()
@@ -70,7 +78,7 @@ def test_full_charge(rig):
     assert rig.charger.current > 1.0
 
     assert rig.run(120, until=State.CHARGE_DONE) is State.CHARGE_DONE
-    assert rig.hal.played[-1] is Sound.CHARGE_DONE
+    assert rig.played()[-1] is Sound.CHARGE_DONE
     status = rig.handcart.status()
     assert status.bms.pack_voltage == pytest.approx(status.settings.target_voltage, abs=3)
 
@@ -89,7 +97,7 @@ def test_an_open_loop_while_charging_stops_everything(rig):
     rig.hal.open_at = "mushroom"
     assert rig.run(1.0) is State.ERROR
     assert "mushroom" in rig.handcart.status().message
-    assert rig.hal.played[-1] is Sound.ERROR
+    assert rig.played()[-1] is Sound.ERROR
     assert rig.bms.state is TsacState.IDLE  # the BMS opened the AIRs when asked
     assert rig.charger.current < 1.0  # ramping down
     assert not rig.hal.sd_relay_closed
@@ -104,12 +112,25 @@ def test_settings_outside_the_limits_are_refused(rig, cfg):
     assert rig.handcart.settings == settings
 
 
-def test_an_accepted_command_beeps_a_refused_one_does_not(rig):
-    assert rig.handcart.request(Command.PRECHARGE) is not None  # still in CHECK: refused
-    assert Sound.CONFIRM not in rig.hal.played
+def test_the_precharge_and_the_discharge_are_heard(rig):
     rig.run(1.0, until=State.IDLE)
-    assert rig.handcart.request(Command.PRECHARGE) is None
-    assert rig.hal.played[-1] is Sound.CONFIRM
+    assert Sound.DISCHARGE not in rig.played()  # engaged from the start: nothing went off
+    rig.handcart.request(Command.PRECHARGE)
+    assert rig.played()[-1] is Sound.PRECHARGE  # instead of the confirm beep
+    rig.run(3.0, until=State.READY)
+    assert rig.played()[-1] is Sound.TS_ON
+    rig.handcart.request(Command.STOP)
+    assert rig.played()[-1] is Sound.CONFIRM  # the AIRs are still closed
+    rig.run(1.0)
+    assert rig.played()[-1] is Sound.DISCHARGE
+
+
+def test_an_accepted_command_beeps_a_refused_one_says_no(rig):
+    assert rig.handcart.request(Command.PRECHARGE) is not None  # still in CHECK: refused
+    assert rig.played()[-1] is Sound.REFUSED
+    rig.run(1.0, until=State.IDLE)
+    assert rig.handcart.request(Command.BALANCE) is None  # no sound of its own
+    assert rig.played()[-1] is Sound.CONFIRM
 
 
 def test_a_command_is_answered_right_away(rig):
@@ -127,10 +148,19 @@ def test_no_update_or_reboot_while_the_ts_is_on(rig):
     assert "Stop first" in rig.handcart.maintenance_problem()
 
 
+def test_a_device_answering_and_going_away_is_heard(rig):
+    rig.run(1.0, until=State.IDLE)
+    assert rig.played().count(Sound.DEVICE_CONNECTED) == 2  # the BMS and the charger
+    before = len(rig.played())
+    rig.charger_unplugged = True
+    rig.run(2.0, until=State.CHECK)
+    assert rig.played()[before:] == [Sound.DEVICE_DISCONNECTED]
+
+
 def test_turning_the_encoder_ticks(rig):
     rig.hal.press(InputEvent.TURN_CW)
     rig.handcart.tick()
-    assert rig.hal.played[-1] is Sound.TICK
+    assert rig.played()[-1] is Sound.TICK
 
 
 class UnpluggedBus(can.BusABC):
@@ -233,3 +263,32 @@ def test_a_lost_ts_off_is_sent_again_while_the_airs_stay_closed(cfg, primary):
         m for m in bus.sent if m.arbitration_id == bms_set.frame_id and bms_set.decode(m.data)["status"] == 0
     ]
     assert len(ts_off) >= 5 + 3  # the first burst, then once a second
+
+
+def test_the_ticks_play_the_sound_on_the_buzzer(rig):
+    rig.handcart.play(Sound.CONFIRM)
+    rig.handcart.tick()
+    assert rig.hal.buzzer == RE7
+    rig.run(1.0)
+    assert rig.hal.buzzer is None  # over
+
+
+def test_using_a_control_stops_the_tune_of_a_job_done(rig):
+    rig.handcart.play(Sound.CHARGE_DONE)
+    rig.handcart.tick()
+    assert rig.hal.buzzer is not None
+    rig.hal.press(InputEvent.UP)
+    rig.handcart.tick()
+    assert rig.hal.buzzer is None
+
+
+def test_the_status_says_when_the_balancing_is_done(rig):
+    rig.run(1.0, until=State.IDLE)
+    assert not rig.handcart.status().balancing_done
+    rig.handcart.request(Command.BALANCE)
+    rig.run(1.0, until=State.BALANCING)
+    assert rig.run(600.0, until=State.IDLE) is State.IDLE
+    assert rig.handcart.status().balancing_done
+    assert rig.played()[-1] is Sound.BALANCING_DONE
+    rig.handcart.request(Command.PRECHARGE)
+    assert not rig.handcart.status().balancing_done  # until the next change

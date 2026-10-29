@@ -8,7 +8,15 @@ from backend.core import ChargeFsm, Event, Inputs
 from backend.core.events import CHARGE_DONE_TIMEOUT, CHARGER_START_TIME, NOT_DELIVERING
 from backend.core.rules import GUARDS, MODES, OVERRIDE_EVENTS, TRANSITIONS, TS_ON_STATES
 from backend.devices.charger import ChargerCommand
-from shared.models import BmsSnapshot, ChargerSnapshot, ChargerState, Command, Fault, State, TsacState
+from shared.models import (
+    BmsSnapshot,
+    ChargerSnapshot,
+    ChargerState,
+    Command,
+    Fault,
+    State,
+    TsacState,
+)
 
 CLOSED_LOOP = (("mushroom", 12.0), ("charger", 12.0), ("BMS", 11.9), ("TSMS", 11.9))
 
@@ -58,7 +66,15 @@ class Bench:
 
     def step(self, command: Command | None = None, after: float = 0.1):
         self.now += after
-        inputs = Inputs(self.now, self.bms, self.charger, self.shutdown, self.target, self.current, command)
+        inputs = Inputs(
+            self.now,
+            self.bms,
+            self.charger,
+            self.shutdown,
+            self.target,
+            self.current,
+            command,
+        )
         return self.fsm.step(inputs)
 
     def go_to(self, state: State):
@@ -281,7 +297,9 @@ def test_charger_lost_while_charging(bench):
 def test_charger_error_while_charging(bench):
     bench.go_to(State.CHARGE)
     bench.charger = replace(
-        bench.charger, state=ChargerState.ERROR, errors=frozenset({"Error_Overtemperature"})
+        bench.charger,
+        state=ChargerState.ERROR,
+        errors=frozenset({"Error_Overtemperature"}),
     )
     assert_stopped_safely(bench.step(), "Error_Overtemperature")
 

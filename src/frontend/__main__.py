@@ -38,7 +38,7 @@ def main() -> None:
 
         @ui.page("/debug")
         def debug_page() -> None:
-            debug.build()
+            debug.build(backend)
 
     ui.run(
         host=cfg.network.frontend_host,

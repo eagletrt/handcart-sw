@@ -78,6 +78,7 @@ libs/              submodules: libcan (primary DBC), charger/littlesic (charger 
 src/
   backend/         owns CAN, GPIO, the charge state machine and safety; exposes the API
     hal/           GPIO, ADC, buzzer, buttons, with fakes for your computer
+    sounds/        what the buzzer plays: melodies, and which sound cuts which
     canbus/        buses, DBC encoding, periodic frames
     devices/       BMS and charger
     core/          charge state machine, free of hardware

@@ -4,12 +4,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from backend.hal import Sound
 from backend.hal.board import BoardHal
-from backend.hal.buzzer import Player
 from backend.hal.fake import FakeHal
 from backend.hal.feedback import configuration_word, parse_result, scan_word
-from backend.hal.tones import RE7
 from frontend.readings import first_open
 from shared import scenario
 from shared.models import InputEvent
@@ -166,29 +163,10 @@ def test_the_adc_is_configured_once_at_start(board):
 # buzzer
 
 
-def test_a_melody_plays_over_time():
-    player = Player()
-    player.play(Sound.CONFIRM, now=10.0)
-    assert player.frequency(10.01) == RE7
-    assert player.frequency(10.07) is None  # the rest between the two beeps
-    assert player.frequency(10.12) == RE7
-    assert player.frequency(11.0) is None  # finished
-
-
-def test_a_tick_never_cuts_a_melody():
-    player = Player()
-    player.play(Sound.ERROR, now=10.0)
-    player.play(Sound.TICK, now=10.1)
-    assert player.frequency(10.25) is not None  # the alarm goes on
-    player.play(Sound.TICK, now=20.0)
-    assert player.frequency(20.001) == RE7  # alone, it ticks
-
-
-def test_board_drives_the_buzzer_while_polling(board):
-    board.hal.play(Sound.CONFIRM)
-    board.hal.poll(0.01)
-    board.hal.poll(1.0)
-    assert board.pwm.tones[-2:] == [RE7, None]
+def test_the_buzzer_plays_the_frequency_asked(board):
+    board.hal.set_buzzer(440.0)
+    board.hal.set_buzzer(None)
+    assert board.pwm.tones == [440.0, None]
 
 
 def test_the_fake_loop_opens_where_the_scenario_says(tmp_path):

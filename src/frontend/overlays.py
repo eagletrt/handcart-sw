@@ -111,6 +111,89 @@ class Precharge:
         )
 
 
+class Balancing:
+    """While the BMS balances: how close the cells are to each other, on the way down to the threshold."""
+
+    def __init__(self, on_view_cells: Callable[[], None]) -> None:
+        self._start: float | None = None  # V of spread when the balancing began: 0 % on the bar
+        with ui.element("div").classes("ovl pre bal") as self.root:
+            ui.label("TS off").classes("k")
+            ui.label("Balancing cells").classes("t")
+            ui.label("The BMS bleeds the highest cells down to the lowest.").classes("d")
+            with ui.element("div").classes("pbar"):
+                self._bar = ui.element("i").classes("flow w")
+            self._numbers = ui.html("").classes("pnums num")
+            self._view = ui.button("View cells", icon="grid_view", on_click=on_view_cells)
+            self._view.props("flat no-caps text-color=white").classes("ovl-btn")
+
+    def reachable(self) -> list[Reachable]:
+        return usable(button("view cells", self._view, priority=1))
+
+    def update(self, status: Status) -> None:
+        spread, threshold = status.bms.cell_delta, status.settings.balancing_threshold
+        bleeding = sum(status.bms.balancing)
+        if spread is None:
+            self._numbers.set_content("<span>Waiting for the cells</span>")
+            return
+        if self._start is None or spread > self._start:
+            self._start = spread
+        percent = 100.0
+        if self._start > threshold:
+            percent = max(0.0, min(100.0, (self._start - spread) / (self._start - threshold) * 100))
+        self._bar.style(f"width:{percent:.1f}%")
+        self._numbers.set_content(
+            f"<span>Spread <b>{spread * 1000:.0f} mV</b> → {threshold * 1000:.0f} mV</span>"
+            f"<span><b>{bleeding}</b> cells bleeding</span>"
+        )
+
+    def done(self) -> None:
+        """Not balancing: the next balancing starts fresh."""
+        self._start = None
+
+
+class Done:
+    """A charge or a balancing just finished: seen from across the pit, until the operator says OK."""
+
+    def __init__(self) -> None:
+        self.dismissed = False  # OK pressed: hidden until the next job is done
+        with ui.element("div").classes("ovl pre done") as self.root:
+            ui.html(
+                '<svg class="tick-mark" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/>'
+                '<path d="M14 27 l8 8 l16 -17"/></svg>'
+            )
+            with ui.element("div").classes("dtext"):
+                ui.label("Done").classes("k")
+                self._title = ui.label("").classes("t")
+                self._hint = ui.label("").classes("d")
+            self._numbers = ui.html("").classes("pnums num")
+            self._ok = ui.button("OK", on_click=self._on_ok).props("unelevated no-caps text-color=black")
+            self._ok.classes("ovl-btn ok")
+
+    def reachable(self) -> list[Reachable]:
+        return usable(button("ok", self._ok, priority=1))
+
+    def update(self, status: Status) -> None:
+        bms = status.bms
+        if status.state is State.CHARGE_DONE:
+            self._title.set_text("Charge complete")
+            self._hint.set_text("Press STOP to turn the TS off before unplugging.")
+            pack, cell = bms.pack_voltage or 0.0, bms.cell_max or 0.0
+            self._numbers.set_content(
+                f"<span>Pack <b>{pack:.1f} V</b></span><span>Max cell <b>{cell:.3f} V</b></span>"
+            )
+        else:
+            self._title.set_text("Cells balanced")
+            self._hint.set_text("Every cell is within the threshold. The TS is off.")
+            spread, low = (bms.cell_delta or 0.0) * 1000, bms.cell_min or 0.0
+            self._numbers.set_content(
+                f"<span>Spread <b>{spread:.0f} mV</b></span><span>Lowest cell <b>{low:.3f} V</b></span>"
+            )
+
+    def _on_ok(self) -> None:
+        self.dismissed = True
+        self.root.set_visibility(False)
+
+
 class Discharge:
     """After TS off, until the TS is below 60 V: on every screen, because the high voltage is still there."""
 

@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from functools import partial
 
-from nicegui import ui
+from nicegui import background_tasks, ui
 
 from frontend import local_files, overlays
 from frontend.backend import Backend
@@ -98,6 +98,8 @@ class Page:
                 self._charger = ChargerScreen()
                 self._shutdown = ShutdownScreen(cfg)
                 self._precharge = overlays.Precharge()
+                self._balancing = overlays.Balancing(on_view_cells=lambda: self._show("cells"))
+                self._done = overlays.Done()
                 self._discharge = overlays.Discharge()  # above the error takeover (CSS)
                 self._error = overlays.Error(
                     on_reset=lambda: self._send(Command.RESET), on_details=self._on_details
@@ -169,9 +171,12 @@ class Page:
                 self._stopped_with_ts_on = self._state in TS_ON or self._state is State.PRECHARGE
             self._state = s
             self._entered = time.monotonic()
+            self._done.dismissed = False
             if s in TAKEOVER_STATES:
                 self._close_windows()  # nothing may hide an error, or the precharge
                 self._select("charge")
+            elif s is State.CHARGE_DONE or status.balancing_done:
+                self._select("charge")  # a job done: on the screen that says so
 
         self._cells.record(status)
         self._update_top(status)
@@ -183,6 +188,15 @@ class Page:
         self._precharge.root.set_visibility(on_charge and (s is State.PRECHARGE or lingering))
         if s is State.PRECHARGE or lingering:
             self._precharge.update(status)
+        self._balancing.root.set_visibility(on_charge and s is State.BALANCING)
+        if s is State.BALANCING:
+            self._balancing.update(status)
+        else:
+            self._balancing.done()
+        job_done = s is State.CHARGE_DONE or status.balancing_done
+        self._done.root.set_visibility(on_charge and job_done and not self._done.dismissed)
+        if job_done:
+            self._done.update(status)
         self._error.root.set_visibility(on_charge and s is State.ERROR)
         if s is State.ERROR:
             self._error.update(status, self._error_kind(status), self._stopped_with_ts_on)
@@ -287,8 +301,13 @@ class Page:
 
     def _show(self, key: str) -> None:
         """Go to a screen and draw it now, without waiting for the next refresh."""
+        self._hush()
         self._select(key)
         self._refresh()
+
+    def _hush(self) -> None:
+        """The operator is there: stop the tune of a job done (charge, balancing)."""
+        background_tasks.create(self._backend.hush())
 
     def _select(self, key: str) -> None:
         """Make a screen the visible one and highlight its tab."""
@@ -389,11 +408,13 @@ class Page:
 
     def _on_touch(self) -> None:
         """The operator touched the screen outside the map: the frame goes."""
+        self._hush()
         self._controls.clear()
         self._follow_controls()
 
     def _on_cell_touched(self, square: int) -> None:
         """A touch on the map: the cursor goes there, to be corrected with the controls if it missed."""
+        self._hush()
         _, context = self._context()
         self._controls.touch_map(square, context)
         self._follow_controls()
@@ -422,6 +443,10 @@ class Page:
             content: list[Reachable] = []  # it covers the screen, nothing to press there
         elif self._discharge.root.visible:
             content = self._discharge.reachable()
+        elif self._balancing.root.visible:
+            content = self._balancing.reachable()
+        elif self._done.root.visible:
+            content = self._done.reachable()
         elif self._error.root.visible:
             content = self._error.reachable()
         else:

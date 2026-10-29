@@ -14,6 +14,7 @@ from shared.models import (
     InputEvent,
     NetworkInfo,
     Settings,
+    Sound,
     Status,
     StreamMessage,
     SystemInfo,
@@ -65,6 +66,7 @@ class Backend:
         self.system: SystemInfo | None = None  # version and updates; None until read
         self.network: NetworkInfo | None = None  # addresses and Wi-Fi networks; None until read
         self._listeners: list[Callable[[InputEvent], None]] = []
+        self._sound_listeners: list[Callable[[Sound], None]] = []
 
     async def run(self) -> None:
         """Follow /api/ws for ever, reconnecting when the backend restarts."""
@@ -111,6 +113,11 @@ class Backend:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
 
+    def on_sound(self, listener: Callable[[Sound], None]) -> Callable[[], None]:
+        """Call listener for every sound the buzzer starts. Returns a function that stops it."""
+        self._sound_listeners.append(listener)
+        return lambda: self._sound_listeners.remove(listener)
+
     async def command(self, command: Command) -> str | None:
         """Returns why the backend refused the command, or None."""
         return await self._request("POST", "/api/command", {"command": command.value})
@@ -149,6 +156,10 @@ class Backend:
         await self.read_network()
         return problem
 
+    async def hush(self) -> None:
+        """The operator touched the screen: stop the tune of a job done."""
+        await self._request("POST", "/api/buzzer/hush")
+
     async def update(self) -> str | None:
         return await self._request("POST", "/api/system/update")
 
@@ -180,3 +191,6 @@ class Backend:
         if message.input is not None:
             for listener in list(self._listeners):
                 listener(message.input)
+        if message.sound is not None:
+            for sound_listener in list(self._sound_listeners):
+                sound_listener(message.sound)
