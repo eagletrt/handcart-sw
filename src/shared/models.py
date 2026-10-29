@@ -163,6 +163,7 @@ class ToneRequest(BaseModel):
     """A frequency for the buzzer: a tone to hear, or the resonance found."""
 
     frequency: float = Field(ge=LOWEST_TONE, le=HIGHEST_TONE)  # Hz
+    seconds: float = Field(default=0.4, gt=0, le=3)  # of the tone; the resonance ignores it
 
 
 class BuzzerInfo(BaseModel):

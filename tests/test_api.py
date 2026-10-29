@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from backend import network as network_module
 from backend.api import create_app
 from backend.hal.fake import FakeHal
-from backend.handcart import FIRST_RESONANCE, Handcart
+from backend.handcart import Handcart
 from backend.network import FakeNetwork
 from backend.recorder import Recorder
 from backend.system import System
@@ -168,7 +168,7 @@ def test_the_resonance_found_is_kept_across_restarts(cfg, tmp_path):
 
     handcart = start()
     with TestClient(create_app(handcart, System(cfg.update), FakeNetwork(cfg.hotspot))) as client:
-        assert client.get("/api/buzzer").json() == {"resonance": FIRST_RESONANCE}  # none saved yet
+        assert client.get("/api/buzzer").json() == {"resonance": None}  # none saved yet: as written
         assert client.put("/api/buzzer/resonance", json={"frequency": 2700}).status_code == 204
     assert start().resonance == 2700
     bus.shutdown()

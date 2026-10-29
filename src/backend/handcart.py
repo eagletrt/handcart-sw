@@ -40,8 +40,6 @@ from shared.models import (
 
 log = logging.getLogger(__name__)
 
-# Hz where the buzzer is loudest until another one is saved: found by ear on the handcart (a sweep of tones)
-FIRST_RESONANCE = 2100.0
 TONE_SECONDS = 0.4  # of a tone to find the resonance: one per encoder step, so it sounds on while turning
 
 CHARGER_FANS = (0, 100)  # % duty range the charger may use for its fans
@@ -135,21 +133,19 @@ class Handcart:
             self._buzzer_file.parent.mkdir(exist_ok=True)
             self._buzzer_file.write_text(BuzzerInfo(resonance=frequency).model_dump_json())
 
-    def tone(self, frequency: float) -> None:
-        """A plain tone on the buzzer, to find its resonance by ear."""
-        self._player.tone(frequency, TONE_SECONDS, self._clock())
+    def tone(self, frequency: float, seconds: float = TONE_SECONDS) -> None:
+        """A plain tone on the buzzer, to find its resonance."""
+        self._player.tone(frequency, seconds, self._clock())
 
     def _load_resonance(self) -> float | None:
-        """The resonance saved, else FIRST_RESONANCE; in the tests (no file) None: the melodies as written."""
-        if self._buzzer_file is None:
+        """The resonance saved; None until one is: the melodies as written."""
+        if self._buzzer_file is None or not self._buzzer_file.exists():
             return None
-        if not self._buzzer_file.exists():
-            return FIRST_RESONANCE
         try:
             return BuzzerInfo.model_validate_json(self._buzzer_file.read_text()).resonance
         except ValueError as error:
             log.warning("saved buzzer resonance not used: %s", error)
-            return FIRST_RESONANCE
+            return None
 
     def play(self, sound: Sound) -> None:
         """Start a sound on the buzzer; the ticks play it."""
