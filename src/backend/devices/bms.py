@@ -65,6 +65,10 @@ class Bms:
         handler = self._handlers.get(frame.id)
         if handler is None:
             return False
+        if self._last_seen is not None and not self.connected:
+            # back after being away: the state it had is old (the AIRs may have opened meanwhile),
+            # unknown until its next status
+            self._state = None
         handler(decode(self._db, frame))
         self._last_seen = self._clock()
         return True

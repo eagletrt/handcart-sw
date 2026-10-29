@@ -17,15 +17,18 @@ from backend.hal.drivers import Pwm, SilentPwm
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.network import FakeNetwork, Network
+from backend.recorder import Recorder
 from backend.system import System
 from shared import config
 from shared.config import (
     BACKEND_ERROR_FILE,
+    HOTSPOT_FILE,
+    RECORD_FILE,
     SETTINGS_FILE,
     Config,
     hardware_is_simulated,
 )
-from shared.models import Sound
+from shared.models import Severity, Sound
 from shared.scenario import SCENARIO_FILE
 
 TICK = 0.005  # s, faster than the fastest periodic frame (HYC_Ctrl, 10 ms)
@@ -34,16 +37,16 @@ WATCHDOG_PING = 1.0  # s between two "still ticking" to systemd (WatchdogSec in 
 log = logging.getLogger("backend")
 
 
-def make_network() -> Network | FakeNetwork:
+def make_network(cfg: Config) -> Network | FakeNetwork:
     """NetworkManager on the handcart; made-up Wi-Fi networks where there is none (a computer)."""
     try:
-        return Network()
+        return Network(cfg.hotspot, HOTSPOT_FILE)
     except Exception as error:  # no dbus-python, or no system D-Bus to reach NetworkManager on
         log.warning(
             "No NetworkManager (%s): the Wi-Fi is simulated, its networks are made up",
             error,
         )
-        return FakeNetwork()
+        return FakeNetwork(cfg.hotspot, HOTSPOT_FILE)
 
 
 def make_hal(cfg: Config) -> Hal:
@@ -68,16 +71,19 @@ async def run() -> None:
     bms_bus = open_bus(cfg.can, cfg.can.bms_channel)
     charger_bus = bms_bus if cfg.can.shared_bus else open_bus(cfg.can, cfg.can.charger_channel)
     hal = make_hal(cfg)
-    handcart = Handcart(cfg, hal, bms_bus, charger_bus, settings_file=SETTINGS_FILE)
+    recorder = Recorder(RECORD_FILE)
+    recorder.start()
+    handcart = Handcart(cfg, hal, bms_bus, charger_bus, settings_file=SETTINGS_FILE, recorder=recorder)
+    handcart.record("system", Severity.NOTICE, "backend", "Backend started")
     handcart.play(Sound.STARTUP)
 
     system = System(cfg.update)
     asyncio.get_running_loop().run_in_executor(None, system.check)  # look for updates at every start
-    network = make_network()
+    network = make_network(cfg)
     # the Wi-Fi is on at every start: turned off from the screen, a restart brings SSH back
     asyncio.get_running_loop().run_in_executor(None, network.set_wifi, True)
 
-    app = create_app(handcart, system, network)
+    app = create_app(handcart, system, network, recorder)
     server = uvicorn.Server(uvicorn.Config(app, host=cfg.network.backend_host, port=cfg.network.backend_port))
     failed = False
 
@@ -100,6 +106,13 @@ async def run() -> None:
         except Exception as error:
             log.exception("The control loop failed: stopping the backend")
             report_failure(error)
+            handcart.record(
+                "system",
+                Severity.CRITICAL,
+                "backend",
+                f"The control loop failed: {error}",
+                {"error": repr(error)},
+            )
             failed = True
             server.should_exit = True
 
@@ -111,6 +124,8 @@ async def run() -> None:
         # leave the hardware safe: charger unpowered, shutdown open, TS discharge resistor in
         hal.set_relays(sd_relay_closed=False, charger_power=False, discharge=True)
         log.info("Stopped: charger unpowered, shutdown loop open, TS discharging")
+        handcart.record("system", Severity.NOTICE, "backend", "Backend stopped")
+        recorder.close()
         bms_bus.shutdown()
         if charger_bus is not bms_bus:
             charger_bus.shutdown()

@@ -47,7 +47,7 @@ Then, in three terminals:
 ```bash
 ./handcart.py sim --speed 30   # charge 30 times faster than real life
 ./handcart.py backend
-./handcart.py frontend         # then open http://127.0.0.1:8080, best at 800 x 480 like the display
+./handcart.py frontend         # then open http://127.0.0.1:8080, best at 1024 x 600 like the display
 ```
 
 On the computer the keyboard and the mouse stand in for the handcart's controls:
@@ -114,7 +114,7 @@ No desktop, no boot text, no login prompt. Use Raspberry Pi OS Lite.
 Setup, once:
 
 ```bash
-sudo apt install cage chromium-browser plymouth curl fonts-urw-base35 libdbus-1-dev libglib2.0-dev pkg-config
+sudo apt install cage chromium-browser plymouth curl fonts-urw-base35 libdbus-1-dev libglib2.0-dev pkg-config dnsmasq-base
 ./handcart.py setup
 ./handcart.py install-services
 ```
@@ -131,6 +131,13 @@ typed on the screen keyboard runs on the Pi and its output shows as it comes; St
 not a full terminal: a command that asks something while it runs (vim, top, a sudo password) gets no
 answer. It is offered only on the display, never to a browser on another machine.
 
+Where there is no Wi-Fi to join, turn on the **Hotspot** in the Wi-Fi window: the handcart makes its own
+network (name and password on the screen: **Change** edits them, kept in `var/hotspot.json`; `[hotspot]` of
+`config.toml` has the first ones) on the Wi-Fi that is not on a
+network, so it stays on its network too. Join it from the laptop and SSH to `10.42.0.1`. It stays on after a
+restart until it is turned off. The Wi-Fi window lists every address with what it is on: Cable, Wi-Fi,
+Hotspot, Tailscale.
+
 A USB keyboard plugged into the Pi drives the UI with the keys of the table above, as on the computer
 (touch the screen once if they do nothing: the page needs the focus).
 
@@ -139,6 +146,14 @@ The backend only accepts connections from the Pi itself, so from an SSH session 
 ```bash
 ./handcart.py status
 ./handcart.py command STOP
+```
+
+What happened is kept in `var/record.db` (SQLite, the last 30 days): every command, state change, device
+lost or found and error a device reported, with the readings at each state change and what caused it; and
+the readings every second while charging or balancing. From the API (`/api/events`, `/api/samples`) or:
+
+```bash
+sqlite3 var/record.db "SELECT datetime(time, 'unixepoch', 'localtime'), severity, summary FROM events ORDER BY id DESC LIMIT 20"
 ```
 
 ## Hardware notes

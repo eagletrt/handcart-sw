@@ -64,6 +64,8 @@ class LittleSic:
         self._read("HYC_Warning", self._on_warnings)
         self._read("HYC_Version", lambda s: None)  # only a sign of life
         self._raw_ids = {db.get_message_by_name(name).frame_id for name in RAW_MESSAGES}
+        # an error in words, from its comment in the DBC: "Interlock missing", not DIAG_ERR1_CHRG_STOP
+        self._error_text = {s.name: s.comment or s.name for s in db.get_message_by_name("HYC_Error").signals}
 
     def on_frame(self, frame: Frame) -> bool:
         """Update from a frame. False if the frame is not from the charger; raises if it is malformed."""
@@ -124,7 +126,7 @@ class LittleSic:
         self._temperatures.update((name, as_float(value)) for name, value in s.items())
 
     def _on_errors(self, s: Signals) -> None:
-        self._errors = frozenset(name for name, value in s.items() if value)
+        self._errors = frozenset(self._error_text[name] for name, value in s.items() if value)
 
     def _on_warnings(self, s: Signals) -> None:
         self._warnings = frozenset(name for name, value in s.items() if value)

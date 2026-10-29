@@ -65,6 +65,14 @@ def test_the_airs_opening_is_the_discharge(announcer):
     assert announcer.sounds(2.0, inputs(state=TsacState.IDLE), State.READY, None, "") == [Sound.DISCHARGE]
 
 
+def test_a_bms_unplugged_with_the_ts_on_is_no_discharge_once_back(announcer):
+    assert announcer.sounds(1.0, inputs(state=TsacState.PRECHARGE), State.PRECHARGE, None, "") == []
+    gone = inputs(state=TsacState.PRECHARGE, connected=False)  # its last state stays
+    assert Sound.DISCHARGE not in announcer.sounds(2.0, gone, State.ERROR, None, "")
+    back = announcer.sounds(3.0, inputs(state=TsacState.IDLE), State.ERROR, None, "")
+    assert back == [Sound.DEVICE_CONNECTED]
+
+
 def test_a_charger_that_does_not_deliver_warns_once(announcer):
     assert announcer.sounds(1.0, inputs(), State.CHARGE, None, NOT_DELIVERING) == [Sound.WARNING]
     assert announcer.sounds(2.0, inputs(), State.CHARGE, None, NOT_DELIVERING) == []

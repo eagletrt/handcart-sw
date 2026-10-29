@@ -44,6 +44,17 @@ def test_status_and_presence_timeout(bms, bms_frame, clock, cfg):
     assert not bms.connected
 
 
+def test_back_after_being_away_its_old_state_is_forgotten(bms, bms_frame, clock, cfg):
+    cellboards = {f"cellboard{i}Status": "IDLE" for i in range(1, cfg.accumulator.cellboards + 1)}
+    bms.on_frame(bms_frame("TsacStatus", mainboardStatus="PRECHARGE", **cellboards))
+    clock.now += cfg.timing.bms_presence_timeout + 0.01
+    assert bms.snapshot().state is TsacState.PRECHARGE  # away: still the last one it said
+    bms.on_frame(bms_frame("TsacMainboardCurrentInfo", current=0.0, power=0.0))  # back, not its status yet
+    assert bms.connected and bms.snapshot().state is None
+    bms.on_frame(bms_frame("TsacStatus", mainboardStatus="IDLE", **cellboards))
+    assert bms.snapshot().state is TsacState.IDLE
+
+
 def test_pack_readings(bms, bms_frame):
     # the DBC resolution is 0.5 V for pack voltages and 5 mV for cells
     bms.on_frame(

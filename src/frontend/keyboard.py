@@ -79,13 +79,13 @@ class Keyboard:
         keys.append(button("space", self._space))
         return usable(*keys)
 
-    def clear(self, label: str, text: str = "") -> None:
-        """Start again with label next to the text, and this text already typed."""
+    def clear(self, label: str, text: str = "", shown: bool = False) -> None:
+        """Start again with label next to the text, and this text already typed; shown: not as dots."""
         self._label.set_text(label)
         self.text = text
         self._caps = False
         self._symbols = False
-        self._shown = False
+        self._shown = shown
         self._draw()
 
     def press_key(self, key: str) -> None:

@@ -156,6 +156,19 @@ class Backend:
         await self.read_network()
         return problem
 
+    async def set_hotspot(self, on: bool) -> str | None:
+        """Turn the hotspot on or off. Returns why it could not, or None."""
+        problem = await self._request("POST", "/api/network/hotspot", {"on": on}, timeout=WIFI_TIMEOUT)
+        await self.read_network()
+        return problem
+
+    async def change_hotspot(self, ssid: str, password: str) -> str | None:
+        """A new name and password for the hotspot. Returns why it could not, or None."""
+        body = {"ssid": ssid, "password": password}
+        problem = await self._request("PUT", "/api/network/hotspot", body, timeout=WIFI_TIMEOUT)
+        await self.read_network()
+        return problem
+
     async def hush(self) -> None:
         """The operator touched the screen: stop the tune of a job done."""
         await self._request("POST", "/api/buzzer/hush")

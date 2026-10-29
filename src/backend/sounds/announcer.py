@@ -54,10 +54,15 @@ class Announcer:
             sounds.append(Sound.ERROR)
             self._alarm_at = now
 
-        airs_closed = inputs.bms.state in BMS_HV_STATES
-        if self._airs_closed and not airs_closed:
-            sounds.append(Sound.DISCHARGE)  # the TS goes off, whatever the reason
-        self._airs_closed = airs_closed
+        if inputs.bms.connected:
+            airs_closed = inputs.bms.state in BMS_HV_STATES
+            if self._airs_closed and not airs_closed:
+                sounds.append(Sound.DISCHARGE)  # the TS goes off, whatever the reason
+            self._airs_closed = airs_closed
+        else:
+            # unplugged: its last state is old, the AIRs are not known. Once it is back, only an opening it
+            # reports is the discharge, not the difference with what it said before going
+            self._airs_closed = False
 
         not_delivering = message == NOT_DELIVERING
         if not_delivering and not self._not_delivering:

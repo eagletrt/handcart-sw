@@ -89,6 +89,18 @@ def test_charger_frames_are_read_by_the_backend(charger_db, cfg, clock):
     assert snap.errors == set()
 
 
+def test_a_forced_charger_error_says_which(charger_db, cfg, clock):
+    sim = SimCharger(charger_db)
+    charger = LittleSic(charger_db, cfg.timing.charger_presence_timeout, clock)
+    sim.forced_error = True
+    sim.tick(TICK, pack_voltage=550.0)
+    for frame in sim.frames(now=0.0):
+        charger.on_frame(frame)
+    snap = charger.snapshot()
+    assert snap.state is ChargerState.ERROR
+    assert snap.errors == {"Interlock missing"}
+
+
 def test_charger_tapers_close_to_the_target(charger_db, cfg, clock):
     sim = SimCharger(charger_db)
     charger = LittleSic(charger_db, cfg.timing.charger_presence_timeout, clock)

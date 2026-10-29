@@ -29,7 +29,7 @@ from frontend.terminal_window import SCROLL, TerminalWindow
 from frontend.updating import Updating
 from frontend.wifi_window import WifiWindow
 from shared.config import Config
-from shared.models import Command, InputEvent, Settings, State, Status
+from shared.models import ChargerState, Command, InputEvent, Settings, State, Status
 
 REFRESH_PERIOD = 0.25  # s
 LOCAL_HOSTS = {"127.0.0.1", "::1"}  # the display's own browser: the only one offered the terminal
@@ -297,7 +297,7 @@ class Page:
         badges = {
             "charge": s is State.ERROR and self._tab != "charge",
             "cells": cell_fault or (s is State.BALANCING and self._tab != "cells"),
-            "charger": not status.charger.connected,
+            "charger": not status.charger.connected or status.charger.state is ChargerState.ERROR,
             "shutdown": first_open(status.shutdown, self._cfg.shutdown.open_below) is not None,
         }
         for key, visible in badges.items():

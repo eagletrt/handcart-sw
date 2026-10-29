@@ -45,6 +45,12 @@ def test_errors(charger, charger_frame, charger_db):
     assert charger.snapshot().errors == {"Error_Overtemperature"}
 
 
+def test_errors_in_words_from_the_dbc(charger, charger_frame, charger_db):
+    flags = _all_flags(charger_db, "HYC_Error", 0) | {"DIAG_ERR1_CHRG_STOP": 1}
+    charger.on_frame(charger_frame("HYC_Error", raw=True, **flags))
+    assert charger.snapshot().errors == {"Interlock missing"}
+
+
 def test_warnings(charger, charger_frame, charger_db):
     flags = _all_flags(charger_db, "HYC_Warning", 0) | {"HEAT_SINK": 1}
     charger.on_frame(charger_frame("HYC_Warning", raw=True, **flags))

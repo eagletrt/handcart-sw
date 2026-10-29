@@ -17,13 +17,18 @@ TICK = 0.005  # s, like the backend
 class Rig:
     """Handcart and simulators on one virtual bus, sharing a clock the test moves."""
 
-    def __init__(self, cfg, primary, charger_db, speed: float) -> None:
+    def __init__(self, cfg, primary, charger_db, speed: float, recorder=None) -> None:
         self.now = 0.0
         self.hal = FakeHal()
         self._handcart_bus = can.Bus(interface="virtual", channel="rig", receive_own_messages=False)
         self._sim_bus = can.Bus(interface="virtual", channel="rig", receive_own_messages=False)
         self.handcart = Handcart(
-            cfg, self.hal, self._handcart_bus, self._handcart_bus, clock=lambda: self.now
+            cfg,
+            self.hal,
+            self._handcart_bus,
+            self._handcart_bus,
+            clock=lambda: self.now,
+            recorder=recorder,
         )
         self.bms = SimBms(primary, cfg.accumulator, speed=speed)
         self.charger = SimCharger(charger_db)

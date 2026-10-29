@@ -4,12 +4,14 @@ import can
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import network as network_module
 from backend.api import create_app
 from backend.hal.fake import FakeHal
 from backend.handcart import Handcart
 from backend.network import FakeNetwork
+from backend.recorder import Recorder
 from backend.system import System
-from shared.models import InputEvent, NetworkInfo, Sound, Status, StreamMessage
+from shared.models import InputEvent, NetworkInfo, RecordedEvent, Sound, Status, StreamMessage
 
 
 @pytest.fixture
@@ -17,7 +19,7 @@ def client(cfg):
     bus = can.Bus(interface="virtual", channel="api", receive_own_messages=False)
     hal = FakeHal()
     handcart = Handcart(cfg, hal, bus, bus)
-    with TestClient(create_app(handcart, System(cfg.update), FakeNetwork())) as client:
+    with TestClient(create_app(handcart, System(cfg.update), FakeNetwork(cfg.hotspot))) as client:
         client.handcart = handcart  # type: ignore[attr-defined]
         client.hal = hal  # type: ignore[attr-defined]
         yield client
@@ -88,6 +90,21 @@ def test_network(client):
     assert NetworkInfo.model_validate(response.json()).networks  # the made-up ones
 
 
+def test_the_hotspot_goes_on_and_off(client, monkeypatch):
+    monkeypatch.setattr(network_module, "FAKE_DELAY", 0)
+    assert client.post("/api/network/hotspot", json={"on": True}).status_code == 200
+    hotspot = NetworkInfo.model_validate(client.get("/api/network").json()).hotspot
+    assert hotspot.on and hotspot.address == "10.42.0.1"
+    assert client.post("/api/network/hotspot", json={"on": False}).status_code == 200
+    assert not NetworkInfo.model_validate(client.get("/api/network").json()).hotspot.on
+
+
+def test_a_refused_hotspot_name_answers_with_the_reason(client):
+    response = client.put("/api/network/hotspot", json={"ssid": "", "password": "eagletrt"})
+    assert response.status_code == 422
+    assert "1 to 32" in response.json()["detail"]
+
+
 def test_a_refused_wifi_connection_answers_with_the_reason(client):
     response = client.post("/api/network/connect", json={"ssid": "Eagle", "password": "short"})
     assert response.status_code == 422
@@ -111,3 +128,18 @@ def test_a_touch_stops_the_tune_of_a_job_done(client):
     assert client.post("/api/buzzer/hush").status_code == 204
     client.handcart.tick()
     assert client.hal.buzzer is None
+
+
+def test_events_and_samples_from_the_record(cfg, tmp_path):
+    bus = can.Bus(interface="virtual", channel="api-record", receive_own_messages=False)
+    recorder = Recorder(tmp_path / "record.db")
+    handcart = Handcart(cfg, FakeHal(), bus, bus, recorder=recorder)
+    app = create_app(handcart, System(cfg.update), FakeNetwork(cfg.hotspot), recorder)
+    with TestClient(app) as client:
+        client.post("/api/command", json={"command": "PRECHARGE"})  # refused: no BMS
+        events = [RecordedEvent.model_validate(e) for e in client.get("/api/events").json()]
+        assert [e.kind for e in events] == ["refusal", "command"]
+        notices = client.get("/api/events", params={"at_least": "notice"}).json()
+        assert [e["kind"] for e in notices] == ["refusal"]
+        assert client.get("/api/samples", params={"since": 0}).json() == []
+    bus.shutdown()

@@ -11,6 +11,7 @@ CODE_OF_STATE = {state: code for code, state in STATE_CODES.items()}
 CURRENT_RAMP = 3.0  # A/s
 CONSTANT_VOLTAGE_GAIN = 2.0  # A per volt below the target, once close to it
 GRID_VOLTAGE = 230.0  # V per phase
+FORCED_ERROR = "DIAG_ERR1_CHRG_STOP"  # the error flag of the forced ERROR: "Interlock missing"
 
 
 class SimCharger:
@@ -78,7 +79,10 @@ class SimCharger:
             for name in ("HYC_Temperature", "HYC_Maintenance2"):
                 signals = {s.name: temperature for s in self._db.get_message_by_name(name).signals}
                 frames.append(encode(self._db, name, **signals))
-            for name in RAW_MESSAGES:  # no errors or warnings: all flags 0
+            for name in RAW_MESSAGES:  # all flags 0, but the error of the forced ERROR
                 message = self._db.get_message_by_name(name)
-                frames.append(Frame(message.frame_id, bytes(message.length)))
+                flags = 0
+                if name == "HYC_Error" and self.forced_error:
+                    flags = 1 << message.get_signal_by_name(FORCED_ERROR).start
+                frames.append(Frame(message.frame_id, flags.to_bytes(message.length, "little")))
         return frames

@@ -19,6 +19,10 @@ POST /api/network/scan     look for Wi-Fi networks again (a few seconds)
 POST /api/network/connect  {"ssid": "Eagle", "password": "..."}: 422 and the reason if it could not
 POST /api/network/disconnect  leave the Wi-Fi network (it stays saved)
 POST /api/network/wifi     {"on": false}: turn the Wi-Fi radio off or on
+GET  /api/events           what happened, newest first: ?at_least=critical&limit=100&before_id=...
+GET  /api/samples          the readings for the graphs: ?since=<s since 1970>&until=...
+POST /api/network/hotspot  {"on": true}: turn the hotspot on or off (a few seconds)
+PUT  /api/network/hotspot  {"ssid": "handcart", "password": "..."}: its new name and password
 """
 
 import asyncio
@@ -27,12 +31,18 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
 from backend.handcart import Handcart
 from backend.network import FakeNetwork, Network
+from backend.recorder import Recorder
 from backend.sounds.player import length
 from backend.system import System
 from shared.models import (
     CommandRequest,
+    HotspotDetails,
+    HotspotRequest,
     NetworkInfo,
+    RecordedEvent,
+    Sample,
     Settings,
+    Severity,
     Sound,
     Status,
     StreamMessage,
@@ -45,7 +55,12 @@ STATUS_PERIOD = 0.2  # s
 INPUT_POLL_PERIOD = 0.02  # s: button presses reach the screen this fast
 
 
-def create_app(handcart: Handcart, system: System, network: Network | FakeNetwork) -> FastAPI:
+def create_app(
+    handcart: Handcart,
+    system: System,
+    network: Network | FakeNetwork,
+    recorder: Recorder | None = None,
+) -> FastAPI:
     # every endpoint is async: it runs in the event loop between two ticks, never in the middle of one
     app = FastAPI(title="Handcart")
 
@@ -66,6 +81,22 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
     async def hush() -> None:
         handcart.hush()
 
+    # the record: SQLite in a thread, the SD card can be slow
+
+    @app.get("/api/events")
+    async def events(
+        at_least: Severity = Severity.INFO, limit: int = 100, before_id: int | None = None
+    ) -> list[RecordedEvent]:
+        if recorder is None:
+            return []
+        return await asyncio.to_thread(recorder.events, before_id, limit, at_least)
+
+    @app.get("/api/samples")
+    async def samples(since: float, until: float | None = None) -> list[Sample]:
+        if recorder is None:
+            return []
+        return await asyncio.to_thread(recorder.samples, since, until)
+
     @app.get("/api/system")
     async def system_info() -> SystemInfo:
         return system.info()
@@ -78,16 +109,19 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
     @app.post("/api/system/update", status_code=202)
     async def update() -> None:
         refuse_if(handcart.maintenance_problem() or system.start_update())
+        handcart.record("system", Severity.NOTICE, "api", "Update started", actor="api")
 
     @app.post("/api/system/reboot", status_code=202)
     async def reboot() -> None:
         refuse_if(handcart.maintenance_problem() or system.not_installed())
+        handcart.record("system", Severity.NOTICE, "api", "Reboot", actor="api")
         await say_goodbye()
         refuse_if(system.reboot())
 
     @app.post("/api/system/shutdown", status_code=202)
     async def shut_down() -> None:
         refuse_if(handcart.maintenance_problem() or system.not_installed())
+        handcart.record("system", Severity.NOTICE, "api", "Shut down", actor="api")
         await say_goodbye()
         refuse_if(system.shut_down())
 
@@ -118,6 +152,14 @@ def create_app(handcart: Handcart, system: System, network: Network | FakeNetwor
     @app.post("/api/network/wifi")
     async def set_wifi(body: WifiRadioRequest) -> None:
         refuse_if(await asyncio.to_thread(network.set_wifi, body.on))
+
+    @app.post("/api/network/hotspot")
+    async def set_hotspot(body: HotspotRequest) -> None:
+        refuse_if(await asyncio.to_thread(network.set_hotspot, body.on))
+
+    @app.put("/api/network/hotspot")
+    async def change_hotspot(body: HotspotDetails) -> None:
+        refuse_if(await asyncio.to_thread(network.change_hotspot, body.ssid, body.password))
 
     @app.websocket("/api/ws")
     async def stream(socket: WebSocket) -> None:

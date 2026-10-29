@@ -349,8 +349,16 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .wtitle { display: flex; align-items: center; gap: 14px; }
 .wswitch .q-toggle__inner { font-size: 56px; }  /* a finger-sized switch */
 .whead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.wip { text-align: right; }
-.wip .num { font-size: 30px; font-weight: 700; color: #fff; white-space: nowrap; }
+/* the addresses: what each is on, small, then the address, big, in two columns */
+.wip { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 12px; text-align: right; }
+.wip .num { font-size: 24px; font-weight: 700; color: #fff; white-space: nowrap; line-height: 1.2; }
+.wacts.sheet-actions { grid-template-columns: 1fr 1fr 2fr; }
+.wacts .q-btn.on { color: var(--y) !important; border-color: var(--y); }  /* Hotspot, while it is on */
+/* the hotspot view: name, password and address to type on the laptop */
+.hbox { display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 20px; row-gap: 6px; margin-top: 16px; border: 1px solid var(--line); border-radius: 4px; padding: 12px 16px; }
+.hbox .num { font-size: 30px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hnote { font-size: 16px; color: var(--mute); line-height: 1.4; margin-top: 12px; }
+.hacts.sheet-actions { margin-top: 14px; }
 .kb { display: flex; flex-direction: column; gap: 6px; }
 .kbfield { height: 56px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-2); border-radius: 4px; padding-left: 14px; }
 .kblabel { font-size: 15px; color: var(--mute); white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; flex: none; }

@@ -6,6 +6,10 @@ backend_port = 8000
 frontend_host = "127.0.0.1"   # only the display (another address is refused until there is a PIN)
 frontend_port = 8080
 
+[hotspot]  # the Wi-Fi network the handcart makes (Wi-Fi window, Hotspot): SSH where there is no Wi-Fi
+ssid = "handcart"
+password = "eagletrt"   # shown on the screen, to type it on the laptop
+
 [can]
 interface = "socketcan"   # python-can interface; elsewhere udp_multicast (see README)
 bms_channel = "can0"

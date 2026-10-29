@@ -13,6 +13,8 @@ LOCAL_PATH = ROOT / "config.local.toml"  # optional, not in git: overrides for t
 # files in var/ (not in git); the ones the display reads are explained in frontend/local_files.py
 BACKEND_ERROR_FILE = ROOT / "var" / "backend-error.txt"  # why the backend stopped; shown by the frontend
 SETTINGS_FILE = ROOT / "var" / "settings.json"  # the operator's setpoints, kept across restarts
+RECORD_FILE = ROOT / "var" / "record.db"  # what happened and how the charges went (backend/recorder.py)
+HOTSPOT_FILE = ROOT / "var" / "hotspot.json"  # the hotspot's name and password, once changed on the screen
 # written by ./handcart.py update (handcart.py has the same paths): the step it is at, and how it ended
 UPDATE_STEP_FILE = ROOT / "var" / "update-step.txt"
 LAST_UPDATE_FILE = ROOT / "var" / "last-update.txt"
@@ -44,6 +46,13 @@ def _is_this_machine(host: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:  # a name, e.g. pi.local: it can be reached from the network
         return False
+
+
+class Hotspot(_Section):
+    """The hotspot's name and password until they are changed on the screen (then HOTSPOT_FILE)."""
+
+    ssid: str = Field(min_length=1, max_length=32)  # what a Wi-Fi network name can be
+    password: str = Field(min_length=8, max_length=63)  # what a WPA password can be
 
 
 class Can(_Section):
@@ -183,6 +192,7 @@ class Auth(_Section):
 
 class Config(_Section):
     network: Network
+    hotspot: Hotspot
     can: Can
     accumulator: Accumulator
     charge: Charge

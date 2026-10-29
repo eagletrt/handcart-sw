@@ -178,6 +178,42 @@ class Status(BaseModel):
     shutdown: ShutdownLoop
 
 
+class Severity(StrEnum):
+    """How much an event matters: the operator sees the critical ones, the rest is there to look into."""
+
+    INFO = "info"  # what happens normally: a command, a setting changed
+    NOTICE = "notice"  # worth knowing when looking into a problem: a state change, a device lost
+    CRITICAL = "critical"  # the operator must know: the handcart stopped on an error
+
+
+class RecordedEvent(BaseModel):
+    """One event of the record (backend/recorder.py): GET /api/events."""
+
+    id: int
+    time: float  # s since 1970
+    kind: str  # "transition", "command", "refusal", "device", "errors", "settings", "system"
+    severity: Severity
+    source: str  # what noticed it: "fsm", "api", "bms", "charger", "backend"
+    actor: str | None  # who did it, for what people do: "api" (until there is a login); None: the handcart
+    cause_id: int | None  # the event that led to this one, when known: a command and its transition
+    summary: str  # one line for the operator
+    data: dict  # the details
+
+
+class Sample(BaseModel):
+    """The readings at one moment, while the handcart is doing something: GET /api/samples, for graphs."""
+
+    time: float  # s since 1970
+    state: State
+    pack_voltage: float | None  # V
+    current: float | None  # A, the BMS's
+    cell_min: float | None  # V
+    cell_max: float | None  # V
+    temp_max: float | None  # °C
+    charger_voltage: float | None  # V
+    charger_current: float | None  # A
+
+
 class SystemInfo(BaseModel):
     """The System page: this version, what is new on the branch, and what the last update did."""
 
@@ -200,17 +236,45 @@ class WifiNetwork(BaseModel):
     saved: bool  # joined before: its password is saved, no need to type it again
 
 
+class Address(BaseModel):
+    """One of the handcart's IPv4 addresses, and what it is on: where to reach it over SSH."""
+
+    name: str  # "Cable", "Wi-Fi", "Hotspot", "Tailscale", or the interface ("usb0") for anything else
+    address: str  # "192.168.1.23"
+
+
+class Hotspot(BaseModel):
+    """The Wi-Fi network the handcart makes itself, on the Wi-Fi that is not on a network."""
+
+    on: bool
+    ssid: str  # to join it with
+    password: str
+    address: str | None  # the handcart's on it, "10.42.0.1": None while it is off
+
+
 class NetworkInfo(BaseModel):
     """The System page's network part: the handcart's addresses and the Wi-Fi networks around."""
 
     wifi_on: bool  # the Wi-Fi radio is on
-    addresses: list[str]  # IPv4 addresses, "192.168.1.23": to reach it over SSH; empty if it has none
+    addresses: list[Address]  # cable first, then Wi-Fi, hotspot, Tailscale; empty if it has none
     networks: list[WifiNetwork]  # the connected one first, then the strongest
+    hotspot: Hotspot
     problem: str | None  # why the Wi-Fi cannot be read (not on the handcart, ...), or None
 
 
 class WifiRadioRequest(BaseModel):
     on: bool
+
+
+class HotspotRequest(BaseModel):
+    on: bool
+
+
+class HotspotDetails(BaseModel):
+    """The hotspot's name and password, as changed on the screen (var/hotspot.json)."""
+
+    ssid: str
+    password: str
 
 
 class WifiConnectRequest(BaseModel):
