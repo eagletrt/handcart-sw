@@ -4,7 +4,6 @@ A Melody is what the buzzer plays: a list of (frequency in Hz or REST, seconds).
 beats, as on a score, and phrase() turns them into a Melody; the short beeps are written in seconds directly.
 """
 
-import math
 
 # Note frequencies in Hz (equal temperament, LA4 = 440 Hz).
 # Black keys use the flat name: REb = DO#, MIb = RE#, SOLb = FA#, LAb = SOL#, SIb = LA#.
@@ -57,70 +56,11 @@ GAP = 0.03  # s of silence after each note of a phrase, so that two equal notes 
 Melody = list[tuple[float | None, float]]
 
 
-# The handcart's buzzer, measured (a phone recording of a sweep of tones, one semitone apart from 1000 Hz):
-# dB from its loudest, at 1000 Hz * 2^(i/12). A piezo loud only at about 2120 Hz and, 10 dB less, at about
-# 4000 Hz; a semitone away it is already 12-17 dB softer, and the rest is down near the room's noise.
-RESPONSE_FROM = 1000.0  # Hz of the first value
-RESPONSE = [
-    -37.1,
-    -44.4,
-    -38.1,
-    -44.9,
-    -28.6,
-    -46.0,
-    -48.4,
-    -37.6,
-    -27.1,
-    -43.2,
-    -37.0,
-    -19.9,  # 1000-1888 Hz
-    -12.5,
-    0.0,
-    -17.0,
-    -17.7,
-    -27.8,
-    -28.1,
-    -35.0,
-    -28.8,
-    -44.1,
-    -49.4,
-    -53.2,
-    -44.7,  # 2000-3775 Hz
-    -9.7,
-    -12.7,
-    -48.5,  # 4000-4490 Hz
-]
-SILENT = -50.0  # dB outside the measured range
-BUZZ = 2120.0  # Hz: the buzzer's loudest
-BUZZ_HIGH = 4000.0  # Hz: its other loud one, 10 dB softer; the "high" of the signals
-
-
-def loudness(frequency: float) -> float:
-    """dB from the loudest, between the measured points as on a straight line in semitones."""
-    position = 12 * math.log2(frequency / RESPONSE_FROM)
-    below = math.floor(position)
-    if below < 0 or below + 1 >= len(RESPONSE):
-        return SILENT
-    part = position - below
-    return RESPONSE[below] * (1 - part) + RESPONSE[below + 1] * part
-
-
-def in_loudest_key(melody: Melody) -> Melody:
-    """The melody moved, all of it, to where the buzzer plays it loudest: the same tune, in another key.
-
-    Of the shifts up to two octaves either way, in tenths of a semitone, the one with the most sound over
-    the melody's time (its notes' power, as measured, by how long each lasts). The notes held longest end up
-    on the buzzer's loud ones; the others stay softer: no key makes every note of a tune loud on a piezo.
-    """
-
-    def sound(factor: float) -> float:
-        return sum(
-            seconds * 10 ** (loudness(frequency * factor) / 10) for frequency, seconds in melody if frequency
-        )
-
-    factors = [2 ** (tenths / 120) for tenths in range(-240, 241)]
-    best = max(factors, key=sound)
-    return [(None if frequency is None else frequency * best, seconds) for frequency, seconds in melody]
+# The handcart's buzzer is a piezo loud only at about 2120 Hz: a semitone away it is already 12-17 dB softer,
+# and further away near the room's noise (measured with a phone recording of a sweep of tones). So the
+# signals all play that one note, told apart by their rhythm; the tunes play as written, and their notes
+# far from it are soft: no key makes every note of a tune loud on a piezo.
+BUZZ = 2120.0  # Hz
 
 
 def phrase(bpm: float, notes: list[tuple[float | None, float]]) -> Melody:
@@ -140,8 +80,7 @@ def phrase(bpm: float, notes: list[tuple[float | None, float]]) -> Melody:
 # fmt: off
 
 # Schubert, "Die Forelle" (first stanza): the Samsung washing-machine tune
-FORELLE = in_loudest_key(
-    phrase(
+FORELLE = phrase(
     84,
     [
         # In einem Bächlein helle, da schoss in froher Eil'
@@ -170,47 +109,19 @@ FORELLE = in_loudest_key(
         (FA6, 0.5), (FA6, 0.75), (FA6, 0.25), (DO7, 0.5),
         (LA6, 0.5), (SIb6, 2),
     ],
-    )
 )
 
 # The backend started
-STARTUP_SOUND = in_loudest_key(
-    phrase(
+STARTUP_SOUND = phrase(
     96,
     [
         (MIb7, 0.75), (MIb6, 0.25), (SIb6, 0.5), (LAb6, 0.5),
         (MIb6, 0.5), (MIb7, 0.5), (SIb6, 0.75),
     ],
-    )
-)
-
-# Going up at the end: the TS is going on
-PRECHARGE_SOUND = phrase(
-    160,
-    [
-        (BUZZ, 0.5), (BUZZ, 0.5), (BUZZ, 0.5), (BUZZ_HIGH, 1),
-    ],
-)
-
-# The precharge turned around, going down at the end: the AIRs opened, the TS goes off
-DISCHARGE_SOUND = phrase(
-    160,
-    [
-        (BUZZ_HIGH, 0.5), (BUZZ_HIGH, 0.5), (BUZZ_HIGH, 0.5), (BUZZ, 1),
-    ],
-)
-
-# The loudest note, held: the TS is on
-TS_ON_SOUND = phrase(
-    160,
-    [
-        (BUZZ_HIGH, 0.5), (BUZZ, 2),
-    ],
 )
 
 # Mozart, "Eine kleine Nachtmusik" (opening theme, one bar per line): the cells are even
-EINE_KLEINE_NACHTMUSIK = in_loudest_key(
-    phrase(
+EINE_KLEINE_NACHTMUSIK = phrase(
     120,
     [
         (SOL6, 1), (REST, 0.5), (RE6, 0.5), (SOL6, 1), (REST, 0.5), (RE6, 0.5),
@@ -218,12 +129,10 @@ EINE_KLEINE_NACHTMUSIK = in_loudest_key(
         (DO7, 1), (REST, 0.5), (LA6, 0.5), (DO7, 1), (REST, 0.5), (LA6, 0.5),
         (DO7, 0.5), (LA6, 0.5), (SOLb6, 0.5), (LA6, 0.5), (RE6, 2),
     ],
-    )
 )
 
 # Super Mario Bros., game over: two octaves up, where the buzzer sounds best. The handcart switches off.
-GAME_OVER = in_loudest_key(
-    phrase(
+GAME_OVER = phrase(
     200,
     [
         (DO7, 1.5), (SOL6, 1.5), (MI6, 1),
@@ -231,18 +140,38 @@ GAME_OVER = in_loudest_key(
         (LAb6, 0.75), (SIb6, 0.75), (LAb6, 0.75),
         (SOL6, 0.5), (RE6, 0.5), (MI6, 3),
     ],
-    )
 )
 
 # fmt: on
 
-# Beeps, in seconds: on the buzzer's two loud notes only, told apart by rhythm, and by going up or down
-CONFIRM_SOUND: Melody = [(BUZZ, 0.05), (REST, 0.05), (BUZZ, 0.05)]
+# The signals, in seconds: all on the buzzer's one loud note, told apart by their rhythm alone
+CONFIRM_SOUND: Melody = [(BUZZ, 0.05), (REST, 0.05), (BUZZ, 0.05)]  # two quick beeps: done
 REFUSED_SOUND: Melody = [(BUZZ, 0.35)]  # one long beep: "no"
-FAILED_SOUND: Melody = [(BUZZ_HIGH, 0.15), (REST, 0.05), (BUZZ, 0.5)]  # going down, slow
-WARNING_SOUND: Melody = [(BUZZ, 0.1), (REST, 0.1)] * 3
-ERROR_SOUND: Melody = [(BUZZ_HIGH, 0.20), (BUZZ, 0.20)] * 3  # a siren
+FAILED_SOUND: Melody = [(BUZZ, 0.15), (REST, 0.1), (BUZZ, 0.6)]  # short, then very long
+WARNING_SOUND: Melody = [(BUZZ, 0.1), (REST, 0.1)] * 3  # three short beeps
+ERROR_SOUND: Melody = [(BUZZ, 0.3), (REST, 0.1)] * 3  # three long beeps, again every so often
 TICK_SOUND: Melody = [(BUZZ, 0.008)]
-# two short notes, going up when a device answers and down when it goes away
-DEVICE_CONNECTED_SOUND: Melody = [(BUZZ, 0.06), (REST, 0.03), (BUZZ_HIGH, 0.09)]
-DEVICE_DISCONNECTED_SOUND: Melody = [(BUZZ_HIGH, 0.06), (REST, 0.03), (BUZZ, 0.09)]
+# beeps closer and closer, then held: the TS is going on
+PRECHARGE_SOUND: Melody = [
+    (BUZZ, 0.08),
+    (REST, 0.2),
+    (BUZZ, 0.08),
+    (REST, 0.12),
+    (BUZZ, 0.08),
+    (REST, 0.06),
+    (BUZZ, 0.4),
+]
+TS_ON_SOUND: Melody = [(BUZZ, 0.1), (REST, 0.08), (BUZZ, 0.7)]  # held: the TS is on
+# beeps further and further apart: the AIRs opened, the TS goes off
+DISCHARGE_SOUND: Melody = [
+    (BUZZ, 0.08),
+    (REST, 0.06),
+    (BUZZ, 0.08),
+    (REST, 0.12),
+    (BUZZ, 0.08),
+    (REST, 0.2),
+    (BUZZ, 0.08),
+]
+# short then long when a device answers, long then short when it goes away
+DEVICE_CONNECTED_SOUND: Melody = [(BUZZ, 0.05), (REST, 0.04), (BUZZ, 0.15)]
+DEVICE_DISCONNECTED_SOUND: Melody = [(BUZZ, 0.15), (REST, 0.04), (BUZZ, 0.05)]
