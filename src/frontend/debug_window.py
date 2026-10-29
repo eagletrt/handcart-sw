@@ -68,8 +68,6 @@ class DebugWindow:
                 self._terminal.set_visibility(open_terminal is not None)
         self.root.set_visibility(False)
         ui.timer(SPEED_PERIOD, self._measure_speed)
-        # a touch while open: straight back to the browser, which times it (handcart.js)
-        ui.on("handcart_ping", lambda event: self._client.run_javascript(f"pong({float(event.args)})"))
 
     def reachable(self) -> list[Reachable]:
         sounds = usable(*[button(f"sound {i}", chip) for i, chip in enumerate(self._sounds)])
@@ -116,7 +114,8 @@ class DebugWindow:
         return " · ".join(parts)
 
     async def _measure_speed(self) -> None:
-        """While open: the touches the browser timed (handcart.js), and a round trip to it and back."""
+        """While open: the touches the browser timed, anywhere on the screen (handcart.js), and a round trip
+        to the browser and back."""
         if not self.root.visible:
             return
         asked = time.monotonic()
@@ -129,8 +128,9 @@ class DebugWindow:
         line = f"Server → browser → server {round_trip:.0f} ms"
         if touches:
             line = (
-                f"Touch → screen {touches['median']} ms, worst {touches['worst']} ms "
-                f"(last {touches['count']} touches) · {line}"
+                f"Touch → screen {touches['total']} ms: finger → click {touches['click']}, "
+                f"click → server {touches['server']}, drawing {touches['draw']} "
+                f"(last {touches['count']}) · {line}"
             )
         self._speed.set_text(line)
 

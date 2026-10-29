@@ -141,23 +141,45 @@ function replay(id, animationClass) {
   element.classList.add(animationClass);
 }
 
-// How fast the screen answers a touch, for the Debug window (debug_window.py): while it is open each touch
-// goes to the server and comes back at once, and the time is taken when the browser has drawn the answer:
-// the way of any button, without the work of the button itself. The last TOUCHES touches are kept.
+// How fast the screen answers a touch, for the Debug window (debug_window.py), split in its three parts:
+// the finger down until the browser makes it a click, the click until the first change the server sends,
+// and that change until the browser has drawn it. A touch that changes nothing is not counted. The last
+// TOUCHES touches are kept.
 const TOUCHES = 20;
-const touchTimes = [];
-document.addEventListener('pointerdown', () => {
-  if (document.querySelector('.dbg')?.offsetParent) emitEvent('handcart_ping', performance.now());
+const ANSWER_WAIT = 1000; // ms: a change later than this after the click is not an answer to it
+const touches = [];
+let touch = null; // the touch being timed: {down, click}
+document.addEventListener('pointerdown', () => { touch = { down: performance.now(), click: null }; }, true);
+document.addEventListener('click', () => {
+  if (touch && touch.click === null) touch.click = performance.now();
 }, true);
-function pong(touchedAt) {
-  // two frames: the browser has drawn by the second one
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    touchTimes.push(performance.now() - touchedAt);
-    if (touchTimes.length > TOUCHES) touchTimes.shift();
-  }));
+function followServer() {
+  if (!window.socket) return setTimeout(followServer, 500); // NiceGUI connects after the page loads
+  window.socket.on('update', () => {
+    if (!touch || touch.click === null) return;
+    const timed = touch;
+    touch = null;
+    const answer = performance.now();
+    if (answer - timed.click > ANSWER_WAIT) return;
+    // two frames: the browser has drawn the change by the second one
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      touches.push({ click: timed.click - timed.down, server: answer - timed.click, draw: performance.now() - answer });
+      if (touches.length > TOUCHES) touches.shift();
+    }));
+  });
+}
+followServer();
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return Math.round(sorted[Math.floor(sorted.length / 2)]);
 }
 function touchLatency() {
-  if (touchTimes.length === 0) return null;
-  const sorted = [...touchTimes].sort((a, b) => a - b);
-  return { median: Math.round(sorted[Math.floor(sorted.length / 2)]), worst: Math.round(sorted.at(-1)), count: sorted.length };
+  if (touches.length === 0) return null;
+  return {
+    count: touches.length,
+    click: median(touches.map((t) => t.click)),
+    server: median(touches.map((t) => t.server)),
+    draw: median(touches.map((t) => t.draw)),
+    total: median(touches.map((t) => t.click + t.server + t.draw)),
+  };
 }
