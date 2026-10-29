@@ -1,8 +1,10 @@
 """The safe in front of the Debug window: five taps on the eagle bring it up.
 
 Its dial turns with the encoder of the handcart, or with a finger on it (handcart.js); the combination
-is in safe.py. With the right one the handle turns, the bolts go in and the door swings open on the
-Debug window; with a wrong one the door shakes and the dial starts over.
+is in safe.py. While the safe is up it takes every gesture of the controls: turning turns the dial, the
+click pulls the handle, left closes it. With the right combination the handle turns, the bolts go in,
+the door swings open and the Debug window comes out of the safe; with a wrong one the door shakes
+and the dial starts over.
 """
 
 import asyncio
@@ -11,31 +13,35 @@ from collections.abc import Callable
 from nicegui import background_tasks, ui
 
 from frontend.backend import Backend
-from frontend.controls import Target
 from frontend.safe import NUMBERS, RIGHT, Dial
-from frontend.targets import Reachable, button, usable
-from shared.models import Sound
+from frontend.targets import Reachable
+from shared.models import InputEvent, Sound
 
-DIAL = "safe dial"  # the setting the encoder turns when the frame is on the dial
-OPEN_TIME = 1.9  # s: the handle, the bolts and the door (handcart.css), then the Debug window
-HINT = "Right to the first number, left to the second, right to the third. Then pull the handle."
+OPEN_TIME = 2.2  # s: the handle, the bolts, the door and the fade (handcart.css), then the Debug window
+HINT = "Turn right to the first number, left to the second, right to the third, then pull the handle."
+GRIPS = 36  # ridges around the knob
 
 
 def dial_face() -> str:
-    """The dial: a tick for each number, a longer one with the number every five."""
+    """The dial: a tick and a number for each step, longer and brighter every five."""
     parts = [
-        '<svg viewBox="-100 -100 200 200" class="dial-face">',
-        '<circle r="97" class="rim"/>',
-        '<circle r="90" class="disc"/>',
+        # a size of its own: without the CSS (an old copy in the browser) it would fill the screen
+        '<svg viewBox="-100 -100 200 200" width="214" height="214" class="dial-face">',
+        '<circle r="98" class="rim"/>',
+        '<circle r="91" class="disc"/>',
     ]
     for n in range(NUMBERS):
         angle = -n * 360 / NUMBERS  # counterclockwise: turning right brings the next number under the mark
         if n % 5 == 0:
-            parts.append(f'<line y1="-88" y2="-76" transform="rotate({angle})" class="tk long"/>')
-            parts.append(f'<text y="-58" transform="rotate({angle})" class="nb">{n}</text>')
+            parts.append(f'<line y1="-89" y2="-75" transform="rotate({angle})" class="tk long"/>')
+            parts.append(f'<text y="-60" transform="rotate({angle})" class="nb long">{n}</text>')
         else:
-            parts.append(f'<line y1="-88" y2="-81" transform="rotate({angle})" class="tk"/>')
-    parts.append('<circle r="34" class="knob"/><circle r="26" class="knob-top"/></svg>')
+            parts.append(f'<line y1="-89" y2="-80" transform="rotate({angle})" class="tk"/>')
+            parts.append(f'<text y="-62" transform="rotate({angle})" class="nb">{n}</text>')
+    parts.append('<circle r="40" class="knob"/>')
+    for i in range(GRIPS):
+        parts.append(f'<line y1="-40" y2="-34" transform="rotate({i * 360 / GRIPS})" class="grip"/>')
+    parts.append('<circle r="30" class="knob-top"/><line y1="-28" y2="-16" class="knob-mark"/></svg>')
     return "".join(parts)
 
 
@@ -47,8 +53,11 @@ class SafeWindow:
         self._dial = Dial()
         self._opening = False  # the door is opening: the dial and the handle wait
 
-        with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet safe"):
-            with ui.element("div").classes("vault") as self._vault:
+        with (
+            ui.element("div").classes("modal") as self.root,
+            ui.element("div").classes("sheet safe") as self._sheet,
+        ):
+            with ui.element("div").classes("vault"):
                 with ui.element("div").classes("inside"):
                     ui.element("div").classes("eagle")
                     ui.label("Debug")
@@ -82,30 +91,37 @@ class SafeWindow:
         self.root.set_visibility(False)
 
     def reachable(self) -> list[Reachable]:
-        # on the dial the encoder turns it, and a click pulls the handle
-        target = Target("dial", priority=1, adjusts=DIAL, presses="pull")
-        dial = Reachable(target, self._dial_area, lambda: None)
-        return [dial, *usable(button("close", self._close), button("pull", self._pull))]
+        return []  # no frame: the safe takes every gesture itself (on_gesture)
 
     def open(self) -> None:
         """Locked, the dial at 0."""
         self._dial = Dial()
         self._opening = False
-        self._vault.classes(remove="open")
+        self._sheet.classes(remove="open")
         self._draw()
         self.root.set_visibility(True)
 
-    def turn(self, steps: int) -> None:
-        """The encoder on the dial (the buzzer ticks by itself at each step)."""
-        if not self._opening:
-            self._dial.turn(steps)
-            self._draw()
+    def on_gesture(self, event: InputEvent) -> None:
+        """The controls, while the safe is up: the buzzer ticks by itself at each step of the encoder."""
+        if event is InputEvent.TURN_CW:
+            self._turn(1)
+        elif event is InputEvent.TURN_CCW:
+            self._turn(-1)
+        elif event is InputEvent.PRESS:
+            background_tasks.create(self._on_pull())
+        elif event is InputEvent.LEFT and not self._opening:
+            self.root.set_visibility(False)
 
     def _on_finger(self, steps: int) -> None:
         """A finger turned the dial: the buzzer ticks as for the encoder."""
         if steps != 0 and not self._opening:
-            self.turn(steps)
+            self._turn(steps)
             background_tasks.create(self._backend.play(Sound.TICK))
+
+    def _turn(self, steps: int) -> None:
+        if not self._opening:
+            self._dial.turn(steps)
+            self._draw()
 
     async def _on_pull(self) -> None:
         if self._opening:
@@ -116,7 +132,7 @@ class SafeWindow:
             await self._backend.play(Sound.REFUSED)
             return
         self._opening = True
-        self._vault.classes(add="open")
+        self._sheet.classes(add="open")
         await self._backend.play(Sound.CONFIRM)
         await asyncio.sleep(OPEN_TIME)
         if self.root.visible:  # not closed meanwhile
@@ -130,9 +146,9 @@ class SafeWindow:
         for i, slot in enumerate(self._slots):
             if i < len(self._dial.turns):
                 direction, number = self._dial.turns[i]
-                arrow = "↻" if direction == RIGHT else "↺"
-                slot.set_text(f"{arrow} {number}")
-                slot.classes(add="set")
+                side = "Right" if direction == RIGHT else "Left"
+                slot.set_text(f"{side} {number}")
+                slot.classes(add="filled")
             else:
                 slot.set_text("–")
-                slot.classes(remove="set")
+                slot.classes(remove="filled")

@@ -419,60 +419,72 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 .gchart.look { border-color: var(--y); }  /* the line was put on it: the controls move the line */
 .gtitle .sheet-sub.readout { font-size: 20px; font-weight: 700; color: #fff; }
 .ghint { font-size: 15px; height: 24px; line-height: 24px; color: var(--mute); text-align: center; white-space: nowrap; overflow: hidden; }
-/* the safe in front of the Debug window: a door with a dial; the right combination turns the handle,
-   pulls the bolts in and swings the door open (safe_window.py waits for it: OPEN_TIME) */
-.safe { width: calc(100% - 16px); height: calc(100% - 16px); padding: 20px 24px; display: grid;
-  grid-template-columns: 340px minmax(0, 1fr); gap: 30px; align-items: center; }
-.vault { position: relative; width: 340px; height: 340px; perspective: 1000px; border-radius: 8px;
-  background: #0b0b0a; box-shadow: inset 0 0 0 10px #262623, inset 0 0 0 11px var(--line-2), inset 0 0 40px rgba(0,0,0,.9); }
-.inside { position: absolute; inset: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; color: var(--y); font-size: 22px; font-weight: 800; letter-spacing: .3em; text-transform: uppercase;
-  opacity: .2; transition: opacity .6s .9s; }
-.inside .eagle { width: 96px; height: 86px; background: var(--y); }
-.vault.open .inside { opacity: 1; }
-.door { position: absolute; inset: 11px; border-radius: 4px; transform-origin: left center; z-index: 1;
-  background: linear-gradient(145deg, #4a4a45 0%, #2b2b28 45%, #1c1c1a 100%);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.14), inset 0 0 0 14px #262623, inset 0 0 0 15px rgba(255,255,255,.08), 0 8px 30px rgba(0,0,0,.6);
-  transition: transform 1s .6s cubic-bezier(.55,0,.25,1); }
-.vault.open .door { transform: rotateY(-112deg); }
+/* the safe in front of the Debug window. The right combination opens it in steps (safe_window.py waits
+   OPEN_TIME for them): the handle turns, the bolts go in, the door swings open, the view goes inside */
+.safe { width: calc(100% - 16px); height: calc(100% - 16px); padding: 20px 26px 20px 30px; display: grid;
+  grid-template-columns: 330px minmax(0, 1fr); gap: 34px; align-items: center; overflow: hidden; }
+.vault { position: relative; width: 330px; height: 330px; perspective: 1100px; perspective-origin: 0 50%; border-radius: 10px;
+  background: #050505; box-shadow: 0 0 0 10px #22221f, 0 0 0 11px rgba(255,255,255,.16), 0 18px 40px rgba(0,0,0,.7); }
+.inside { position: absolute; inset: 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: var(--y); font-size: 22px; font-weight: 800; letter-spacing: .32em; text-transform: uppercase;
+  background: radial-gradient(circle at 50% 50%, rgba(243,255,20,.16), transparent 65%); }
+.inside .eagle { width: 104px; height: 94px; background: var(--y); }
+.door { position: absolute; inset: 0; border-radius: 8px; transform-origin: left center; z-index: 1;
+  background:
+    radial-gradient(circle at 16px 16px, #8c8c85 0 3px, transparent 4px),
+    radial-gradient(circle at calc(100% - 16px) 16px, #8c8c85 0 3px, transparent 4px),
+    radial-gradient(circle at 16px calc(100% - 16px), #8c8c85 0 3px, transparent 4px),
+    radial-gradient(circle at calc(100% - 16px) calc(100% - 16px), #8c8c85 0 3px, transparent 4px),
+    linear-gradient(150deg, #55554f 0%, #34342f 40%, #1f1f1c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 0 0 30px rgba(0,0,0,.08), inset 0 0 0 31px rgba(255,255,255,.07);
+  transition: transform .9s .7s cubic-bezier(.5,0,.2,1); }
 .door.shake { animation: shake .45s ease-in-out; }
-@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
-.bolt { position: absolute; right: -16px; width: 26px; height: 14px; border-radius: 2px; background: linear-gradient(#b5b5ae, #6f6f69);
-  transition: transform .3s .3s ease-in; }
-.bolt.b1 { top: 54px; }
-.bolt.b2 { top: 152px; }
-.bolt.b3 { bottom: 54px; }
-.vault.open .bolt { transform: translateX(-18px); }
-.dialwrap { position: absolute; left: 26px; top: 50%; width: 210px; height: 210px; transform: translateY(-50%);
-  touch-action: none; cursor: grab; }
-.dial { width: 100%; height: 100%; transition: transform .12s ease-out; }
+@keyframes shake { 15%, 55% { transform: translateX(-8px); } 35%, 75% { transform: translateX(8px); } }
+.bolt { position: absolute; right: -12px; width: 22px; height: 16px; border-radius: 3px;
+  background: linear-gradient(#d0d0c8, #74746d); box-shadow: 0 2px 4px rgba(0,0,0,.5); transition: transform .3s .35s ease-in; }
+.bolt.b1 { top: 58px; }
+.bolt.b2 { top: calc(50% - 8px); }
+.bolt.b3 { bottom: 58px; }
+.dialwrap { position: absolute; left: 28px; top: 50%; width: 214px; height: 214px; margin-top: -107px; border-radius: 50%;
+  touch-action: none; box-shadow: 0 6px 18px rgba(0,0,0,.65); }
+.dial { width: 100%; height: 100%; transition: transform .15s ease-out; }
 .dial-face { width: 100%; height: 100%; display: block; }
-.dial-face .rim { fill: #1a1a18; stroke: rgba(255,255,255,.25); stroke-width: 2; }
-.dial-face .disc { fill: #121211; }
-.dial-face .tk { stroke: rgba(255,255,255,.55); stroke-width: 1.5; }
-.dial-face .tk.long { stroke: #fff; stroke-width: 2.5; }
-.dial-face .nb { fill: #fff; font-size: 17px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; font-family: var(--font); }
-.dial-face .knob { fill: #3a3a36; stroke: rgba(255,255,255,.2); stroke-width: 2; }
-.dial-face .knob-top { fill: #2a2a27; }
-.dmark { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 0; height: 0;
-  border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 14px solid var(--y); }
-.handle { position: absolute; right: 30px; top: 50%; width: 22px; height: 110px; transform: translateY(-50%);
-  transition: transform .4s ease-in-out; }
-.vault.open .handle { transform: translateY(-50%) rotate(90deg); }
-.hbar { position: absolute; left: 4px; top: 0; bottom: 0; width: 14px; border-radius: 7px; background: linear-gradient(90deg, #c9c9c2, #77776f); }
-.hhub { position: absolute; left: -4px; top: 50%; width: 30px; height: 30px; margin-top: -15px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #e0e0d8, #6a6a63); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
-.sright { display: flex; flex-direction: column; min-width: 0; }
-.snum { font-size: 84px; font-weight: 300; line-height: 1; margin-top: 14px; color: var(--y); }
+.dial-face .rim { fill: #2b2b28; stroke: #8a8a83; stroke-width: 3; }
+.dial-face .disc { fill: #111110; }
+.dial-face .tk { stroke: rgba(255,255,255,.45); stroke-width: 2; }
+.dial-face .tk.long { stroke: #fff; stroke-width: 3; }
+.dial-face .nb { fill: rgba(255,255,255,.6); font-size: 12px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; font-family: var(--font); }
+.dial-face .nb.long { fill: #fff; font-size: 17px; font-weight: 800; }
+.dial-face .knob { fill: #3d3d38; }
+.dial-face .grip { stroke: #1d1d1b; stroke-width: 2.5; }
+.dial-face .knob-top { fill: #4b4b45; stroke: rgba(255,255,255,.18); stroke-width: 1.5; }
+.dial-face .knob-mark { stroke: var(--y); stroke-width: 4; stroke-linecap: round; }
+.dmark { position: absolute; top: -15px; left: 50%; margin-left: -10px; width: 0; height: 0;
+  border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid var(--y); }
+.handle { position: absolute; right: 26px; top: 50%; width: 34px; height: 120px; margin-top: -60px; transition: transform .45s ease-in-out; }
+.hbar { position: absolute; left: 10px; top: 0; bottom: 0; width: 14px; border-radius: 7px;
+  background: linear-gradient(90deg, #e4e4dc, #7d7d75); box-shadow: 0 3px 6px rgba(0,0,0,.5); }
+.hhub { position: absolute; left: 0; top: 50%; width: 34px; height: 34px; margin-top: -17px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f0f0e8, #66665f); box-shadow: 0 3px 8px rgba(0,0,0,.6); }
+.sright { display: flex; flex-direction: column; min-width: 0; transition: opacity .35s, transform .35s; }
+.snum { font-size: 88px; font-weight: 300; line-height: 1; margin-top: 12px; color: var(--y); }
 .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .slot { height: 52px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line-2); border-radius: 4px;
-  font-size: 20px; font-weight: 600; color: var(--faint); }
-.slot.set { color: #fff; border-color: #fff; }
+  font-size: 18px; font-weight: 600; color: var(--faint); white-space: nowrap; }
+.slot.filled { color: #fff; border-color: #fff; }
+/* opening, in order */
+.safe.open .sright { opacity: 0; transform: translateX(24px); }
+.safe.open .handle { transform: rotate(90deg); }
+.safe.open .bolt { transform: translateX(-24px); }
+.safe.open .door { transform: rotateY(-78deg); }
+.safe.open .vault { transform: scale(1.1); opacity: 0; transition: transform .6s 1.6s ease-in, opacity .5s 1.7s; }
 /* Debug window: the buzzer's sounds, the controls lighting up, what the handcart sees, the terminal */
-.dbg { width: calc(100% - 16px); height: calc(100% - 16px); padding: 12px 14px; display: flex; flex-direction: column; }
+.dbg { width: calc(100% - 16px); height: calc(100% - 16px); padding: 12px 14px; display: flex; flex-direction: column;
+  animation: appear .35s ease-out; }  /* each time it shows: it comes out of the safe */
+@keyframes appear { from { opacity: 0; transform: scale(.94); } }
 .dlbl { margin-top: 10px; }
 .dsounds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
-.dsounds .tchip.q-btn { height: 44px; }
+.dsounds .tchip.q-btn { height: 44px; font-size: 14px; }
 .dctrls { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
 .dctrl { height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line-2); border-radius: 4px;
   font-size: 15px; font-weight: 600; white-space: nowrap; transition: background .15s, color .15s; }

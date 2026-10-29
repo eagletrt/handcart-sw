@@ -27,7 +27,8 @@ def main() -> None:
     @ui.page("/")
     def index() -> None:
         ui.add_head_html(
-            '<link rel="stylesheet" href="/static/handcart.css"><script src="/static/handcart.js"></script>'
+            f'<link rel="stylesheet" href="{versioned("handcart.css")}">'
+            f'<script src="{versioned("handcart.js")}"></script>'
         )
         ui.colors(primary="#F3FF14", negative="#FF453A", dark="#141411")  # brand yellow and red
         # the boot splash's eagle, in the first HTML: on screen while the page loads (handcart.js removes it)
@@ -49,6 +50,12 @@ def main() -> None:
         reload=False,
         show=False,
     )
+
+
+def versioned(name: str) -> str:
+    """The address of a static file, changed by each change of the file: the display's browser stays open
+    across restarts of the frontend, and would keep an old copy it has in its cache."""
+    return f"/static/{name}?v={int((STATIC / name).stat().st_mtime)}"
 
 
 if __name__ in {"__main__", "__mp_main__"}:

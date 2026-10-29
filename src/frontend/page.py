@@ -20,7 +20,7 @@ from frontend.readings import (
     overvoltage_cells,
     ts_discharging,
 )
-from frontend.safe_window import DIAL, SafeWindow
+from frontend.safe_window import SafeWindow
 from frontend.screens import Actions, Screen
 from frontend.screens.cells import CellsScreen
 from frontend.screens.charge import ChargeScreen
@@ -446,12 +446,12 @@ class Page:
         elif isinstance(effect, SwitchScreen):
             keys = [key for key, _, _ in TABS]
             self._show(keys[(keys.index(self._tab) + effect.step) % len(keys)])
+        elif isinstance(effect, Gesture) and self._safe.root.visible:
+            self._safe.on_gesture(effect.event)
         elif isinstance(effect, Gesture):
             self._graphs.on_gesture(effect.event)
         elif isinstance(effect, Adjust) and effect.setting == SCROLL:
             self._terminal.scroll(effect.steps)
-        elif isinstance(effect, Adjust) and effect.setting == DIAL:
-            self._safe.turn(effect.steps)
         elif isinstance(effect, Adjust):
             self._settings.turn(effect.setting, effect.steps)
         self._follow_controls()
@@ -508,7 +508,7 @@ class Page:
                 context = Context(
                     targets=[item.target for item in reachable],
                     window_open=True,
-                    window_captures=window is self._graphs and self._graphs.looking,
+                    window_captures=window is self._safe or (window is self._graphs and self._graphs.looking),
                 )
                 return reachable, context
 

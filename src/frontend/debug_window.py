@@ -21,8 +21,8 @@ CONTROL_NAMES = {
     InputEvent.LEFT: "Left",
     InputEvent.RIGHT: "Right",
     InputEvent.PRESS: "Click",
-    InputEvent.TURN_CCW: "↺ Left",
-    InputEvent.TURN_CW: "↻ Right",
+    InputEvent.TURN_CCW: "Turn left",
+    InputEvent.TURN_CW: "Turn right",
 }
 
 
