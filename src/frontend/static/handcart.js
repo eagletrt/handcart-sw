@@ -140,3 +140,24 @@ function replay(id, animationClass) {
   void element.offsetWidth; // the browser must draw it once without the class, or the animation does not restart
   element.classList.add(animationClass);
 }
+
+// How fast the screen answers a touch, for the Debug window (debug_window.py): while it is open each touch
+// goes to the server and comes back at once, and the time is taken when the browser has drawn the answer:
+// the way of any button, without the work of the button itself. The last TOUCHES touches are kept.
+const TOUCHES = 20;
+const touchTimes = [];
+document.addEventListener('pointerdown', () => {
+  if (document.querySelector('.dbg')?.offsetParent) emitEvent('handcart_ping', performance.now());
+}, true);
+function pong(touchedAt) {
+  // two frames: the browser has drawn by the second one
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    touchTimes.push(performance.now() - touchedAt);
+    if (touchTimes.length > TOUCHES) touchTimes.shift();
+  }));
+}
+function touchLatency() {
+  if (touchTimes.length === 0) return null;
+  const sorted = [...touchTimes].sort((a, b) => a - b);
+  return { median: Math.round(sorted[Math.floor(sorted.length / 2)]), worst: Math.round(sorted.at(-1)), count: sorted.length };
+}

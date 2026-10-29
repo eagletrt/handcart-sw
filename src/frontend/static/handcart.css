@@ -496,3 +496,7 @@ body { font-family: var(--font) !important; color: var(--fg); -webkit-font-smoot
 @media (prefers-reduced-motion: reduce) {
   .door.shake { animation: none; }
 }
+/* a touch answers at once, in the browser, without waiting for the server: what it changes follows */
+.q-btn:active, .nt:active, .pill:active, .cmap .c:active { filter: brightness(1.4); transform: scale(.97); }
+.nt:active { color: #fff; }
+.dspeed { margin-top: 4px; }

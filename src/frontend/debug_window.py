@@ -1,8 +1,9 @@
 """The Debug window, behind the safe (safe_window.py): to try the handcart's parts by hand.
 
 The buzzer plays each sound on demand; the controls light up as they arrive, with how many of each,
-to see that no press or step of the encoder is lost; a line says what the handcart sees; the terminal
-is here, on the Pi itself. Closing it locks it again behind the safe.
+to see that no press or step of the encoder is lost; a line says what the handcart sees, another how fast
+the screen answers (measured by its own browser); the terminal is here, on the Pi itself. Closing it
+locks it again behind the safe.
 """
 
 import time
@@ -15,6 +16,7 @@ from frontend.targets import Reachable, button, usable
 from shared.models import InputEvent, Sound
 
 FLASH_TIME = 0.4  # s a control stays lit after it arrives
+SPEED_PERIOD = 1.0  # s between two readings of how fast the screen answers
 CONTROL_NAMES = {
     InputEvent.UP: "Up",
     InputEvent.DOWN: "Down",
@@ -37,6 +39,7 @@ class DebugWindow:
         self._report = report  # shows why something was refused
         self._counts = dict.fromkeys(InputEvent, 0)
         self._lit_at = dict.fromkeys(InputEvent, float("-inf"))
+        self._client = ui.context.client
 
         with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet dbg"):
             with ui.element("div").classes("thead"):
@@ -54,6 +57,9 @@ class DebugWindow:
             with ui.element("div").classes("dctrls"):
                 self._controls = {event: ui.label("").classes("dctrl num") for event in CONTROL_NAMES}
             self._handcart = ui.label("").classes("sheet-sub dline num")
+            self._speed = ui.label("Touch the screen a few times to measure it").classes(
+                "sheet-sub dspeed num"
+            )
             with ui.element("div").classes("sheet-actions tacts"):
                 self._close = ui.button("Lock", icon="lock", on_click=lambda: self.root.set_visibility(False))
                 self._close.props("flat no-caps text-color=white").classes("cancel")
@@ -61,6 +67,9 @@ class DebugWindow:
                 self._terminal.props("unelevated no-caps text-color=black")
                 self._terminal.set_visibility(open_terminal is not None)
         self.root.set_visibility(False)
+        ui.timer(SPEED_PERIOD, self._measure_speed)
+        # a touch while open: straight back to the browser, which times it (handcart.js)
+        ui.on("handcart_ping", lambda event: self._client.run_javascript(f"pong({float(event.args)})"))
 
     def reachable(self) -> list[Reachable]:
         sounds = usable(*[button(f"sound {i}", chip) for i, chip in enumerate(self._sounds)])
@@ -105,6 +114,25 @@ class DebugWindow:
         if network is not None:
             parts += [f"{address.name} {address.address}" for address in network.addresses]
         return " · ".join(parts)
+
+    async def _measure_speed(self) -> None:
+        """While open: the touches the browser timed (handcart.js), and a round trip to it and back."""
+        if not self.root.visible:
+            return
+        asked = time.monotonic()
+        try:
+            touches = await self._client.run_javascript("touchLatency()", timeout=5)
+        except TimeoutError:
+            self._speed.set_text("The browser did not answer within 5 s")
+            return
+        round_trip = (time.monotonic() - asked) * 1000
+        line = f"Server → browser → server {round_trip:.0f} ms"
+        if touches:
+            line = (
+                f"Touch → screen {touches['median']} ms, worst {touches['worst']} ms "
+                f"(last {touches['count']} touches) · {line}"
+            )
+        self._speed.set_text(line)
 
     async def _play(self, sound: Sound) -> None:
         problem = await self._backend.play(sound)
