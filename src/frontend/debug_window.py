@@ -37,11 +37,21 @@ class DebugWindow:
     ) -> None:
         self._backend = backend
         self._report = report  # shows why something was refused
+        self._open_terminal = open_terminal
         self._counts = dict.fromkeys(InputEvent, 0)
         self._lit_at = dict.fromkeys(InputEvent, float("-inf"))
         self._client = ui.context.client
 
-        with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet dbg"):
+        # built when it opens and emptied when it closes: the browser redraws every element of the page at
+        # each change, hidden ones too. Built once here, so that every attribute exists before it opens.
+        self.root = ui.element("div").classes("modal")
+        with self.root:
+            self._build()
+        self.close()
+        ui.timer(SPEED_PERIOD, self._measure_speed)
+
+    def _build(self) -> None:
+        with ui.element("div").classes("sheet dbg"):
             with ui.element("div").classes("thead"):
                 ui.label("Debug").classes("sheet-title")
                 self._version = ui.label("").classes("sheet-sub num")
@@ -61,13 +71,15 @@ class DebugWindow:
                 "sheet-sub dspeed num"
             )
             with ui.element("div").classes("sheet-actions tacts"):
-                self._close = ui.button("Lock", icon="lock", on_click=lambda: self.root.set_visibility(False))
+                self._close = ui.button("Lock", icon="lock", on_click=self.close)
                 self._close.props("flat no-caps text-color=white").classes("cancel")
-                self._terminal = ui.button("Terminal", icon="terminal", on_click=open_terminal)
+                self._terminal = ui.button("Terminal", icon="terminal", on_click=self._open_terminal)
                 self._terminal.props("unelevated no-caps text-color=black")
-                self._terminal.set_visibility(open_terminal is not None)
+                self._terminal.set_visibility(self._open_terminal is not None)
+
+    def close(self) -> None:
         self.root.set_visibility(False)
-        ui.timer(SPEED_PERIOD, self._measure_speed)
+        self.root.clear()
 
     def reachable(self) -> list[Reachable]:
         sounds = usable(*[button(f"sound {i}", chip) for i, chip in enumerate(self._sounds)])
@@ -76,8 +88,11 @@ class DebugWindow:
 
     def open(self) -> None:
         self._counts = dict.fromkeys(InputEvent, 0)
+        self.root.clear()
+        with self.root:
+            self._build()
+        self.root.set_visibility(True)  # first: update skips a closed window
         self.update()
-        self.root.set_visibility(True)
 
     def on_input(self, event: InputEvent) -> None:
         """A press of the handcart's controls: its chip lights up and counts it."""
@@ -87,6 +102,8 @@ class DebugWindow:
 
     def update(self) -> None:
         """At every refresh of the page, while open."""
+        if not self.root.visible:
+            return
         info = self._backend.system
         if info is not None:
             self._version.set_text(f"Version {info.version} · branch {info.branch}")

@@ -155,6 +155,9 @@ class GraphsWindow:
         self.root.set_visibility(False)
         ui.timer(REFRESH_PERIOD, self._read_new)
 
+    def close(self) -> None:
+        self.root.set_visibility(False)
+
     def reachable(self) -> list[Reachable]:
         top = Reachable(Target("chart top"), self._top, press=lambda: self._look(self._top))
         bottom = Reachable(Target("chart bottom"), self._bottom, press=lambda: self._look(self._bottom))

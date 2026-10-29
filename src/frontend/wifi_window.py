@@ -40,7 +40,15 @@ class WifiWindow:
         self._new_ssid = ""  # what was typed: kept to fix it if the backend refuses it
         self._new_password = ""
 
-        with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet wifi"):
+        # built when it opens and emptied when it closes: the browser redraws every element of the page at
+        # each change, hidden ones too. Built once here, so that every attribute exists before it opens.
+        self.root = ui.element("div").classes("modal")
+        with self.root:
+            self._build()
+        self.close()
+
+    def _build(self) -> None:
+        with ui.element("div").classes("sheet wifi"):
             with ui.element("div") as self._list_view:
                 with ui.element("div").classes("whead"):
                     with ui.element("div"):
@@ -71,7 +79,7 @@ class WifiWindow:
                                         ui.element("span")
                         self._rows.append((row, name, details, bars))
                 with ui.element("div").classes("sheet-actions wacts"):
-                    self._close = ui.button("Close", on_click=lambda: self.root.set_visibility(False))
+                    self._close = ui.button("Close", on_click=self.close)
                     self._close.props("flat no-caps text-color=white").classes("cancel")
                     self._open_hotspot = ui.button(
                         "Hotspot", icon="wifi_tethering", on_click=self._show_hotspot
@@ -113,9 +121,12 @@ class WifiWindow:
                     self._cancel.props("flat no-caps text-color=white").classes("cancel")
                     self._connect = ui.button("Connect", on_click=self._on_connect)
                     self._connect.props("unelevated no-caps text-color=black")
-        self.root.set_visibility(False)
         self._password_view.set_visibility(False)
         self._hotspot_view.set_visibility(False)
+
+    def close(self) -> None:
+        self.root.set_visibility(False)
+        self.root.clear()
 
     def reachable(self) -> list[Reachable]:
         if self._password_view.visible:
@@ -136,14 +147,17 @@ class WifiWindow:
         return [switch, *usable(*rows), *actions]
 
     async def open(self) -> None:
+        self.root.clear()
+        with self.root:
+            self._build()
+        self.root.set_visibility(True)  # first: update skips a closed window
         self._show_list()
-        self.root.set_visibility(True)
         await self._on_scan()  # what the Wi-Fi saw last may be old: look again
 
     def update(self) -> None:
         """Draw what the backend last said about the network (the keyboard is left alone)."""
-        if self._password_view.visible:
-            return
+        if not self.root.visible or self._password_view.visible:
+            return  # closed, its switch must not change: that would ask to turn the Wi-Fi off
         info = self._backend.network
         self._update_hotspot(info)
         if info is not None and self._doing is None:  # while turning it on or off, the switch shows the wish

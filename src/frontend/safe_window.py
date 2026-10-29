@@ -53,10 +53,15 @@ class SafeWindow:
         self._dial = Dial()
         self._opening = False  # the door is opening: the dial and the handle wait
 
-        with (
-            ui.element("div").classes("modal") as self.root,
-            ui.element("div").classes("sheet safe") as self._sheet,
-        ):
+        # built when it opens and emptied when it closes: the browser redraws every element of the page at
+        # each change, hidden ones too. Built once here, so that every attribute exists before it opens.
+        self.root = ui.element("div").classes("modal")
+        with self.root:
+            self._build()
+        self.close()
+
+    def _build(self) -> None:
+        with ui.element("div").classes("sheet safe") as self._sheet:
             with ui.element("div").classes("vault"):
                 with ui.element("div").classes("inside"):
                     ui.element("div").classes("eagle")
@@ -80,7 +85,7 @@ class SafeWindow:
                 with ui.element("div").classes("slots"):
                     self._slots = [ui.label("").classes("slot num") for _ in range(3)]
                 with ui.element("div").classes("sheet-actions"):
-                    self._close = ui.button("Close", on_click=lambda: self.root.set_visibility(False))
+                    self._close = ui.button("Close", on_click=self.close)
                     self._close.props("flat no-caps text-color=white").classes("cancel")
                     self._pull = ui.button("Pull the handle", icon="lock_open", on_click=self._on_pull)
                     self._pull.props("unelevated no-caps text-color=black")
@@ -91,16 +96,21 @@ class SafeWindow:
                 lambda event: self._on_finger(int(event.args)),
                 js_handler="(e) => dialFinger(e, emit)",
             )
+
+    def close(self) -> None:
         self.root.set_visibility(False)
+        self.root.clear()
 
     def reachable(self) -> list[Reachable]:
         return []  # no frame: the safe takes every gesture itself (on_gesture)
 
     def open(self) -> None:
-        """Locked, the dial at 0."""
+        """Locked, the dial at 0: a new door, closed."""
+        self.root.clear()
+        with self.root:
+            self._build()
         self._dial = Dial()
         self._opening = False
-        self._sheet.classes(remove="open")
         self._draw()
         self.root.set_visibility(True)
 
@@ -113,7 +123,7 @@ class SafeWindow:
         elif event is InputEvent.PRESS:
             background_tasks.create(self._on_pull())
         elif event is InputEvent.LEFT and not self._opening:
-            self.root.set_visibility(False)
+            self.close()
 
     def _on_finger(self, steps: int) -> None:
         """A finger turned the dial: the buzzer ticks as for the encoder."""
@@ -139,7 +149,7 @@ class SafeWindow:
         await self._backend.play(Sound.CONFIRM)
         await asyncio.sleep(OPEN_TIME)
         if self.root.visible:  # not closed meanwhile
-            self.root.set_visibility(False)
+            self.close()
             self._on_open()
 
     def _draw(self) -> None:

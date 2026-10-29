@@ -356,6 +356,9 @@ class SettingsWindow:
                 self._save_button.props("unelevated no-caps text-color=black")
         self.root.set_visibility(False)
 
+    def close(self) -> None:
+        self.root.set_visibility(False)
+
     def reachable(self) -> list[Reachable]:
         """The settings themselves (turning changes them, a click saves), then the buttons."""
         save = button("save", self._save_button)
@@ -428,6 +431,9 @@ class ConfirmWindow:
                 self._confirm.props("unelevated no-caps color=negative")
         self.root.set_visibility(False)
 
+    def close(self) -> None:
+        self.root.set_visibility(False)
+
     def reachable(self) -> list[Reachable]:
         # the controls start on the safe choice
         return usable(button("cancel", self._cancel, priority=1), button("confirm", self._confirm))
@@ -452,6 +458,9 @@ class InfoWindow:
             self._text = ui.html("")
             self._ok = ui.button("Got it", on_click=lambda: self.root.set_visibility(False))
             self._ok.props("unelevated no-caps text-color=black").classes("ok")
+        self.root.set_visibility(False)
+
+    def close(self) -> None:
         self.root.set_visibility(False)
 
     def reachable(self) -> list[Reachable]:

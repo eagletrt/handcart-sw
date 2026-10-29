@@ -52,6 +52,9 @@ class SystemWindow:
                 self._shut_down.props("unelevated no-caps color=negative")
         self.root.set_visibility(False)
 
+    def close(self) -> None:
+        self.root.set_visibility(False)
+
     def reachable(self) -> list[Reachable]:
         return usable(
             button("check", self._check),

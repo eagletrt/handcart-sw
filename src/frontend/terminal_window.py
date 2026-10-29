@@ -68,7 +68,17 @@ class TerminalWindow:
         self._started = 0.0  # when it started
         self._drawn_at = 0.0
 
-        with ui.element("div").classes("modal") as self.root, ui.element("div").classes("sheet term"):
+        # built when it opens and emptied when it closes: the browser redraws every element of the page at
+        # each change, hidden ones too. Built once here, so that every attribute exists before it opens.
+        self.root = ui.element("div").classes("modal")
+        with self.root:
+            self._build()
+        self.close()
+        self._client.on_disconnect(self._kill)  # the page is gone: so is what it started
+        ui.timer(1.0, self._draw_title)  # the seconds of the command running
+
+    def _build(self) -> None:
+        with ui.element("div").classes("sheet term"):
             with ui.element("div") as self._output_view:
                 with ui.element("div").classes("thead"):
                     ui.label("Terminal").classes("sheet-title")
@@ -83,7 +93,7 @@ class TerminalWindow:
                 with ui.element("div").classes("tout").props("id=terminal-output") as self._output_box:
                     self._output = ui.html("").classes("ttext num")
                 with ui.element("div").classes("sheet-actions tacts"):
-                    self._close = ui.button("Close", on_click=lambda: self.root.set_visibility(False))
+                    self._close = ui.button("Close", on_click=self.close)
                     self._close.props("flat no-caps text-color=white").classes("cancel")
                     self._stop = ui.button("Stop", icon="stop", on_click=self._on_stop)
                     self._stop.props("unelevated no-caps color=negative")
@@ -103,11 +113,11 @@ class TerminalWindow:
                     self._cancel.props("flat no-caps text-color=white").classes("cancel")
                     self._run_button = ui.button("Run", icon="play_arrow", on_click=self._on_run)
                     self._run_button.props("unelevated no-caps text-color=black")
-        self.root.set_visibility(False)
         self._keyboard_view.set_visibility(False)
-        self._client.on_disconnect(self._kill)  # the page is gone: so is what it started
-        ui.timer(1.0, self._draw_title)  # the seconds of the command running
-        self._draw()
+
+    def close(self) -> None:
+        self.root.set_visibility(False)
+        self.root.clear()
 
     def reachable(self) -> list[Reachable]:
         if self._keyboard_view.visible:
@@ -125,8 +135,11 @@ class TerminalWindow:
         return [*quick, output, *actions]
 
     def open(self) -> None:
+        self.root.clear()
+        with self.root:
+            self._build()
+        self.root.set_visibility(True)  # first: drawing skips a closed window
         self._show_output()
-        self.root.set_visibility(True)
 
     def typing(self) -> bool:
         """Whether the screen keyboard is open: a USB keyboard types into it (on_key)."""
@@ -252,6 +265,8 @@ class TerminalWindow:
         del self._lines[:-MAX_LINES]
 
     def _draw(self) -> None:
+        if not self.root.visible:
+            return  # closed: the lines are kept, and drawn when it opens
         self._drawn_at = time.monotonic()
         self._draw_title()
         # escaped: what a command prints is text, never HTML for the display
@@ -271,6 +286,8 @@ class TerminalWindow:
 
     def _draw_title(self) -> None:
         """The folder; while a command runs, the command and for how long."""
+        if not self.root.visible:
+            return
         if self._process is not None:
             seconds = time.monotonic() - self._started
             self._where.set_text(f"Running {self._running} · {seconds:.0f} s")

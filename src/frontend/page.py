@@ -333,7 +333,7 @@ class Page:
 
     def _close_windows(self) -> None:
         for window in self._windows:
-            window.root.set_visibility(False)
+            window.close()
 
     def _error_kind(self, status: Status) -> str:
         return error_kind(status.fault, status.bms, self._cfg.accumulator)
